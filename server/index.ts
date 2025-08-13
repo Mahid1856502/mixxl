@@ -78,11 +78,10 @@ app.use((req, res, next) => {
   server.listen(
     {
       port,
-      host: "127.0.0.1",
-      // reusePort: true,
+      host: "0.0.0.0", // <- binds to all network interfaces
     },
     () => {
-      log(`serving on http://127.0.0.1:${port}`);
+      log(`serving on http://0.0.0.0:${port}`);
     }
   );
 })();
