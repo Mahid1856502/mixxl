@@ -9,7 +9,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["https://mixxl.fm", "http://localhost:5173"], // Your frontend origin
+    origin: "http://localhost:5173", // Your frontend origin
     // credentials: true, // Allow cookies / credentials
   })
 );
@@ -78,11 +78,11 @@ app.use((req, res, next) => {
   server.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host: "127.0.0.1",
+      // reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on http://127.0.0.1:${port}`);
     }
   );
 })();
