@@ -9,10 +9,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: "https://mixxl.fm", // Your frontend origin
-    // credentials: true, // Allow cookies / credentials
+    origin: "https://mixxl.fm",
+    credentials: true,
   })
 );
+
+app.options("*", cors({ origin: "https://mixxl.fm", credentials: true }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
