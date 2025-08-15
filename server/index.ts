@@ -9,7 +9,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Your frontend origin
+    origin: "https://mixxl.fm", // Your frontend origin
     // credentials: true, // Allow cookies / credentials
   })
 );
