@@ -7,14 +7,23 @@ import cors from "cors";
 
 const app = express();
 
+// ---- ENV ----
+const NODE_ENV = process.env.NODE_ENV || "development"; // "development" | "production"
+const PORT = parseInt(process.env.PORT || "5000", 10);
+
+// ---- CONFIG BASED ON NODE_ENV ----
+const CORS_ORIGIN =
+  NODE_ENV === "development" ? "http://localhost:5173" : "https://mixxl.fm";
+
+// ---- MIDDLEWARE ----
 app.use(
   cors({
-    origin: "https://mixxl.fm",
+    origin: CORS_ORIGIN,
     credentials: true,
   })
 );
 
-app.options("*", cors({ origin: "https://mixxl.fm", credentials: true }));
+app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -22,6 +31,7 @@ app.use(express.urlencoded({ extended: false }));
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+// ---- LOGGING ----
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -52,38 +62,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---- SERVER BOOTSTRAP ----
 (async () => {
   const server = await registerRoutes(app);
 
+  // Global error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
+
+    if (NODE_ENV === "development") {
+      console.error(err);
+    }
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  // Vite in dev, static build in prod
+  if (NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0", // <- binds to all network interfaces
-    },
-    () => {
-      log(`serving on http://0.0.0.0:${port}`);
-    }
+  server.listen({ port: PORT, host: "0.0.0.0" }, () =>
+    log(`🚀 [${NODE_ENV}] Server running at http://0.0.0.0:${PORT}`)
   );
 })();
