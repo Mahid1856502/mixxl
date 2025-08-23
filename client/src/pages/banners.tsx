@@ -9,15 +9,6 @@ import { useState } from "react";
 import { BannerMutateModal } from "@/components/modals/mutate-banner-modal";
 import { apiRequest, BASE_URL } from "@/lib/queryClient";
 import { Banner } from "@shared/schema";
-
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useDeleteBanner } from "@/api/hooks/banners/useDeleteBanner";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
 

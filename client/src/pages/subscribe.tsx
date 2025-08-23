@@ -18,55 +18,18 @@ import {
   Crown,
   Upload,
   TrendingUp,
-  DollarSign,
+  Euro,
   Music,
   Users,
   Zap,
 } from "lucide-react";
+import { FREE_TRAIL } from "@/lib/constants";
 
 // Stripe init outside render
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
   throw new Error("Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY");
 }
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-
-// Static features list
-const features = [
-  {
-    icon: Upload,
-    title: "Unlimited Music Uploads",
-    description:
-      "Upload as many tracks as you want with high-quality audio support",
-  },
-  {
-    icon: TrendingUp,
-    title: "Advanced Analytics",
-    description:
-      "Track your performance with detailed insights and audience data",
-  },
-  {
-    icon: DollarSign,
-    title: "Monetization Tools",
-    description: "Receive tips from fans and monetize your content",
-  },
-  {
-    icon: Music,
-    title: "Radio Submissions",
-    description:
-      "Submit your tracks for consideration on Mixxl Radio playlists",
-  },
-  {
-    icon: Users,
-    title: "Fan Engagement",
-    description:
-      "Connect with your audience through messaging and live sessions",
-  },
-  {
-    icon: Zap,
-    title: "Priority Support",
-    description: "Get faster response times and dedicated artist support",
-  },
-];
 
 // Subscription payment form
 const SubscribeForm = () => {
@@ -198,6 +161,13 @@ export default function Subscribe() {
             Join thousands of independent artists building their careers on
             Mixxl
           </p>
+          <Button
+            onClick={() => (window.location.href = "/pricing-comparison")}
+            variant="outline"
+            className="flex-1 border-purple-500/30 hover:bg-purple-500/10"
+          >
+            Compare Plans
+          </Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -211,7 +181,7 @@ export default function Subscribe() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {features.map((feature, index) => (
+                {FREE_TRAIL.map((feature, index) => (
                   <div key={index} className="flex items-start space-x-3">
                     <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                     <div>
@@ -227,7 +197,10 @@ export default function Subscribe() {
                 ))}
               </CardContent>
             </Card>
+          </div>
 
+          {/* Payment Form */}
+          <div className="space-y-6">
             {/* Pricing */}
             <Card className="glass-effect border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10">
               <CardContent className="p-6 text-center">
@@ -253,10 +226,6 @@ export default function Subscribe() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Payment Form */}
-          <div className="space-y-6">
             <Card className="glass-effect">
               <CardHeader>
                 <CardTitle>Start Your Free Trial</CardTitle>

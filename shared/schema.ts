@@ -130,7 +130,6 @@ export const users = pgTable(
     location: varchar("location", { length: 255 }),
     website: varchar("website", { length: 500 }),
     socialMedia: json("social_media"),
-    isVerified: boolean("is_verified").default(false),
     emailVerified: boolean("email_verified").default(false),
     emailVerifiedAt: timestamp("email_verified_at"),
     isActive: boolean("is_active").default(true),
@@ -715,7 +714,7 @@ export const adminBroadcasts = pgTable(
     type: broadcastTypeEnum("type").notNull(),
     status: broadcastStatusEnum("status").default("draft"),
     targetAudience: varchar("target_audience", { length: 100 }).notNull(), // "all", "artists", "fans", "subscribers"
-    specificUserIds: json("specific_user_ids"), // array of user IDs for targeted messages
+    specificUserIds: json("specific_user_ids").$type<string[]>(), // array of user IDs for targeted messages
     scheduledFor: timestamp("scheduled_for"),
     sentAt: timestamp("sent_at"),
     recipientCount: integer("recipient_count").default(0),
@@ -827,7 +826,7 @@ export const insertAdminBroadcastSchema = createInsertSchema(adminBroadcasts)
     id: true,
     createdAt: true,
     updatedAt: true,
-    status: true,
+    // status: true,
     sentAt: true,
     recipientCount: true,
     openCount: true,

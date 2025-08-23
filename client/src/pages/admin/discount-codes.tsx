@@ -1,13 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Copy, Calendar, User, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, Copy, Calendar, User, Euro } from "lucide-react";
 import { Link } from "wouter";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -84,7 +79,7 @@ export default function DiscountCodesPage() {
       type: "free_subscription",
       value: "",
       maxUses: "",
-      validFrom: new Date().toISOString().split('T')[0],
+      validFrom: new Date().toISOString().split("T")[0],
       validUntil: "",
       applicableRoles: [],
       minimumAmount: "",
@@ -97,13 +92,17 @@ export default function DiscountCodesPage() {
         ...data,
         value: data.value ? parseFloat(data.value) : null,
         maxUses: data.maxUses ? parseInt(data.maxUses) : null,
-        minimumAmount: data.minimumAmount ? parseFloat(data.minimumAmount) : null,
+        minimumAmount: data.minimumAmount
+          ? parseFloat(data.minimumAmount)
+          : null,
         applicableRoles: data.applicableRoles || [],
       };
       return apiRequest("POST", "/api/admin/discount-codes", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/discount-codes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/discount-codes"],
+      });
       setIsCreateOpen(false);
       form.reset();
       toast({
@@ -127,13 +126,21 @@ export default function DiscountCodesPage() {
         ...data,
         value: data.value ? parseFloat(data.value) : null,
         maxUses: data.maxUses ? parseInt(data.maxUses) : null,
-        minimumAmount: data.minimumAmount ? parseFloat(data.minimumAmount) : null,
+        minimumAmount: data.minimumAmount
+          ? parseFloat(data.minimumAmount)
+          : null,
         applicableRoles: data.applicableRoles || [],
       };
-      return apiRequest("PUT", `/api/admin/discount-codes/${editingCode.id}`, payload);
+      return apiRequest(
+        "PUT",
+        `/api/admin/discount-codes/${editingCode.id}`,
+        payload
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/discount-codes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/discount-codes"],
+      });
       setEditingCode(null);
       form.reset();
       toast({
@@ -155,7 +162,9 @@ export default function DiscountCodesPage() {
       return apiRequest("DELETE", `/api/admin/discount-codes/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/discount-codes"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/discount-codes"],
+      });
       toast({
         title: "Success",
         description: "Discount code deleted successfully",
@@ -187,9 +196,17 @@ export default function DiscountCodesPage() {
       type: code.type as any,
       value: code.value?.toString() || "",
       maxUses: code.maxUses?.toString() || "",
-      validFrom: code.validFrom ? new Date(code.validFrom).toISOString().split('T')[0] : "",
-      validUntil: code.validUntil ? new Date(code.validUntil).toISOString().split('T')[0] : "",
-      applicableRoles: code.applicableRoles ? (Array.isArray(code.applicableRoles) ? code.applicableRoles : JSON.parse(code.applicableRoles as string)) : [],
+      validFrom: code.validFrom
+        ? new Date(code.validFrom).toISOString().split("T")[0]
+        : "",
+      validUntil: code.validUntil
+        ? new Date(code.validUntil).toISOString().split("T")[0]
+        : "",
+      applicableRoles: code.applicableRoles
+        ? Array.isArray(code.applicableRoles)
+          ? code.applicableRoles
+          : JSON.parse(code.applicableRoles as string)
+        : [],
       minimumAmount: code.minimumAmount?.toString() || "",
     });
   };
@@ -203,30 +220,39 @@ export default function DiscountCodesPage() {
   };
 
   const generateRandomCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let result = "";
     for (let i = 0; i < 8; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    form.setValue('code', result);
+    form.setValue("code", result);
   };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "active": return "bg-green-500 hover:bg-green-600";
-      case "inactive": return "bg-gray-500 hover:bg-gray-600";
-      case "expired": return "bg-red-500 hover:bg-red-600";
-      case "used_up": return "bg-orange-500 hover:bg-orange-600";
-      default: return "bg-gray-500 hover:bg-gray-600";
+      case "active":
+        return "bg-green-500 hover:bg-green-600";
+      case "inactive":
+        return "bg-gray-500 hover:bg-gray-600";
+      case "expired":
+        return "bg-red-500 hover:bg-red-600";
+      case "used_up":
+        return "bg-orange-500 hover:bg-orange-600";
+      default:
+        return "bg-gray-500 hover:bg-gray-600";
     }
   };
 
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
-      case "free_subscription": return "bg-purple-500 hover:bg-purple-600";
-      case "percentage_off": return "bg-blue-500 hover:bg-blue-600";
-      case "fixed_amount": return "bg-green-500 hover:bg-green-600";
-      default: return "bg-gray-500 hover:bg-gray-600";
+      case "free_subscription":
+        return "bg-purple-500 hover:bg-purple-600";
+      case "percentage_off":
+        return "bg-blue-500 hover:bg-blue-600";
+      case "fixed_amount":
+        return "bg-green-500 hover:bg-green-600";
+      default:
+        return "bg-gray-500 hover:bg-gray-600";
     }
   };
 
@@ -244,10 +270,17 @@ export default function DiscountCodesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Discount Codes</h1>
-            <p className="text-purple-100 mt-2">Create and manage discount codes for free artist profiles and discounts</p>
+            <p className="text-purple-100 mt-2">
+              Create and manage discount codes for free artist profiles and
+              discounts
+            </p>
           </div>
           <div className="flex gap-3">
-            <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-white/5">
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10 bg-white/5"
+            >
               <Link href="/admin">← Back to Dashboard</Link>
             </Button>
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -262,7 +295,10 @@ export default function DiscountCodesPage() {
                   <DialogTitle>Create Discount Code</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={form.handleSubmit(handleSubmit)}
+                    className="space-y-4"
+                  >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -272,7 +308,10 @@ export default function DiscountCodesPage() {
                             <FormLabel>Code</FormLabel>
                             <div className="flex gap-2">
                               <FormControl>
-                                <Input placeholder="FREEARTIST2025" {...field} />
+                                <Input
+                                  placeholder="FREEARTIST2025"
+                                  {...field}
+                                />
                               </FormControl>
                               <Button
                                 type="button"
@@ -294,7 +333,10 @@ export default function DiscountCodesPage() {
                           <FormItem>
                             <FormLabel>Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Free Artist Profile 2025" {...field} />
+                              <Input
+                                placeholder="Free Artist Profile 2025"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -309,7 +351,10 @@ export default function DiscountCodesPage() {
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Provide free artist profile access for new users" {...field} />
+                            <Textarea
+                              placeholder="Provide free artist profile access for new users"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -323,16 +368,25 @@ export default function DiscountCodesPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="free_subscription">Free Artist Profile</SelectItem>
-                                <SelectItem value="percentage_off">Percentage Off</SelectItem>
-                                <SelectItem value="fixed_amount">Fixed Amount Off</SelectItem>
+                                <SelectItem value="free_subscription">
+                                  Free Artist Profile
+                                </SelectItem>
+                                <SelectItem value="percentage_off">
+                                  Percentage Off
+                                </SelectItem>
+                                <SelectItem value="fixed_amount">
+                                  Fixed Amount Off
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -346,7 +400,10 @@ export default function DiscountCodesPage() {
                           <FormItem>
                             <FormLabel>Value</FormLabel>
                             <FormControl>
-                              <Input placeholder="25 (for 25% off) or 10 (for £10 off)" {...field} />
+                              <Input
+                                placeholder="25 (for 25% off) or 10 (for £10 off)"
+                                {...field}
+                              />
                             </FormControl>
                             <FormDescription>
                               Leave empty for free subscription codes
@@ -425,16 +482,18 @@ export default function DiscountCodesPage() {
                     </div>
 
                     <div className="flex gap-2 pt-4">
-                      <Button 
-                        type="submit" 
-                        disabled={createMutation.isPending || updateMutation.isPending}
+                      <Button
+                        type="submit"
+                        disabled={
+                          createMutation.isPending || updateMutation.isPending
+                        }
                         className="bg-gradient-to-r from-purple-500 via-pink-500 via-yellow-400 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:via-yellow-500 hover:to-purple-700"
                       >
                         {editingCode ? "Update Code" : "Create Code"}
                       </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => {
                           setIsCreateOpen(false);
                           setEditingCode(null);
@@ -471,7 +530,9 @@ export default function DiscountCodesPage() {
                     <TableHead className="text-gray-300">Name</TableHead>
                     <TableHead className="text-gray-300">Type</TableHead>
                     <TableHead className="text-gray-300">Usage</TableHead>
-                    <TableHead className="text-gray-300">Valid Period</TableHead>
+                    <TableHead className="text-gray-300">
+                      Valid Period
+                    </TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
                     <TableHead className="text-gray-300">Actions</TableHead>
                   </TableRow>
@@ -496,7 +557,9 @@ export default function DiscountCodesPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-white">{code.name}</div>
+                          <div className="font-medium text-white">
+                            {code.name}
+                          </div>
                           {code.description && (
                             <div className="text-sm text-gray-400 truncate max-w-xs">
                               {code.description}
@@ -507,7 +570,8 @@ export default function DiscountCodesPage() {
                       <TableCell>
                         <Badge className={getTypeBadgeColor(code.type)}>
                           {code.type === "free_subscription" && "Free Profile"}
-                          {code.type === "percentage_off" && `${code.value}% Off`}
+                          {code.type === "percentage_off" &&
+                            `${code.value}% Off`}
                           {code.type === "fixed_amount" && `£${code.value} Off`}
                         </Badge>
                       </TableCell>
@@ -524,17 +588,24 @@ export default function DiscountCodesPage() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-500" />
                           <div className="text-sm">
-                            <div className="text-gray-300">{new Date(code.validFrom).toLocaleDateString()}</div>
+                            <div className="text-gray-300">
+                              {new Date(code.validFrom).toLocaleDateString()}
+                            </div>
                             {code.validUntil && (
                               <div className="text-gray-500">
-                                to {new Date(code.validUntil).toLocaleDateString()}
+                                to{" "}
+                                {new Date(code.validUntil).toLocaleDateString()}
                               </div>
                             )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusBadgeColor(code.status || "active")}>
+                        <Badge
+                          className={getStatusBadgeColor(
+                            code.status || "active"
+                          )}
+                        >
                           {code.status || "active"}
                         </Badge>
                       </TableCell>
@@ -565,12 +636,15 @@ export default function DiscountCodesPage() {
               </Table>
               {(!discountCodes || discountCodes.length === 0) && (
                 <div className="text-center py-12">
-                  <DollarSign className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                  <h3 className="text-xl font-semibold mb-2 text-white">No Discount Codes</h3>
+                  <Euro className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                  <h3 className="text-xl font-semibold mb-2 text-white">
+                    No Discount Codes
+                  </h3>
                   <p className="text-gray-400 mb-6">
-                    Create discount codes to give artists free profiles or offer discounts
+                    Create discount codes to give artists free profiles or offer
+                    discounts
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => setIsCreateOpen(true)}
                     className="bg-gradient-to-r from-purple-500 via-pink-500 via-yellow-400 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:via-yellow-500 hover:to-purple-700 text-white"
                   >
@@ -585,13 +659,19 @@ export default function DiscountCodesPage() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingCode} onOpenChange={(open) => !open && setEditingCode(null)}>
+      <Dialog
+        open={!!editingCode}
+        onOpenChange={(open) => !open && setEditingCode(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Discount Code</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -620,18 +700,18 @@ export default function DiscountCodesPage() {
                   )}
                 />
               </div>
-              
+
               <div className="flex gap-2 pt-4">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={updateMutation.isPending}
                   className="bg-gradient-to-r from-purple-500 via-pink-500 via-yellow-400 to-purple-600 hover:from-purple-600 hover:via-pink-600 hover:via-yellow-500 hover:to-purple-700"
                 >
                   Update Code
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setEditingCode(null)}
                 >
                   Cancel

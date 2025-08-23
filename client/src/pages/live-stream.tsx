@@ -10,18 +10,18 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Users, 
-  Heart, 
-  MessageCircle, 
+import {
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
+  Users,
+  Heart,
+  MessageCircle,
   Send,
-  DollarSign,
+  Euro,
   Eye,
-  Clock
+  Clock,
 } from "lucide-react";
 
 interface LiveStream {
@@ -56,7 +56,7 @@ export default function LiveStreamPage() {
   const [tipAmount, setTipAmount] = useState("");
   const [tipMessage, setTipMessage] = useState("");
   const [showTipModal, setShowTipModal] = useState(false);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -64,7 +64,7 @@ export default function LiveStreamPage() {
   // Get active streams
   const { data: activeStreams = [] } = useQuery<LiveStream[]>({
     queryKey: ["/api/livestreams"],
-    refetchInterval: 5000 // Refresh every 5 seconds
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   // Start stream mutation
@@ -98,15 +98,15 @@ export default function LiveStreamPage() {
 
     wsRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       switch (data.type) {
-        case 'stream_started':
+        case "stream_started":
           queryClient.invalidateQueries({ queryKey: ["/api/livestreams"] });
           break;
-        case 'stream_ended':
+        case "stream_ended":
           queryClient.invalidateQueries({ queryKey: ["/api/livestreams"] });
           break;
-        case 'stream_message':
+        case "stream_message":
           // Handle new chat messages
           break;
       }
@@ -125,7 +125,7 @@ export default function LiveStreamPage() {
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true
+        audio: true,
       });
 
       streamRef.current = stream;
@@ -154,7 +154,7 @@ export default function LiveStreamPage() {
   const stopBroadcast = async (streamId: string) => {
     try {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
 
@@ -204,7 +204,7 @@ export default function LiveStreamPage() {
   const handleGoLive = () => {
     const title = prompt("Stream title:");
     const description = prompt("Stream description (optional):");
-    
+
     if (title) {
       startStreamMutation.mutate({ title, description: description || "" });
     }
@@ -213,7 +213,7 @@ export default function LiveStreamPage() {
   // Send chat message
   const sendChatMessage = async () => {
     if (!chatMessage.trim()) return;
-    
+
     // TODO: Send to active stream when implemented
     console.log("Sending message:", chatMessage);
     setChatMessage("");
@@ -221,7 +221,7 @@ export default function LiveStreamPage() {
 
   // Handle tip
   const handleTip = (amount: string) => {
-    const numAmount = parseFloat(amount.replace('£', ''));
+    const numAmount = parseFloat(amount.replace("£", ""));
     console.log("Tipping:", numAmount);
     // TODO: Implement actual tipping when stream is active
   };
@@ -232,7 +232,9 @@ export default function LiveStreamPage() {
         <Card>
           <CardContent className="pt-6 text-center">
             <h2 className="text-2xl font-bold mb-4">Sign In Required</h2>
-            <p className="text-muted-foreground">Please sign in to access live streams</p>
+            <p className="text-muted-foreground">
+              Please sign in to access live streams
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -245,12 +247,16 @@ export default function LiveStreamPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mixxl-gradient-text">Live Streams</h1>
-            <p className="text-muted-foreground">Connect with your audience in real-time</p>
+            <h1 className="text-3xl font-bold mixxl-gradient-text">
+              Live Streams
+            </h1>
+            <p className="text-muted-foreground">
+              Connect with your audience in real-time
+            </p>
           </div>
-          
+
           {user.role === "artist" && !isStreaming && (
-            <Button 
+            <Button
               onClick={handleGoLive}
               className="bg-red-500 hover:bg-red-600 text-white"
               size="lg"
@@ -273,7 +279,7 @@ export default function LiveStreamPage() {
                       <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                       <span>You're Live!</span>
                     </CardTitle>
-                    <Button 
+                    <Button
                       onClick={() => stopBroadcast("current-stream-id")}
                       variant="destructive"
                       size="sm"
@@ -297,7 +303,7 @@ export default function LiveStreamPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Controls */}
                   <div className="flex items-center justify-center space-x-4">
                     <Button
@@ -305,14 +311,22 @@ export default function LiveStreamPage() {
                       variant={isVideoEnabled ? "outline" : "destructive"}
                       size="sm"
                     >
-                      {isVideoEnabled ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+                      {isVideoEnabled ? (
+                        <Video className="w-4 h-4" />
+                      ) : (
+                        <VideoOff className="w-4 h-4" />
+                      )}
                     </Button>
                     <Button
                       onClick={toggleAudio}
                       variant={isAudioEnabled ? "outline" : "destructive"}
                       size="sm"
                     >
-                      {isAudioEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                      {isAudioEnabled ? (
+                        <Mic className="w-4 h-4" />
+                      ) : (
+                        <MicOff className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -326,7 +340,9 @@ export default function LiveStreamPage() {
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Video className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                    <h3 className="text-xl font-semibold mb-2">No Live Streams</h3>
+                    <h3 className="text-xl font-semibold mb-2">
+                      No Live Streams
+                    </h3>
                     <p className="text-muted-foreground">
                       Be the first to go live and connect with your audience!
                     </p>
@@ -335,7 +351,10 @@ export default function LiveStreamPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(activeStreams as LiveStream[]).map((stream: LiveStream) => (
-                    <Card key={stream.id} className="glass-effect hover:border-red-500/30 transition-colors cursor-pointer">
+                    <Card
+                      key={stream.id}
+                      className="glass-effect hover:border-red-500/30 transition-colors cursor-pointer"
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                           <Badge className="bg-red-500 text-white">
@@ -347,21 +366,23 @@ export default function LiveStreamPage() {
                             <span>{stream.viewerCount}</span>
                           </div>
                         </div>
-                        
+
                         <h3 className="font-semibold mb-2">{stream.title}</h3>
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                           {stream.description}
                         </p>
-                        
+
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Avatar className="w-6 h-6">
                               <AvatarFallback>A</AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium">Artist Name</span>
+                            <span className="text-sm font-medium">
+                              Artist Name
+                            </span>
                           </div>
                           <div className="flex items-center space-x-1 text-sm text-green-500">
-                            <DollarSign className="w-4 h-4" />
+                            <Euro className="w-4 h-4" />
                             <span>£{stream.totalTips}</span>
                           </div>
                         </div>
@@ -391,7 +412,7 @@ export default function LiveStreamPage() {
                     </div>
                   </div>
                 </ScrollArea>
-                
+
                 {/* Chat Input */}
                 <div className="flex space-x-2">
                   <Input
@@ -404,8 +425,8 @@ export default function LiveStreamPage() {
                       }
                     }}
                   />
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="shrink-0"
                     onClick={sendChatMessage}
                   >
@@ -426,9 +447,9 @@ export default function LiveStreamPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-2">
                   {["£1", "£5", "£10"].map((amount) => (
-                    <Button 
-                      key={amount} 
-                      variant="outline" 
+                    <Button
+                      key={amount}
+                      variant="outline"
                       size="sm"
                       onClick={() => handleTip(amount)}
                     >
@@ -436,7 +457,7 @@ export default function LiveStreamPage() {
                     </Button>
                   ))}
                 </div>
-                <Button 
+                <Button
                   className="w-full mixxl-gradient text-white hover:opacity-90"
                   onClick={() => {
                     const amount = prompt("Enter tip amount (£):");

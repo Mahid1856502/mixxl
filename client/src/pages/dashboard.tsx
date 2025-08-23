@@ -22,7 +22,7 @@ import {
   Zap,
   Calendar,
   MessageCircle,
-  DollarSign,
+  Euro,
   Play,
   Pause,
   Video,
@@ -122,15 +122,15 @@ export default function Dashboard() {
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Email Verification Banner */}
-        {/* {user && (
-          <EmailVerificationBanner 
+        {user && (
+          <EmailVerificationBanner
             user={{
               emailVerified: user.emailVerified || false,
               email: user.email,
               firstName: user.firstName || undefined,
             }}
           />
-        )} */}
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -148,7 +148,7 @@ export default function Dashboard() {
             <Badge variant="secondary" className="capitalize">
               {user.role}
             </Badge>
-            {user.isVerified && (
+            {user.emailVerified && (
               <Badge className="bg-blue-500 hover:bg-blue-600">Verified</Badge>
             )}
           </div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
                       <span>Advanced analytics</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <DollarSign className="w-4 h-4 text-amber-500" />
+                      <Euro className="w-4 h-4 text-amber-500" />
                       <span>Monetization</span>
                     </div>
                   </div>
@@ -233,9 +233,6 @@ export default function Dashboard() {
             <TabsTrigger value="social">Social</TabsTrigger>
             {user.role === "artist" && (
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            )}
-            {user.role === "admin" && (
-              <TabsTrigger value="admin">Admin</TabsTrigger>
             )}
           </TabsList>
 
@@ -624,64 +621,6 @@ export default function Dashboard() {
                         Upload tracks to see analytics
                       </p>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          )}
-
-          {user.role === "admin" && (
-            <TabsContent value="admin" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-                <Link href="/admin">
-                  <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Full Admin Panel
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="admin-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Total Users</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold">1,247</p>
-                    <p className="text-sm text-green-600">+15 this week</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="admin-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Active Tracks</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold">3,891</p>
-                    <p className="text-sm text-green-600">+42 this week</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="admin-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg">System Status</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Database</span>
-                        <Badge className="bg-green-500">Online</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Storage</span>
-                        <Badge className="bg-green-500">Online</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Radio</span>
-                        <Badge className="bg-amber-500">Maintenance</Badge>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </div>

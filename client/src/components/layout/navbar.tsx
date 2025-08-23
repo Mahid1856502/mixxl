@@ -13,8 +13,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { Logo } from "@/components/ui/logo";
 import {
-  Music,
-  Search,
   Bell,
   User,
   Settings,
@@ -26,25 +24,25 @@ import {
   Shield,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
+import { BASE_URL } from "@/lib/queryClient";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { isConnected } = useWebSocket();
 
+  console.log("isConnected", isConnected);
+
   // Get unread notification count
-  const { data: unreadData } = useQuery({
-    queryKey: ["/api/notifications/unread-count"],
-    enabled: !!user,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  }) as { data: { count: number } | undefined };
+  const { data: unreadData } = useUnreadNotificationCount();
 
   const navigation = [
     { name: "Discover", href: "/discover", icon: Compass },
     { name: "Radio", href: "/radio", icon: Radio },
   ];
 
-  const userNavigation = user
+  let userNavigation = user
     ? [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { name: "Upload", href: "/upload", icon: Upload, roles: ["artist"] },
@@ -53,6 +51,8 @@ export default function Navbar() {
     : [];
 
   if (user?.role === "admin") {
+    // Remove Dashboard for admins
+    userNavigation = userNavigation.filter((item) => item.name !== "Dashboard");
     userNavigation.push({ name: "Admin", href: "/admin", icon: Shield });
   }
 
@@ -69,15 +69,13 @@ export default function Navbar() {
           {/* Logo and primary navigation */}
           <div className="flex items-center space-x-8">
             {/* Hide logo completely on dashboard */}
-            {!location.startsWith("/dashboard") && (
-              <Link href="/" className="flex items-center group">
-                <Logo
-                  size="xxl"
-                  variant="full"
-                  className="group-hover:scale-105 transition-transform duration-200"
-                />
-              </Link>
-            )}
+            <Link href="/" className="flex items-center group">
+              <Logo
+                size="xxl"
+                variant="full"
+                className="group-hover:scale-105 transition-transform duration-200"
+              />
+            </Link>
 
             {/* Only show navigation on non-dashboard pages */}
             {!location.startsWith("/dashboard") && (
@@ -134,7 +132,7 @@ export default function Navbar() {
               >
                 <Bell className="w-4 h-4" />
                 {unreadData && unreadData.count > 0 && (
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 text-xs bg-red-500 hover:bg-red-600">
+                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 text-xs bg-red-500 hover:bg-red-600 flex items-center justify-center">
                     {unreadData.count > 99 ? "99+" : unreadData.count}
                   </Badge>
                 )}
@@ -215,7 +213,12 @@ export default function Navbar() {
                         }
                       >
                         <AvatarImage
-                          src={user.profileImage || ""}
+                          className="object-cover"
+                          src={
+                            user.profileImage
+                              ? `${BASE_URL}${user.profileImage}`
+                              : ""
+                          }
                           alt={user.username}
                         />
                         <AvatarFallback className="bg-primary text-primary-foreground">

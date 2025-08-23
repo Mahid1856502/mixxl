@@ -1,8 +1,8 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
+import { BASE_URL } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,25 +17,15 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Link, useLocation } from "wouter";
-import {
-  User,
-  Save,
-  ArrowLeft,
-  Camera,
-  Settings,
-  Shield,
-  Bell,
-  Globe,
-  Lock,
-  Mail,
-} from "lucide-react";
+import { Link } from "wouter";
+import { User, Save, ArrowLeft, Camera, Settings } from "lucide-react";
+import { useUpdateProfile } from "@/api/hooks/users/useUpdateProfile";
 
 export default function ProfileSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -57,102 +47,72 @@ export default function ProfileSettings() {
     }
   }, [user]);
 
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      // If there's an image, upload it first
-      if (selectedImage) {
-        const formData = new FormData();
-        formData.append("image", selectedImage);
-
-        const uploadResponse = await fetch(
-          `${BASE_URL}/api/upload/profile-image`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-            body: formData,
-          }
-        );
-
-        if (!uploadResponse.ok) {
-          throw new Error("Failed to upload image");
-        }
-
-        const uploadResult = await uploadResponse.json();
-        data.profileImage = uploadResult.url;
-      }
-
-      const response = await apiRequest("PATCH", "/api/users/profile", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id] });
-      setSelectedImage(null);
-      setImagePreview(null);
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Update failed",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
-    },
-  });
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image smaller than 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!file) return;
 
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select a valid image file",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-
+    if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "Photo selected",
-        description: `Selected ${file.name}. Click "Save Changes" to upload.`,
+        title: "File too large",
+        description: "Select an image smaller than 5MB",
+        variant: "destructive",
       });
+      return;
     }
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Select a valid image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedImage(file);
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
   };
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const handleSave = () => {
-    updateProfileMutation.mutate({
-      firstName,
-      lastName,
-      bio,
-      location: userLocation,
-      website,
-      role,
+    const formData = new FormData();
+    formData.append("firstName", firstName || "");
+    formData.append("lastName", lastName || "");
+    formData.append("bio", bio || "");
+    formData.append("location", userLocation || "");
+    formData.append("website", website || "");
+    formData.append("role", role);
+    if (selectedImage) formData.append("image", selectedImage);
+
+    updateProfile(formData, {
+      onSuccess: () => {
+        toast({ title: "Profile updated successfully!" });
+        queryClient.invalidateQueries({ queryKey: ["user"] });
+        setSelectedImage(null);
+        if (imagePreview) {
+          URL.revokeObjectURL(imagePreview);
+          setImagePreview(null);
+        }
+      },
+      onError: (err: any) => {
+        toast({
+          title: "Error updating profile",
+          description: err.message,
+          variant: "destructive",
+        });
+      },
     });
   };
 
+  console.log("user.profileImage", user?.profileImage);
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -194,18 +154,17 @@ export default function ProfileSettings() {
           </div>
           <Button
             onClick={handleSave}
-            disabled={updateProfileMutation.isPending}
-            className="mixxl-gradient text-white"
+            disabled={isPending}
+            className="text-white"
           >
             <Save className="w-4 h-4 mr-2" />
-            {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+            {isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
             <Card className="glass-effect border-white/10">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -267,46 +226,29 @@ export default function ProfileSettings() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role">Account Type</Label>
-                  <Select
-                    value={role}
-                    onValueChange={(value: "fan" | "artist") => setRole(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your account type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fan">
-                        Fan - Discover and enjoy music
-                      </SelectItem>
-                      <SelectItem value="artist">
-                        Artist - Share and promote your music
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Privacy Settings */}
-            <Card className="glass-effect border-white/10">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Lock className="w-5 h-5" />
-                  <span>Privacy Settings</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center py-8">
-                  <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Privacy Controls
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Advanced privacy settings will be available soon
-                  </p>
-                </div>
+                {user.role !== "admin" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Account Type</Label>
+                    <Select
+                      value={role}
+                      onValueChange={(value: "fan" | "artist") =>
+                        setRole(value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fan">
+                          Fan - Discover and enjoy music
+                        </SelectItem>
+                        <SelectItem value="artist">
+                          Artist - Share and promote your music
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -322,10 +264,12 @@ export default function ProfileSettings() {
                   <div className="relative inline-block">
                     <Avatar className="h-24 w-24 mx-auto mb-4">
                       <AvatarImage
+                        className="object-cover"
                         src={
-                          imagePreview ||
-                          `${BASE_URL}${user.profileImage}` ||
-                          ""
+                          imagePreview ??
+                          (user.profileImage
+                            ? `${BASE_URL}${user.profileImage}`
+                            : "")
                         }
                         alt={user.username}
                       />
@@ -343,7 +287,7 @@ export default function ProfileSettings() {
                   <div className="relative">
                     <input
                       type="file"
-                      id="profile-image"
+                      ref={fileInputRef}
                       accept="image/*"
                       onChange={handleImageChange}
                       className="hidden"
@@ -351,9 +295,7 @@ export default function ProfileSettings() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        document.getElementById("profile-image")?.click()
-                      }
+                      onClick={() => fileInputRef.current?.click()}
                     >
                       <Camera className="w-4 h-4 mr-2" />
                       Change Photo
@@ -403,57 +345,6 @@ export default function ProfileSettings() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Quick Actions */}
-            {/* <Card className="glass-effect border-white/10">
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    toast({
-                      title: "Notification Settings",
-                      description:
-                        "Notification preferences will be available soon",
-                    });
-                  }}
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  Notification Settings
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    toast({
-                      title: "Language & Region",
-                      description:
-                        "Language and region settings will be available soon",
-                    });
-                  }}
-                >
-                  <Globe className="w-4 h-4 mr-2" />
-                  Language & Region
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    toast({
-                      title: "Email Preferences",
-                      description:
-                        "Email preference settings will be available soon",
-                    });
-                  }}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email Preferences
-                </Button>
-              </CardContent>
-            </Card> */}
           </div>
         </div>
       </div>

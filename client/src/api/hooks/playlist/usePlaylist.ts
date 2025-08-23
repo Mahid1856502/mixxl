@@ -22,3 +22,15 @@ export function useUserPlaylists(identifier: string | undefined) {
     retry: 1,
   });
 }
+
+export function usePublicPlaylists() {
+  return useQuery<Playlist[], Error>({
+    queryKey: ["playlists"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/playlists");
+      if (!res.ok) throw new Error("Failed to fetch playlists");
+      return res.json() as Promise<Playlist[]>;
+    },
+    staleTime: 5 * 60 * 1000, // cache for 5 minutes
+  });
+}

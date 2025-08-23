@@ -1,14 +1,17 @@
+// server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "dotenv/config";
 import cors from "cors";
+import { WebSocketServer } from "ws"; // 👈 import ws
+import http from "http";
 
 const app = express();
 
 // ---- ENV ----
-const NODE_ENV = process.env.NODE_ENV || "development"; // "development" | "production"
+const NODE_ENV = process.env.NODE_ENV || "development";
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
 // ---- CONFIG BASED ON NODE_ENV ----
@@ -24,11 +27,8 @@ app.use(
 );
 
 app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// Serve uploaded files statically
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ---- LOGGING ----
@@ -50,11 +50,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
       log(logLine);
     }
   });
@@ -64,17 +62,31 @@ app.use((req, res, next) => {
 
 // ---- SERVER BOOTSTRAP ----
 (async () => {
-  const server = await registerRoutes(app);
+  const server = http.createServer(app); // 👈 make http server manually
 
-  // Global error handler
+  await registerRoutes(app);
+
+  // 👇 attach WebSocket server
+  const wss = new WebSocketServer({ server, path: "/ws" });
+
+  wss.on("connection", (socket) => {
+    log("🔌 WebSocket client connected");
+
+    socket.on("message", (data) => {
+      log(`📩 WS message: ${data.toString()}`);
+      // Echo back for now
+      socket.send(JSON.stringify({ type: "echo", data: data.toString() }));
+    });
+
+    socket.send(JSON.stringify({ type: "welcome", message: "Hello from WS!" }));
+  });
+
+  // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
-
-    if (NODE_ENV === "development") {
-      console.error(err);
-    }
+    if (NODE_ENV === "development") console.error(err);
   });
 
   // Vite in dev, static build in prod
@@ -84,7 +96,7 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  server.listen({ port: PORT, host: "0.0.0.0" }, () =>
-    log(`🚀 [${NODE_ENV}] Server running at http://0.0.0.0:${PORT}`)
-  );
+  server.listen(PORT, "0.0.0.0", () => {
+    log(`🚀 [${NODE_ENV}] Server running at http://0.0.0.0:${PORT}`);
+  });
 })();

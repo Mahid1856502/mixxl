@@ -11,7 +11,6 @@ import {
   insertTrackSchema,
   insertPlaylistSchema,
   insertMessageSchema,
-  insertConversationSchema,
   insertTipSchema,
   insertRadioSessionSchema,
   insertCollaborationSchema,
@@ -22,7 +21,6 @@ import {
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
-import { searchEndpoint } from "./search";
 import { sendEmail, generateVerificationEmail } from "./email";
 import {
   generateVerificationToken,
@@ -39,6 +37,39 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+const profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads", "profiles");
+
+    try {
+      // Ensure directory exists
+      fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (err) {
+      return cb(err as Error, uploadDir);
+    }
+
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+export const uploadProfile = multer({
+  storage: profileStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === "image" && !file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files are allowed"));
+    }
+    cb(null, true);
+  },
+});
 
 const uploadStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -120,17 +151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth routes
   app.post("/api/auth/signup", async (req, res) => {
-    console.log("Signup route hit with body:", req.body);
-
-    // Add early error handling
-    if (!req.body) {
-      return res.status(400).json({ message: "No request body" });
-    }
-
     try {
-      console.log("About to parse schema...");
       const userData = insertUserSchema.parse(req.body);
-      console.log("Schema parsed successfully:", userData);
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
@@ -138,55 +160,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Create user with email verification disabled initially
-      const user = await storage.createUser({
-        ...userData,
-        emailVerified: false,
-      });
+      // Encode user data in a temporary JWT token
+      const verificationToken = jwt.sign(
+        { userData },
+        JWT_SECRET,
+        { expiresIn: "1h" } // expires after 1 hour
+      );
 
-      // Generate verification token
-      const verificationToken = generateVerificationToken();
-      const expiresAt = getTokenExpirationDate();
+      // Send verification email
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+      const emailContent = generateVerificationEmail(
+        verificationUrl,
+        userData.firstName || "User"
+      );
 
-      // Store verification token
-      await storage.createEmailVerificationToken({
-        userId: user.id,
-        token: verificationToken,
-        expiresAt,
-      });
-
-      // Send verification email if SendGrid is configured
-      if (process.env.SENDGRID_API_KEY) {
-        const verificationUrl = `${req.protocol}://${req.get(
-          "host"
-        )}/verify-email?token=${verificationToken}`;
-        const emailContent = generateVerificationEmail(
-          verificationUrl,
-          user.firstName || "User"
-        );
-
-        const emailSent = await sendEmail({
-          to: user.email,
-          from: "noreply@mixxl.fm", // Now using authenticated domain
-          subject: emailContent.subject,
-          html: emailContent.html,
-          text: emailContent.text,
-        });
-
-        if (!emailSent) {
-          console.warn("Failed to send verification email to:", user.email);
-        }
-      }
-
-      // Create JWT token but user needs to verify email to access full features
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-        expiresIn: "7d",
+      await sendEmail({
+        to: userData.email,
+        from: "noreply@mixxl.fm",
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
       });
 
       res.json({
-        user: { ...user, password: undefined },
-        token,
-        emailVerificationRequired: !user.emailVerified,
+        message: "Verification email sent. Complete signup via email link.",
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -206,30 +203,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/verify-email", async (req, res) => {
     try {
       const { token } = req.query;
-
-      if (!token || typeof token !== "string") {
+      if (!token || typeof token !== "string")
         return res.status(400).json({ message: "Invalid token" });
+
+      // Decode token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as { userData: any };
+      } catch (err) {
+        return res.status(400).json({ message: "Token invalid or expired" });
       }
 
-      // Get verification token
-      const verificationToken = await storage.getEmailVerificationToken(token);
-      if (!verificationToken) {
-        return res.status(404).json({ message: "Invalid or expired token" });
-      }
+      const { userData } = decoded;
 
-      // Check if token is expired
-      if (isTokenExpired(verificationToken.expiresAt)) {
-        await storage.deleteEmailVerificationToken(token);
-        return res.status(400).json({ message: "Token has expired" });
-      }
+      // Create user in DB after verification
+      const user = await storage.createUser({
+        ...userData,
+        emailVerified: true,
+      });
 
-      // Mark email as verified
-      await storage.markEmailAsVerified(verificationToken.userId);
+      // Generate JWT token
+      const jwtToken = jwt.sign({ userId: user.id }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
-      // Delete used token
-      await storage.deleteEmailVerificationToken(token);
-
-      res.json({ message: "Email verified successfully" });
+      res.json({
+        message: "Signup complete",
+        user: { ...user, password: undefined },
+        token: jwtToken,
+      });
     } catch (error) {
       console.error("Email verification error:", error);
       res.status(500).json({ message: "Server error" });
@@ -261,9 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Send verification email if SendGrid is configured
         if (process.env.SENDGRID_API_KEY) {
-          const verificationUrl = `${req.protocol}://${req.get(
-            "host"
-          )}/verify-email?token=${verificationToken}`;
+          const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
           const emailContent = generateVerificationEmail(
             verificationUrl,
             user.firstName || "User"
@@ -411,39 +411,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Profile image upload route
-  app.post(
-    "/api/upload/profile-image",
+  // Combined profile update + image upload route
+  app.patch(
+    "/api/users/profile",
     authenticate,
-    upload.single("image"),
+    uploadProfile.single("image"), // optional profile image
     async (req: any, res) => {
       try {
-        if (!req.file) {
-          return res.status(400).json({ message: "No image file uploaded" });
-        }
+        const updateData: any = { ...req.body };
+        // If an image was uploaded, validate and add its URL
+        updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+        console.log(`Profile update request: ${JSON.stringify(updateData)}`);
 
-        // Validate that it's an image
-        if (!req.file.mimetype.startsWith("image/")) {
-          return res.status(400).json({ message: "File must be an image" });
-        }
-
-        // Return the file path
-        const imageUrl = `/uploads/${req.file.filename}`;
-        res.json({ url: imageUrl });
+        const user = await storage.updateUser(req.user.id, updateData);
+        res.json({ ...user, password: undefined });
       } catch (error) {
-        res.status(500).json({ message: "Upload failed" });
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
       }
     }
   );
-
-  app.patch("/api/users/profile", authenticate, async (req: any, res) => {
-    try {
-      const user = await storage.updateUser(req.user.id, req.body);
-      res.json({ ...user, password: undefined });
-    } catch (error) {
-      res.status(500).json({ message: "Server error" });
-    }
-  });
 
   // Track routes
   app.get("/api/tracks", async (req, res) => {
@@ -686,10 +673,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let tracks;
       if (user.role === "artist") {
         // For artists, return their uploaded tracks
-        tracks = await storage.getTracksByArtist(req.params.id);
+        tracks = await storage.getTracksByArtist(user.id);
       } else {
         // For fans, return their purchased tracks
-        tracks = await storage.getPurchasedTracksByUser(req.params.id);
+        tracks = await storage.getPurchasedTracksByUser(user.id);
       }
 
       res.json(tracks);
@@ -794,12 +781,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deletePlaylist(playlistId);
 
       // Return the deleted playlist as confirmation
-      res
-        .status(200)
-        .json({
-          message: "Playlist deleted successfully",
-          deletedPlaylist: playlist,
-        });
+      res.status(200).json({
+        message: "Playlist deleted successfully",
+        deletedPlaylist: playlist,
+      });
     } catch (error) {
       console.error("Delete playlist error:", error);
       res.status(500).json({ message: "Server error" });
@@ -1042,7 +1027,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .status(400)
             .json({ message: "Invalid data", errors: error.errors });
         }
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({
+          message: "Server error",
+          error:
+            typeof error === "object" && error !== null && "message" in error
+              ? (error as { message: string }).message
+              : String(error),
+        });
       }
     }
   );
@@ -1050,9 +1041,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Featured artists route
   app.get("/api/featured-artists", async (req, res) => {
     try {
-      const featuredArtists = await storage.getFeaturedArtists();
+      const search = req.query.search as string | undefined;
+      const featuredArtists = await storage.getFeaturedArtists(search);
+
       res.json(
-        featuredArtists.map((artist) => ({ ...artist, password: undefined }))
+        featuredArtists.map((artist) => ({
+          ...artist,
+          password: undefined,
+        }))
       );
     } catch (error) {
       console.error("Featured artists error:", error);
@@ -1086,7 +1082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: "Artist",
         role: "artist",
         profileImage: null,
-        isVerified: true,
+        emailVerified: true,
       },
       {
         id: "550e8400-e29b-41d4-a716-446655440003",
@@ -1095,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: "Lover",
         role: "fan",
         profileImage: null,
-        isVerified: false,
+        emailVerified: false,
       },
       {
         id: "550e8400-e29b-41d4-a716-446655440004",
@@ -1104,7 +1100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: "Maker",
         role: "artist",
         profileImage: null,
-        isVerified: false,
+        emailVerified: false,
       },
     ];
 
@@ -1431,7 +1427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send({
         subscriptionId: subscription.id,
         clientSecret:
-          subscription.latest_invoice?.payment_intent?.client_secret,
+          subscription.latest_invoice?.payment_intent?.client_secret || null,
       });
 
       return;

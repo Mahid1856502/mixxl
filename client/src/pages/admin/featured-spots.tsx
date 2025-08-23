@@ -18,39 +18,12 @@ import { Music, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AddFeaturedSpotModal } from "@/components/modals/mutate-featured-modal";
-
-interface FeaturedSpot {
-  id: string;
-  artistId: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  videoUrl?: string;
-  buttonText?: string;
-  buttonUrl?: string;
-  priceUSD: number;
-  startDate: Date;
-  endDate: Date;
-  status: "active" | "inactive" | "expired";
-  sortOrder: number;
-  createdAt: Date;
-  artist: {
-    id: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    profileImage: string;
-    isVerified: boolean;
-  };
-}
+import { Switch } from "@/components/ui/switch";
+import { ConfirmDialog } from "@/components/common/ConfirmPopup";
+import { FeaturedSpot } from "@shared/schema";
 
 export default function FeaturedSpotsAdmin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [editingSpot, setEditingSpot] = useState<FeaturedSpot | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -97,6 +70,9 @@ function FeaturedSpotsList() {
   const queryClient = useQueryClient();
   const [editingSpot, setEditingSpot] = useState<FeaturedSpot | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingSpot, setDeletingSpot] =
+    useState<Partial<FeaturedSpot> | null>(null);
 
   const { data: spots, isLoading } = useQuery({
     queryKey: ["/api/admin/featured-spots"],
@@ -107,7 +83,7 @@ function FeaturedSpotsList() {
     },
   });
 
-  const deleteMutation = useMutation({
+  const { mutate: deleteSpot, isPending } = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/admin/featured-spots/${id}`);
     },
@@ -153,14 +129,27 @@ function FeaturedSpotsList() {
 
   const handleEdit = (spot: any) => {
     setEditingSpot(spot);
+    setDeletingSpot(null);
     setIsEditDialogOpen(true);
   };
 
-  const handleDelete = (spot: any) => {
-    if (confirm(`Are you sure you want to delete "${spot.title}"?`)) {
-      deleteMutation.mutate(spot.id);
-    }
-  };
+  // const handleDelete = (spot: any) => {
+  //   if (confirm(`Are you sure you want to delete "${spot.title}"?`)) {
+  //     deleteSpot.mutate(spot.id);
+  //   }
+  // };
+
+  async function handleDelete(id: string) {
+    deleteSpot(id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        setDeletingSpot(null);
+      },
+      onError: () => {
+        alert("Error deleting spot.");
+      },
+    });
+  }
 
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -180,6 +169,7 @@ function FeaturedSpotsList() {
       priceUSD: parseFloat(formData.get("priceUSD") as string),
       startDate: startDateStr ? new Date(startDateStr) : null,
       endDate: endDateStr ? new Date(endDateStr) : null,
+      status: formData.get("status") === "on" ? "active" : "pending",
     };
 
     updateMutation.mutate({ id: editingSpot.id, updates });
@@ -259,8 +249,11 @@ function FeaturedSpotsList() {
                     variant="outline"
                     size="sm"
                     className="border-red-500 text-red-400 hover:bg-red-500/10"
-                    onClick={() => handleDelete(spot)}
-                    disabled={deleteMutation.isPending}
+                    onClick={() => {
+                      setDeletingSpot(spot);
+                      setDeleteOpen(true);
+                    }}
+                    disabled={isPending}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -321,7 +314,7 @@ function FeaturedSpotsList() {
                 <Textarea
                   id="description"
                   name="description"
-                  defaultValue={editingSpot.description}
+                  defaultValue={editingSpot.description ?? ""}
                   className="bg-gray-800 border-gray-600 text-white"
                   rows={3}
                   required
@@ -421,6 +414,22 @@ function FeaturedSpotsList() {
                   />
                 </div>
               </div>
+              <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800 px-4 py-3">
+                <div>
+                  <Label htmlFor="status" className="text-gray-300">
+                    Active
+                  </Label>
+                  <p className="text-xs text-gray-400">
+                    Toggle to set whether this featured spot is active or
+                    inactive.
+                  </p>
+                </div>
+                <Switch
+                  id="status"
+                  name="status"
+                  defaultChecked={editingSpot.status === "active"}
+                />
+              </div>
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button
@@ -445,6 +454,27 @@ function FeaturedSpotsList() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Spot"
+        description={
+          <>
+            Are you sure you want to delete the spot{" "}
+            <strong>{deletingSpot?.title || "Untitled"}</strong>? This action
+            cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => {
+          if (deletingSpot?.id) {
+            handleDelete(deletingSpot.id);
+          }
+        }}
+        isPending={isPending}
+      />
     </>
   );
 }

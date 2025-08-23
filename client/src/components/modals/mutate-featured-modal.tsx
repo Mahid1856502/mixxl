@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { InsertFeaturedSpot, insertFeaturedSpotSchema } from "@shared/schema";
 import { DatePicker } from "../common/DatePicker";
 import { DialogDescription } from "@radix-ui/react-dialog";
-import { useAllArtists } from "@/api/hooks/artists/useArtists";
+import { useAllArtists } from "@/api/hooks/users/useArtists";
 import {
   Select,
   SelectContent,

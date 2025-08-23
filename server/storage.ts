@@ -10,6 +10,7 @@ import {
   sql,
   ne,
   isNull,
+  ilike,
 } from "drizzle-orm";
 import {
   users,
@@ -290,6 +291,12 @@ export interface IStorage {
 }
 
 export class MySQLStorage implements IStorage {
+  getBanner(id: string): Promise<Banner | undefined> {
+    throw new Error("Method not implemented.");
+  }
+  getBanners(activeOnly?: boolean): Promise<Banner[]> {
+    throw new Error("Method not implemented.");
+  }
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const result = await db
@@ -357,8 +364,20 @@ export class MySQLStorage implements IStorage {
     await db.delete(users).where(eq(users.id, id));
   }
 
-  async getFeaturedArtists(): Promise<User[]> {
-    // Get featured artists with follower count
+  // inside your function
+  async getFeaturedArtists(search?: string): Promise<User[]> {
+    let whereCondition: ReturnType<typeof eq> | ReturnType<typeof and>;
+
+    if (typeof search === "string" && search.length > 0) {
+      // case-insensitive contains search
+      whereCondition = and(
+        eq(users.role, "artist"),
+        ilike(users.username, `%${search}%`)
+      );
+    } else {
+      whereCondition = eq(users.role, "artist");
+    }
+
     const artistsWithFollowerCount = await db
       .select({
         id: users.id,
@@ -374,7 +393,6 @@ export class MySQLStorage implements IStorage {
         location: users.location,
         website: users.website,
         socialMedia: users.socialMedia,
-        isVerified: users.isVerified,
         isActive: users.isActive,
         stripeCustomerId: users.stripeCustomerId,
         stripeSubscriptionId: users.stripeSubscriptionId,
@@ -388,12 +406,7 @@ export class MySQLStorage implements IStorage {
       })
       .from(users)
       .leftJoin(follows, eq(follows.followingId, users.id))
-      .where(
-        and(
-          eq(users.role, "artist"),
-          inArray(users.username, ["indie_melody", "beatmaker"])
-        )
-      )
+      .where(whereCondition)
       .groupBy(users.id)
       .orderBy(users.username);
 
@@ -419,7 +432,6 @@ export class MySQLStorage implements IStorage {
         location: users.location,
         website: users.website,
         socialMedia: users.socialMedia,
-        isVerified: users.isVerified,
         emailVerified: users.emailVerified, // Add this
         emailVerifiedAt: users.emailVerifiedAt, // Add this
         isActive: users.isActive,
@@ -1241,7 +1253,7 @@ export class MySQLStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           profileImage: users.profileImage,
-          isVerified: users.isVerified,
+          emailVerified: users.emailVerified,
         },
       })
       .from(notifications)
@@ -1315,7 +1327,7 @@ export class MySQLStorage implements IStorage {
           lastName: users.lastName,
           role: users.role,
           profileImage: users.profileImage,
-          isVerified: users.isVerified,
+          emailVerified: users.emailVerified,
         })
         .from(users)
         .where(
@@ -1412,6 +1424,7 @@ export class MySQLStorage implements IStorage {
       ...track,
       playCount: track.playCount || 0,
       likesCount: track.likesCount || 0,
+      downloadCount: 0,
       isExplicit: track.isExplicit || false,
       hasPreviewOnly: track.hasPreviewOnly || false,
       isPublic: track.isPublic || false,
@@ -1431,7 +1444,7 @@ export class MySQLStorage implements IStorage {
         role: followingUserTable.role,
         bio: followingUserTable.bio,
         profileImage: followingUserTable.profileImage,
-        isVerified: followingUserTable.isVerified,
+        emailVerified: followingUserTable.emailVerified,
       })
       .from(follows)
       .leftJoin(
@@ -1564,7 +1577,7 @@ export class MySQLStorage implements IStorage {
 
   // Admin operations - Featured Spots
   async getFeaturedSpots(status?: string): Promise<any[]> {
-    let query = db
+    let baseQuery = db
       .select({
         id: featuredSpots.id,
         artistId: featuredSpots.artistId,
@@ -1592,13 +1605,20 @@ export class MySQLStorage implements IStorage {
       .leftJoin(users, eq(featuredSpots.artistId, users.id));
 
     if (status) {
-      query = query.where(eq(featuredSpots.status, status));
+      return await baseQuery
+        .where(
+          eq(
+            featuredSpots.status,
+            status as "pending" | "cancelled" | "active" | "expired"
+          )
+        )
+        .orderBy(featuredSpots.sortOrder, featuredSpots.createdAt);
+    } else {
+      return await baseQuery.orderBy(
+        featuredSpots.sortOrder,
+        featuredSpots.createdAt
+      );
     }
-
-    return await query.orderBy(
-      featuredSpots.sortOrder,
-      featuredSpots.createdAt
-    );
   }
 
   async getFeaturedSpot(id: string): Promise<any | null> {
@@ -1636,7 +1656,7 @@ export class MySQLStorage implements IStorage {
 
   async createFeaturedSpot(spot: any): Promise<any> {
     const id = randomUUID();
-    const spotData = { ...spot, id };
+    const spotData = { ...spot, id, status: "active" };
     const [newSpot] = await db
       .insert(featuredSpots)
       .values(spotData)
@@ -1657,12 +1677,19 @@ export class MySQLStorage implements IStorage {
   async getAdminBroadcasts(status?: string): Promise<any[]> {
     let query = db.select().from(adminBroadcasts);
     if (status) {
-      query = query.where(eq(adminBroadcasts.status, status));
+      return await query
+        .where(
+          eq(
+            adminBroadcasts.status,
+            status as "failed" | "scheduled" | "draft" | "sent"
+          )
+        )
+        .orderBy(desc(adminBroadcasts.createdAt));
     }
     return await query.orderBy(desc(adminBroadcasts.createdAt));
   }
 
-  async getAdminBroadcast(id: string): Promise<any | null> {
+  async getAdminBroadcast(id: string): Promise<AdminBroadcast | undefined> {
     const [broadcast] = await db
       .select()
       .from(adminBroadcasts)
@@ -1694,7 +1721,10 @@ export class MySQLStorage implements IStorage {
   }
 
   async getUsersByRole(role: string): Promise<any[]> {
-    return await db.select().from(users).where(eq(users.role, role));
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.role, role as "fan" | "artist" | "admin"));
   }
 
   async getSubscribedUsers(): Promise<any[]> {

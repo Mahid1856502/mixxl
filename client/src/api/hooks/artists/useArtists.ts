@@ -1,19 +1,19 @@
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
 
-export function useAllArtists() {
+export function useFeaturedArtists(username?: string) {
   return useQuery<User[], Error>({
-    queryKey: ["allArtists"],
+    queryKey: ["featuredArtists", username], // cache per search
     queryFn: async () => {
-      console.log("fetch artists");
-      const res = await apiRequest("GET", "/api/artists");
-      console.log("res", res);
-      if (!res.ok) {
-        throw new Error("Failed to fetch artists");
-      }
-      return res.json();
+      const url = username
+        ? `/api/featured-artists?search=${username}`
+        : "/api/featured-artists";
+
+      const res = await apiRequest("GET", url);
+      if (!res.ok) throw new Error("Failed to fetch featured artists");
+      return res.json() as Promise<User[]>;
     },
-    staleTime: 5 * 60 * 1000, // cache for 5 mins, tweak as needed
+    staleTime: 5 * 60 * 1000, // cache for 5 minutes
   });
 }

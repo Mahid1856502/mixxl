@@ -53,7 +53,7 @@ import {
   BarChart3,
   Globe,
   MessageSquare,
-  DollarSign,
+  Euro,
   Activity,
   Server,
   Play,
@@ -466,7 +466,7 @@ export default function Admin() {
     {
       title: "Revenue",
       value: `£${systemStats?.revenue?.toFixed(2) || "0.00"}`,
-      icon: DollarSign,
+      icon: Euro,
       color: "text-green-500",
       change: "+£120 today",
     },
@@ -1011,7 +1011,7 @@ export default function Admin() {
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
                 <Link href="/admin/discount-codes">
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <Euro className="w-4 h-4 mr-2" />
                   Manage Codes
                 </Link>
               </Button>
@@ -1021,7 +1021,7 @@ export default function Admin() {
               <Card className="admin-card">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <DollarSign className="w-5 h-5" />
+                    <Euro className="w-5 h-5" />
                     Total Codes
                   </CardTitle>
                 </CardHeader>
@@ -1144,7 +1144,7 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
-                  <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <Euro className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-xl font-semibold mb-2">
                     No Recent Activity
                   </h3>

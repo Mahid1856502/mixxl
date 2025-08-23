@@ -4,21 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, Check, CheckCheck, User, Heart, MessageCircle, Radio, Gift } from "lucide-react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  User,
+  Heart,
+  MessageCircle,
+  Radio,
+  Gift,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLocation } from "wouter";
+import {
+  useNotifications,
+  useUnreadNotificationCount,
+} from "@/api/hooks/notifications/useNotifications";
 
 const NotificationIcon = ({ type }: { type: string }) => {
   switch (type) {
-    case 'follow':
+    case "follow":
       return <User className="w-4 h-4 text-blue-500" />;
-    case 'message':
+    case "message":
       return <MessageCircle className="w-4 h-4 text-green-500" />;
-    case 'tip':
+    case "tip":
       return <Gift className="w-4 h-4 text-yellow-500" />;
-    case 'live_stream':
+    case "live_stream":
       return <Radio className="w-4 h-4 text-red-500" />;
-    case 'track_like':
+    case "track_like":
       return <Heart className="w-4 h-4 text-pink-500" />;
     default:
       return <Bell className="w-4 h-4 text-gray-500" />;
@@ -28,38 +41,43 @@ const NotificationIcon = ({ type }: { type: string }) => {
 export default function NotificationsPage() {
   const [, setLocation] = useLocation();
 
-  // Get notifications
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ["/api/notifications"],
-  }) as { data: any[], isLoading: boolean };
-
-  // Get unread count
-  const { data: unreadData } = useQuery({
-    queryKey: ["/api/notifications/unread-count"],
-  }) as { data: { count: number } | undefined };
+  const { data: notifications = [], isLoading: notificationsLoading } =
+    useNotifications();
+  const { data: unreadData, isLoading: unreadLoading } =
+    useUnreadNotificationCount();
 
   // Mark notification as read
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const response = await apiRequest("PATCH", `/api/notifications/${notificationId}/read`);
+      const response = await apiRequest(
+        "PATCH",
+        `/api/notifications/${notificationId}/read`
+      );
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
-    }
+      queryClient.invalidateQueries({
+        queryKey: ["/api/notifications/unread-count"],
+      });
+    },
   });
 
   // Mark all as read
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("PATCH", "/api/notifications/mark-all-read");
+      const response = await apiRequest(
+        "PATCH",
+        "/api/notifications/mark-all-read"
+      );
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
-    }
+      queryClient.invalidateQueries({
+        queryKey: ["/api/notifications/unread-count"],
+      });
+    },
   });
 
   const handleNotificationClick = (notification: any) => {
@@ -74,7 +92,7 @@ export default function NotificationsPage() {
     }
   };
 
-  if (isLoading) {
+  if (notificationsLoading || unreadLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
@@ -96,7 +114,8 @@ export default function NotificationsPage() {
               <h1 className="text-3xl font-bold">Notifications</h1>
               {unreadData && unreadData.count > 0 && (
                 <p className="text-muted-foreground">
-                  You have {unreadData.count} unread notification{unreadData.count !== 1 ? 's' : ''}
+                  You have {unreadData.count} unread notification
+                  {unreadData.count !== 1 ? "s" : ""}
                 </p>
               )}
             </div>
@@ -119,10 +138,12 @@ export default function NotificationsPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Bell className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No notifications yet</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                No notifications yet
+              </h3>
               <p className="text-muted-foreground text-center">
-                When someone follows you, sends a message, or interacts with your content,
-                you'll see notifications here.
+                When someone follows you, sends a message, or interacts with
+                your content, you'll see notifications here.
               </p>
             </CardContent>
           </Card>
@@ -133,9 +154,9 @@ export default function NotificationsPage() {
                 <Card
                   key={notification.id}
                   className={`cursor-pointer transition-all hover:shadow-md ${
-                    !notification.isRead 
-                      ? 'border-primary/20 bg-primary/5' 
-                      : 'hover:bg-muted/50'
+                    !notification.isRead
+                      ? "border-primary/20 bg-primary/5"
+                      : "hover:bg-muted/50"
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
@@ -151,7 +172,9 @@ export default function NotificationsPage() {
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
                             <span className="text-white font-semibold text-sm">
-                              {notification.actor?.firstName?.[0] || notification.actor?.username?.[0] || '?'}
+                              {notification.actor?.firstName?.[0] ||
+                                notification.actor?.username?.[0] ||
+                                "?"}
                             </span>
                           </div>
                         )}
@@ -166,12 +189,18 @@ export default function NotificationsPage() {
                                 {notification.title}
                               </span>
                               {!notification.isRead && (
-                                <Badge variant="secondary" className="h-5 text-xs">
+                                <Badge
+                                  variant="secondary"
+                                  className="h-5 text-xs"
+                                >
                                   New
                                 </Badge>
                               )}
-                              {notification.actor?.isVerified && (
-                                <Badge variant="secondary" className="h-5 text-xs bg-blue-500/10 text-blue-600">
+                              {notification.actor?.emailVerified && (
+                                <Badge
+                                  variant="secondary"
+                                  className="h-5 text-xs bg-blue-500/10 text-blue-600"
+                                >
                                   ✓
                                 </Badge>
                               )}
@@ -181,7 +210,10 @@ export default function NotificationsPage() {
                             </p>
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                {formatDistanceToNow(
+                                  new Date(notification.createdAt),
+                                  { addSuffix: true }
+                                )}
                               </span>
                               {!notification.isRead && (
                                 <Button

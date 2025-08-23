@@ -1,4 +1,4 @@
-import { MailService } from '@sendgrid/mail';
+import { MailService } from "@sendgrid/mail";
 
 const mailService = new MailService();
 
@@ -17,7 +17,9 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('SendGrid API key not configured - email verification disabled');
+    console.warn(
+      "SendGrid API key not configured - email verification disabled"
+    );
     return false;
   }
 
@@ -26,19 +28,22 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       to: params.to,
       from: params.from,
       subject: params.subject,
-      text: params.text,
+      text: params.text ?? "",
       html: params.html,
     });
     return true;
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    console.error("SendGrid email error:", error);
     return false;
   }
 }
 
-export function generateVerificationEmail(verificationUrl: string, firstName: string) {
-  const subject = 'Verify your Mixxl account';
-  
+export function generateVerificationEmail(
+  verificationUrl: string,
+  firstName: string
+) {
+  const subject = "Verify your Mixxl account";
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -109,6 +114,6 @@ export function generateVerificationEmail(verificationUrl: string, firstName: st
   return {
     subject,
     html,
-    text
+    text,
   };
 }

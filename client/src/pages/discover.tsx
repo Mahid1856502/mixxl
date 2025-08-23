@@ -5,32 +5,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
 import UserCard from "@/components/social/user-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { 
-  Search, 
-  Filter, 
-  TrendingUp, 
-  Music, 
-  Users, 
+import {
+  Search,
+  Filter,
+  TrendingUp,
+  Music,
+  Users,
   Clock,
   Heart,
   Play,
   Radio,
   Shuffle,
   Compass,
-  Lock
+  Lock,
 } from "lucide-react";
+import { useFeaturedArtists } from "@/api/hooks/artists/useArtists";
+import { usePublicPlaylists } from "@/api/hooks/playlist/usePlaylist";
+import { useRadioSessions } from "@/api/hooks/radio/useRadioSession";
+import { Track } from "@shared/schema";
 
 const genres = [
-  "All", "Electronic", "Hip Hop", "Pop", "Rock", "Jazz", "Classical",
-  "R&B", "Country", "Folk", "Reggae", "Blues", "Indie",
-  "Alternative", "Metal", "Punk", "Ambient", "House", "Techno"
+  "All",
+  "Electronic",
+  "Hip Hop",
+  "Pop",
+  "Rock",
+  "Jazz",
+  "Classical",
+  "R&B",
+  "Country",
+  "Folk",
+  "Reggae",
+  "Blues",
+  "Indie",
+  "Alternative",
+  "Metal",
+  "Punk",
+  "Ambient",
+  "House",
+  "Techno",
 ];
 
 const sortOptions = [
@@ -45,6 +71,7 @@ export default function Discover() {
   const { user } = useAuth();
   const { messages } = useWebSocket();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchTrigger, setSearchTrigger] = useState(""); // new state
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
@@ -52,47 +79,40 @@ export default function Discover() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const { data: tracks = [], isLoading: tracksLoading } = useQuery({
-    queryKey: ["/api/tracks", { search: searchQuery, genre: selectedGenre, sort: sortBy }],
+    queryKey: [
+      "/api/tracks",
+      { search: searchQuery, genre: selectedGenre, sort: sortBy },
+    ],
     queryFn: async () => {
       let url = "/api/tracks";
       const params = new URLSearchParams();
-      
+
       if (searchQuery) {
         url = "/api/tracks/search";
         params.set("q", searchQuery);
       }
-      
+
       if (selectedGenre !== "All") {
         params.set("genre", selectedGenre);
       }
-      
+
       params.set("sort", sortBy);
       params.set("limit", "50");
-      
+
       const response = await fetch(`${url}?${params}`);
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const { data: playlists = [] } = useQuery({
-    queryKey: ["/api/playlists"],
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: playlists = [] } = usePublicPlaylists();
 
-  const { data: featuredArtists = [] } = useQuery({
-    queryKey: ["/api/featured-artists"],
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const { data: featuredArtists = [] } = useFeaturedArtists(searchTrigger);
 
-  const { data: radioSessions = [] } = useQuery({
-    queryKey: ["/api/radio/sessions"],
-    staleTime: 60 * 1000, // 1 minute
-  });
-
+  const { data: radioSessions = [] } = useRadioSessions();
   // Listen for new tracks via WebSocket
   useEffect(() => {
-    const newTrackMessages = messages.filter(msg => msg.type === 'new_track');
+    const newTrackMessages = messages.filter((msg) => msg.type === "new_track");
     if (newTrackMessages.length > 0) {
       // Invalidate tracks query to refresh
       // queryClient.invalidateQueries(["/api/tracks"]);
@@ -115,6 +135,10 @@ export default function Discover() {
     return true;
   });
 
+  const handleSearch = () => {
+    setSearchTrigger(searchQuery); // trigger the query
+  };
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -122,10 +146,13 @@ export default function Discover() {
         <div className="text-center space-y-4">
           <div className="inline-flex items-center space-x-2 mb-4">
             <Compass className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-bold mixxl-gradient-text">Discover Music</h1>
+            <h1 className="text-4xl font-bold mixxl-gradient-text">
+              Discover Music
+            </h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Explore new sounds, discover emerging artists, and find your next favorite track
+            Explore new sounds, discover emerging artists, and find your next
+            favorite track
           </p>
         </div>
 
@@ -145,34 +172,51 @@ export default function Discover() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setShowFilters(!showFilters)}
+                  onClick={() => handleSearch()}
                   className="absolute right-2 top-2"
                 >
-                  <Filter className="h-4 w-4" />
+                  <Search className="h-4 w-4" />
                 </Button>
               </div>
 
               {/* Quick Genre Tags */}
-              <div className="flex flex-wrap gap-2">
-                {genres.slice(0, 8).map((genre) => (
-                  <Button
-                    key={genre}
-                    variant={selectedGenre === genre ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedGenre(genre)}
-                    className={selectedGenre === genre ? "mixxl-gradient text-white" : ""}
-                  >
-                    {genre}
-                  </Button>
-                ))}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {genres.slice(0, 8).map((genre) => (
+                    <Button
+                      key={genre}
+                      variant={selectedGenre === genre ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedGenre(genre)}
+                      className={
+                        selectedGenre === genre
+                          ? "mixxl-gradient text-white"
+                          : ""
+                      }
+                    >
+                      {genre}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  size="icon"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
               </div>
 
               {/* Advanced Filters */}
               {showFilters && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/5 rounded-lg">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Genre</label>
-                    <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                    <label className="text-sm font-medium mb-2 block">
+                      Genre
+                    </label>
+                    <Select
+                      value={selectedGenre}
+                      onValueChange={setSelectedGenre}
+                    >
                       <SelectTrigger className="bg-white/5 border-white/10">
                         <SelectValue />
                       </SelectTrigger>
@@ -187,7 +231,9 @@ export default function Discover() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Sort By</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Sort By
+                    </label>
                     <Select value={sortBy} onValueChange={setSortBy}>
                       <SelectTrigger className="bg-white/5 border-white/10">
                         <SelectValue />
@@ -203,8 +249,8 @@ export default function Discover() {
                   </div>
 
                   <div className="flex items-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         setSearchQuery("");
                         setSelectedGenre("All");
@@ -229,12 +275,17 @@ export default function Discover() {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 bg-red-500 rounded-full pulse-ring"></div>
-                    <Badge variant="destructive" className="bg-red-500">LIVE</Badge>
+                    <Badge variant="destructive" className="bg-red-500">
+                      LIVE
+                    </Badge>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Radio is Live Now!</h3>
+                    <h3 className="text-lg font-semibold">
+                      Radio is Live Now!
+                    </h3>
                     <p className="text-muted-foreground">
-                      {radioSessions[0]?.title} • {radioSessions[0]?.listenerCount} listeners
+                      {radioSessions[0]?.title} •{" "}
+                      {radioSessions[0]?.listenerCount} listeners
                     </p>
                   </div>
                 </div>
@@ -254,15 +305,24 @@ export default function Discover() {
               <Music className="w-4 h-4" />
               <span>Tracks</span>
             </TabsTrigger>
-            <TabsTrigger value="playlists" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="playlists"
+              className="flex items-center space-x-2"
+            >
               <Heart className="w-4 h-4" />
               <span>Playlists</span>
             </TabsTrigger>
-            <TabsTrigger value="artists" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="artists"
+              className="flex items-center space-x-2"
+            >
               <Users className="w-4 h-4" />
               <span>Artists</span>
             </TabsTrigger>
-            <TabsTrigger value="trending" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="trending"
+              className="flex items-center space-x-2"
+            >
               <TrendingUp className="w-4 h-4" />
               <span>Trending</span>
             </TabsTrigger>
@@ -272,7 +332,9 @@ export default function Discover() {
             {/* Results Summary */}
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">
-                {searchQuery ? `Search Results for "${searchQuery}"` : "All Tracks"}
+                {searchQuery
+                  ? `Search Results for "${searchQuery}"`
+                  : "All Tracks"}
               </h2>
               <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                 <span>{filteredTracks.length} tracks found</span>
@@ -302,10 +364,12 @@ export default function Discover() {
               <Card className="glass-effect border-white/10">
                 <CardContent className="py-12 text-center">
                   <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-xl font-semibold mb-2">No tracks found</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    No tracks found
+                  </h3>
                   <p className="text-muted-foreground mb-6">
-                    {searchQuery 
-                      ? "Try adjusting your search terms or filters" 
+                    {searchQuery
+                      ? "Try adjusting your search terms or filters"
                       : "Be the first to upload a track!"}
                   </p>
                   {!searchQuery && user?.role === "artist" && (
@@ -333,7 +397,7 @@ export default function Discover() {
                       {filteredTracks
                         .filter((track: any) => track.hasPreviewOnly)
                         .map((track: any) => (
-                          <TrackCard 
+                          <TrackCard
                             key={`preview-${track.id}`}
                             track={track}
                             compact={true}
@@ -343,14 +407,14 @@ export default function Discover() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Regular Tracks Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredTracks
                     .filter((track: any) => !track.hasPreviewOnly)
                     .map((track: any) => (
-                      <TrackCard 
-                        key={track.id} 
+                      <TrackCard
+                        key={track.id}
                         track={track}
                         isPlaying={currentTrack?.id === track.id && isPlaying}
                         onPlay={handlePlay}
@@ -365,14 +429,18 @@ export default function Discover() {
           <TabsContent value="playlists" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Featured Playlists</h2>
-              <p className="text-muted-foreground">{playlists.length} playlists</p>
+              <p className="text-muted-foreground">
+                {playlists.length} playlists
+              </p>
             </div>
 
             {playlists.length === 0 ? (
               <Card className="glass-effect border-white/10">
                 <CardContent className="py-12 text-center">
                   <Heart className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-xl font-semibold mb-2">No playlists yet</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    No playlists yet
+                  </h3>
                   <p className="text-muted-foreground">
                     Curated playlists will appear here as users create them
                   </p>
@@ -388,18 +456,23 @@ export default function Discover() {
           </TabsContent>
 
           <TabsContent value="artists" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-3">
               <h2 className="text-2xl font-bold">Featured Artists</h2>
-              <p className="text-muted-foreground">{featuredArtists.length} artists</p>
+              <p className="text-muted-foreground">
+                {featuredArtists.length} artists
+              </p>
             </div>
 
             {featuredArtists.length === 0 ? (
               <Card className="glass-effect border-white/10">
                 <CardContent className="py-12 text-center">
                   <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-xl font-semibold mb-2">No featured artists yet</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    No featured artists yet
+                  </h3>
                   <p className="text-muted-foreground">
-                    Talented artists will be featured here as they join the platform
+                    Talented artists will be featured here as they join the
+                    platform
                   </p>
                 </CardContent>
               </Card>
@@ -414,7 +487,7 @@ export default function Discover() {
 
           <TabsContent value="trending" className="space-y-6">
             <h2 className="text-2xl font-bold">Trending Now</h2>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Trending Tracks */}
               <Card className="glass-effect border-white/10">
@@ -426,29 +499,36 @@ export default function Discover() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredTracks.slice(0, 5).map((track: any, index) => (
-                      <div key={track.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-sm font-bold">
-                          #{index + 1}
-                        </div>
-                        <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                          <Music className="w-6 h-6 text-white/70" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{track.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {track.playCount} plays
-                          </p>
-                        </div>
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          onClick={() => handlePlay(track)}
+                    {filteredTracks
+                      .slice(0, 5)
+                      .map((track: Track, index: number) => (
+                        <div
+                          key={track.id}
+                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
                         >
-                          <Play className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-sm font-bold">
+                            #{index + 1}
+                          </div>
+                          <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                            <Music className="w-6 h-6 text-white/70" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {track.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {track.playCount} plays
+                            </p>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handlePlay(track)}
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
                   </div>
                 </CardContent>
               </Card>
@@ -464,7 +544,10 @@ export default function Discover() {
                 <CardContent>
                   <div className="space-y-4">
                     {featuredArtists.slice(0, 5).map((artist: any, index) => (
-                      <div key={artist.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
+                      <div
+                        key={artist.id}
+                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
+                      >
                         <div className="w-8 h-8 rounded bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center text-sm font-bold">
                           #{index + 1}
                         </div>
@@ -475,8 +558,8 @@ export default function Discover() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">
-                            {artist.firstName && artist.lastName 
-                              ? `${artist.firstName} ${artist.lastName}` 
+                            {artist.firstName && artist.lastName
+                              ? `${artist.firstName} ${artist.lastName}`
                               : artist.username}
                           </p>
                           <p className="text-sm text-muted-foreground">

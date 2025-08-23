@@ -26,8 +26,8 @@ export default function Sidebar() {
   const [location] = useLocation();
 
   const { data: playlists = [] } = useQuery({
-    queryKey: ["/api/users", user?.id, "playlists"],
-    enabled: !!user,
+    queryKey: ["/api/playlists"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: collaborations = [] } = useQuery({

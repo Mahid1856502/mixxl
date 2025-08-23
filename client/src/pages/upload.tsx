@@ -8,29 +8,50 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { 
-  Upload as UploadIcon, 
-  Music, 
-  Image, 
-  X, 
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Upload as UploadIcon,
+  Music,
+  Image,
+  X,
   Play,
   Crown,
   AlertCircle,
   CheckCircle,
-  Radio
+  Radio,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 const uploadSchema = z.object({
-  title: z.string().min(1, "Title is required").max(100, "Title must be less than 100 characters"),
-  description: z.string().max(500, "Description must be less than 500 characters").optional(),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(100, "Title must be less than 100 characters"),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .optional(),
   genre: z.string().min(1, "Genre is required"),
   mood: z.string().optional(),
   price: z.number().min(0).max(1000).optional(),
@@ -44,21 +65,44 @@ const uploadSchema = z.object({
 type UploadForm = z.infer<typeof uploadSchema>;
 
 const genres = [
-  "Electronic", "Hip Hop", "Pop", "Rock", "Jazz", "Classical",
-  "R&B", "Country", "Folk", "Reggae", "Blues", "Indie",
-  "Alternative", "Metal", "Punk", "Ambient", "House", "Techno"
+  "Electronic",
+  "Hip Hop",
+  "Pop",
+  "Rock",
+  "Jazz",
+  "Classical",
+  "R&B",
+  "Country",
+  "Folk",
+  "Reggae",
+  "Blues",
+  "Indie",
+  "Alternative",
+  "Metal",
+  "Punk",
+  "Ambient",
+  "House",
+  "Techno",
 ];
 
 const moods = [
-  "Energetic", "Chill", "Romantic", "Melancholic", "Uplifting",
-  "Aggressive", "Peaceful", "Dark", "Bright", "Mysterious"
+  "Energetic",
+  "Chill",
+  "Romantic",
+  "Melancholic",
+  "Uplifting",
+  "Aggressive",
+  "Peaceful",
+  "Dark",
+  "Bright",
+  "Mysterious",
 ];
 
 export default function Upload() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
@@ -85,14 +129,17 @@ export default function Upload() {
   const uploadMutation = useMutation({
     mutationFn: async (data: UploadForm) => {
       if (!audioFile) throw new Error("Audio file is required");
-      
+
       const formData = new FormData();
       formData.append("track", audioFile);
       if (coverFile) formData.append("cover", coverFile);
-      
+
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          formData.append(key, typeof value === "boolean" ? value.toString() : value.toString());
+          formData.append(
+            key,
+            typeof value === "boolean" ? value.toString() : value.toString()
+          );
         }
       });
 
@@ -130,8 +177,10 @@ export default function Upload() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "tracks"] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["/api/users", user?.id, "tracks"],
+      });
+
       toast({
         title: "Track uploaded successfully!",
         description: "Your track is now live on Mixxl",
@@ -155,31 +204,34 @@ export default function Upload() {
     },
   });
 
-  const handleAudioDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    const audioFile = files.find(file => file.type.startsWith("audio/"));
-    
-    if (audioFile) {
-      setAudioFile(audioFile);
-      setAudioPreview(URL.createObjectURL(audioFile));
-      
-      // Auto-fill title from filename
-      if (!form.getValues("title")) {
-        const title = audioFile.name.replace(/\.[^/.]+$/, "");
-        form.setValue("title", title);
+  const handleAudioDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragOver(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      const audioFile = files.find((file) => file.type.startsWith("audio/"));
+
+      if (audioFile) {
+        setAudioFile(audioFile);
+        setAudioPreview(URL.createObjectURL(audioFile));
+
+        // Auto-fill title from filename
+        if (!form.getValues("title")) {
+          const title = audioFile.name.replace(/\.[^/.]+$/, "");
+          form.setValue("title", title);
+        }
       }
-    }
-  }, [form]);
+    },
+    [form]
+  );
 
   const handleCoverDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
+
     const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith("image/"));
-    
+    const imageFile = files.find((file) => file.type.startsWith("image/"));
+
     if (imageFile) {
       setCoverFile(imageFile);
       setCoverPreview(URL.createObjectURL(imageFile));
@@ -191,7 +243,7 @@ export default function Upload() {
     if (file) {
       setAudioFile(file);
       setAudioPreview(URL.createObjectURL(file));
-      
+
       if (!form.getValues("title")) {
         const title = file.name.replace(/\.[^/.]+$/, "");
         form.setValue("title", title);
@@ -226,7 +278,9 @@ export default function Upload() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <h2 className="text-2xl font-bold mb-4">Sign In Required</h2>
-            <p className="text-muted-foreground mb-6">Please sign in to upload tracks</p>
+            <p className="text-muted-foreground mb-6">
+              Please sign in to upload tracks
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -241,7 +295,8 @@ export default function Upload() {
             <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-2xl font-bold mb-4">Artist Account Required</h2>
             <p className="text-muted-foreground mb-6">
-              You need an artist account to upload tracks. Switch your account type in settings.
+              You need an artist account to upload tracks. Switch your account
+              type in settings.
             </p>
           </CardContent>
         </Card>
@@ -249,101 +304,106 @@ export default function Upload() {
     );
   }
 
+  // if (!user.stripeSubscriptionId) {
+  //   return (
+  //     <div className="min-h-screen p-6">
+  //       <div className="max-w-3xl mx-auto">
+  //         <Card className="glass-effect border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10">
+  //           <CardContent className="pt-8 text-center space-y-8">
+  //             <Crown className="w-20 h-20 mx-auto mixxl-gradient-text" />
+  //             <div>
+  //               <h2 className="text-3xl font-bold mb-3 mixxl-gradient-text">Unlock Your Artist Potential</h2>
+  //               <p className="text-lg text-muted-foreground">
+  //                 Join Mixxl's artist community and start monetizing your music with industry-leading tools
+  //               </p>
+  //             </div>
+
+  //             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  //               <div className="bg-white/10 rounded-lg p-6 space-y-4">
+  //                 <h3 className="text-xl font-semibold mixxl-gradient-text">What you get:</h3>
+  //                 <div className="grid grid-cols-1 gap-3 text-left">
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Unlimited music uploads (up to 100MB per file)</span>
+  //                   </div>
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Keep 97% of all earnings (industry-leading)</span>
+  //                   </div>
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Live streaming with fan tipping</span>
+  //                   </div>
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Advanced analytics & insights</span>
+  //                   </div>
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Radio playlist submissions</span>
+  //                   </div>
+  //                   <div className="flex items-center space-x-3">
+  //                     <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+  //                     <span>Direct fan messaging & engagement</span>
+  //                   </div>
+  //                 </div>
+  //               </div>
+
+  //               <div className="bg-white/10 rounded-lg p-6 space-y-4">
+  //                 <h3 className="text-xl font-semibold mixxl-gradient-text">Simple Pricing</h3>
+  //                 <div className="space-y-3">
+  //                   <div className="text-center">
+  //                     <p className="text-3xl font-bold">£10<span className="text-lg text-muted-foreground">/month</span></p>
+  //                     <p className="text-sm text-muted-foreground mb-2">Just 33p per day</p>
+  //                     <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+  //                       90 Days Free Trial
+  //                     </Badge>
+  //                   </div>
+  //                   <div className="text-sm text-muted-foreground space-y-1">
+  //                     <p>✓ No setup fees</p>
+  //                     <p>✓ Cancel anytime</p>
+  //                     <p>✓ No long-term contracts</p>
+  //                   </div>
+  //                 </div>
+  //               </div>
+  //             </div>
+
+  //             <div className="space-y-4">
+  //               <Button
+  //                 onClick={() => window.location.href = '/subscribe'}
+  //                 className="w-full mixxl-gradient text-white font-semibold py-4 text-lg"
+  //                 size="lg"
+  //               >
+  //                 Start Your Free Trial Today
+  //               </Button>
+
+  //               <div className="flex space-x-4">
+  //                 <Button
+  //                   onClick={() => window.location.href = '/pricing-comparison'}
+  //                   variant="outline"
+  //                   className="flex-1 border-purple-500/30 hover:bg-purple-500/10"
+  //                 >
+  //                   Compare Plans
+  //                 </Button>
+  //                 <Button
+  //                   onClick={() => window.location.href = '/dashboard'}
+  //                   variant="outline"
+  //                   className="flex-1"
+  //                 >
+  //                   Back to Dashboard
+  //                 </Button>
+  //               </div>
+  //             </div>
+  //           </CardContent>
+  //         </Card>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  const [, setLocation] = useLocation();
   if (!user.stripeSubscriptionId) {
-    return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-3xl mx-auto">
-          <Card className="glass-effect border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-orange-500/10">
-            <CardContent className="pt-8 text-center space-y-8">
-              <Crown className="w-20 h-20 mx-auto mixxl-gradient-text" />
-              <div>
-                <h2 className="text-3xl font-bold mb-3 mixxl-gradient-text">Unlock Your Artist Potential</h2>
-                <p className="text-lg text-muted-foreground">
-                  Join Mixxl's artist community and start monetizing your music with industry-leading tools
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white/10 rounded-lg p-6 space-y-4">
-                  <h3 className="text-xl font-semibold mixxl-gradient-text">What you get:</h3>
-                  <div className="grid grid-cols-1 gap-3 text-left">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Unlimited music uploads (up to 100MB per file)</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Keep 97% of all earnings (industry-leading)</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Live streaming with fan tipping</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Advanced analytics & insights</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Radio playlist submissions</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                      <span>Direct fan messaging & engagement</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-lg p-6 space-y-4">
-                  <h3 className="text-xl font-semibold mixxl-gradient-text">Simple Pricing</h3>
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <p className="text-3xl font-bold">£10<span className="text-lg text-muted-foreground">/month</span></p>
-                      <p className="text-sm text-muted-foreground mb-2">Just 33p per day</p>
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                        90 Days Free Trial
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>✓ No setup fees</p>
-                      <p>✓ Cancel anytime</p>
-                      <p>✓ No long-term contracts</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Button 
-                  onClick={() => window.location.href = '/subscribe'} 
-                  className="w-full mixxl-gradient text-white font-semibold py-4 text-lg"
-                  size="lg"
-                >
-                  Start Your Free Trial Today
-                </Button>
-                
-                <div className="flex space-x-4">
-                  <Button 
-                    onClick={() => window.location.href = '/pricing-comparison'} 
-                    variant="outline" 
-                    className="flex-1 border-purple-500/30 hover:bg-purple-500/10"
-                  >
-                    Compare Plans
-                  </Button>
-                  <Button 
-                    onClick={() => window.location.href = '/dashboard'} 
-                    variant="outline" 
-                    className="flex-1"
-                  >
-                    Back to Dashboard
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+    setLocation("/subscribe");
   }
 
   return (
@@ -351,12 +411,13 @@ export default function Upload() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold mixxl-gradient-text">Upload Your Track</h1>
+          <h1 className="text-3xl font-bold mixxl-gradient-text">
+            Upload Your Track
+          </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Share your music with the world. Upload high-quality audio files and reach new fans.
+            Share your music with the world. Upload high-quality audio files and
+            reach new fans.
           </p>
-          
-
         </div>
 
         {/* Upload Form */}
@@ -382,10 +443,14 @@ export default function Upload() {
                       setIsDragOver(true);
                     }}
                     onDragLeave={() => setIsDragOver(false)}
-                    onClick={() => document.getElementById("audio-input")?.click()}
+                    onClick={() =>
+                      document.getElementById("audio-input")?.click()
+                    }
                   >
                     <UploadIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">Drop your audio file here</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      Drop your audio file here
+                    </h3>
                     <p className="text-muted-foreground mb-4">
                       or click to browse files
                     </p>
@@ -425,7 +490,7 @@ export default function Upload() {
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                    
+
                     {audioPreview && (
                       <audio controls className="w-full">
                         <source src={audioPreview} type={audioFile.type} />
@@ -461,7 +526,9 @@ export default function Upload() {
                     className="upload-zone p-6 text-center rounded-lg cursor-pointer border-dashed"
                     onDrop={handleCoverDrop}
                     onDragOver={(e) => e.preventDefault()}
-                    onClick={() => document.getElementById("cover-input")?.click()}
+                    onClick={() =>
+                      document.getElementById("cover-input")?.click()
+                    }
                   >
                     <Image className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-2">
@@ -515,7 +582,10 @@ export default function Upload() {
               </CardHeader>
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={form.control}
                       name="title"
@@ -523,8 +593,8 @@ export default function Upload() {
                         <FormItem>
                           <FormLabel>Title *</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Enter track title" 
+                            <Input
+                              placeholder="Enter track title"
                               {...field}
                               className="bg-white/5 border-white/10"
                             />
@@ -541,7 +611,7 @@ export default function Upload() {
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="Describe your track..."
                               className="bg-white/5 border-white/10 resize-none"
                               rows={3}
@@ -559,7 +629,10 @@ export default function Upload() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Genre *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="bg-white/5 border-white/10">
                                 <SelectValue placeholder="Select genre" />
@@ -584,7 +657,10 @@ export default function Upload() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Mood</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger className="bg-white/5 border-white/10">
                                 <SelectValue placeholder="Select mood" />
@@ -610,14 +686,18 @@ export default function Upload() {
                         <FormItem>
                           <FormLabel>Price (£)</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               type="number"
                               step="0.01"
                               min="0"
                               max="1000"
                               placeholder="0.00"
                               {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                              onChange={(e) =>
+                                field.onChange(
+                                  parseFloat(e.target.value) || undefined
+                                )
+                              }
                               className="bg-white/5 border-white/10"
                             />
                           </FormControl>
@@ -640,7 +720,8 @@ export default function Upload() {
                               <span>Preview Only Mode</span>
                             </FormLabel>
                             <FormDescription className="text-xs">
-                              Fans can only hear a preview until they purchase the full track
+                              Fans can only hear a preview until they purchase
+                              the full track
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -661,13 +742,15 @@ export default function Upload() {
                           <FormItem>
                             <FormLabel>Preview Duration (seconds)</FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 type="number"
                                 min="15"
                                 max="60"
                                 placeholder="30"
                                 {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value) || 30)
+                                }
                                 className="bg-white/5 border-white/10"
                               />
                             </FormControl>
@@ -734,7 +817,8 @@ export default function Upload() {
                                 <span>Submit to Radio Playlist</span>
                               </FormLabel>
                               <FormDescription className="text-xs">
-                                Submit this track for consideration in Mixxl Radio's curated playlists
+                                Submit this track for consideration in Mixxl
+                                Radio's curated playlists
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -748,8 +832,8 @@ export default function Upload() {
                       />
                     </div>
 
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full mixxl-gradient text-white font-semibold"
                       disabled={!audioFile || uploadMutation.isPending}
                     >
@@ -778,7 +862,9 @@ export default function Upload() {
               <CardContent className="space-y-3">
                 <div className="flex items-start space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
-                  <p className="text-sm">Use high-quality audio files (WAV/FLAC preferred)</p>
+                  <p className="text-sm">
+                    Use high-quality audio files (WAV/FLAC preferred)
+                  </p>
                 </div>
                 <div className="flex items-start space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
@@ -790,11 +876,15 @@ export default function Upload() {
                 </div>
                 <div className="flex items-start space-x-2">
                   <Radio className="w-4 h-4 text-green-500 mt-0.5" />
-                  <p className="text-sm">Submit to radio playlist for airtime consideration</p>
+                  <p className="text-sm">
+                    Submit to radio playlist for airtime consideration
+                  </p>
                 </div>
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
-                  <p className="text-sm">Make sure you own the rights to the music</p>
+                  <p className="text-sm">
+                    Make sure you own the rights to the music
+                  </p>
                 </div>
               </CardContent>
             </Card>

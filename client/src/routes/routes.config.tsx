@@ -44,6 +44,7 @@ import BroadcastsAdmin from "@/pages/admin/broadcasts";
 import UsersAdmin from "@/pages/admin/users";
 import AdminDiscountCodes from "@/pages/admin/discount-codes";
 import Unauthorized from "@/pages/unauthorized";
+import UnverifiedPage from "@/pages/unverified";
 
 export interface AppRoute {
   path: string;
@@ -156,6 +157,7 @@ export const appRoutes: AppRoute[] = [
 
   // Unauthorized
   { path: "/unauthorized", component: Unauthorized },
+  { path: "/unverified", component: UnverifiedPage },
 
   // Fallback
   { path: "*", component: NotFound },

@@ -3,7 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, VolumeX, Radio, ExternalLink } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Radio,
+  ExternalLink,
+} from "lucide-react";
 
 interface RadioCoPlayerProps {
   isLive?: boolean;
@@ -12,11 +19,11 @@ interface RadioCoPlayerProps {
   className?: string;
 }
 
-export default function RadioCoPlayer({ 
-  isLive = false, 
-  listenerCount = 0, 
+export default function RadioCoPlayer({
+  isLive = false,
+  listenerCount = 0,
   stationName = "Mixxl Radio",
-  className = ""
+  className = "",
 }: RadioCoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState([50]);
@@ -38,7 +45,7 @@ export default function RadioCoPlayer({
 
     try {
       setIsLoading(true);
-      
+
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -96,7 +103,7 @@ export default function RadioCoPlayer({
           </div>
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Hidden audio element for Radio.co stream */}
         <audio
@@ -125,9 +132,9 @@ export default function RadioCoPlayer({
 
           {/* Stream URL link */}
           <div className="text-xs text-muted-foreground">
-            <a 
-              href={RADIO_CO_STREAM_URL} 
-              target="_blank" 
+            <a
+              href={RADIO_CO_STREAM_URL}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center space-x-1 hover:text-primary transition-colors"
             >
@@ -170,7 +177,7 @@ export default function RadioCoPlayer({
                 <Volume2 className="w-5 h-5" />
               )}
             </Button>
-            
+
             <Slider
               value={volume}
               onValueChange={handleVolumeChange}
@@ -178,7 +185,7 @@ export default function RadioCoPlayer({
               step={1}
               className="flex-1"
             />
-            
+
             <span className="text-xs text-muted-foreground w-8 text-right">
               {isMuted ? 0 : volume[0]}
             </span>
@@ -188,7 +195,9 @@ export default function RadioCoPlayer({
         {/* Broadcasting info */}
         <div className="text-center text-xs text-muted-foreground space-y-1">
           <p>Powered by Radio.co</p>
-          <p className="font-mono text-[10px] opacity-50">se0840272e.dj.radio.co</p>
+          <p className="font-mono text-[10px] opacity-50">
+            se0840272e.dj.radio.co
+          </p>
         </div>
       </CardContent>
     </Card>

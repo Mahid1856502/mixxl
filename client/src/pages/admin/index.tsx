@@ -6,10 +6,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { Users, DollarSign, Star, Mail, TrendingUp, Crown } from "lucide-react";
+import { Users, Star, Mail, TrendingUp, Crown, Euro } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -31,18 +31,7 @@ export default function AdminDashboard() {
     );
   }
 
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ["/api/admin/stats"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/stats", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch stats");
-      return response.json();
-    },
-  });
+  const { data: stats, isLoading } = useAdminStats();
 
   if (isLoading) {
     return (
@@ -70,7 +59,7 @@ export default function AdminDashboard() {
                 asChild
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
-                <Link href="/admin/broadcasts/new">Create Broadcast</Link>
+                <Link href="/admin/broadcasts">Create Broadcast</Link>
               </Button>
               <Button
                 asChild
@@ -112,7 +101,7 @@ export default function AdminDashboard() {
               <CardTitle className="text-sm font-medium text-gray-300">
                 Subscribed Users
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-green-400" />
+              <Euro className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
@@ -173,15 +162,6 @@ export default function AdminDashboard() {
               >
                 <Link href="/admin/featured-spots">Manage Featured Spots</Link>
               </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10"
-              >
-                <Link href="/admin/featured-spots/new">
-                  Add New Featured Artist
-                </Link>
-              </Button>
             </CardContent>
           </Card>
 
@@ -224,13 +204,13 @@ export default function AdminDashboard() {
               >
                 <Link href="/admin/users">Manage Users</Link>
               </Button>
-              <Button
+              {/* <Button
                 asChild
                 variant="outline"
                 className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10"
               >
                 <Link href="/admin/analytics">View Analytics</Link>
-              </Button>
+              </Button> */}
             </CardContent>
           </Card>
 

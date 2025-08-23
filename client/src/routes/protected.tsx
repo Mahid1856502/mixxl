@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 
 interface ProtectedRouteProps {
   component: React.ComponentType<any>;
@@ -11,6 +11,7 @@ export function ProtectedRoute({
   roles,
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -23,6 +24,16 @@ export function ProtectedRoute({
   // If route requires login but no user
   if (roles && !user) {
     return <Redirect to="/login" />;
+  }
+
+  // If user exists but email is not verified
+  // Skip redirect if already on login or signup page
+  if (
+    user &&
+    user?.emailVerified === false &&
+    !["/login", "/signup"].includes(location)
+  ) {
+    return <Redirect to="/unverified" />;
   }
 
   // If route requires a specific role but user doesn't match

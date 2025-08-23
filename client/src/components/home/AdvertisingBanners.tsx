@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, BASE_URL } from "@/lib/queryClient";
 import { Banner } from "@shared/schema";
-import { Skeleton } from "@/components/ui/skeleton"; // <-- Import Skeleton here
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdvertisingBanner() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,20 +25,25 @@ export function AdvertisingBanner() {
     },
   });
 
+  // helper to start auto scroll
+  const startAutoScroll = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (banners.length > 1) {
+      timerRef.current = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % banners.length);
+      }, 5000); // 5s delay
+    }
+  }, [banners.length]);
+
+  // start auto scroll on load
   useEffect(() => {
-    if (banners.length <= 1) return;
-
-    timerRef.current = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % banners.length);
-    }, 3000);
-
+    startAutoScroll();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [banners.length]);
+  }, [startAutoScroll]);
 
   if (isLoading) {
-    // Show skeleton loading UI
     return (
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
@@ -49,20 +54,22 @@ export function AdvertisingBanner() {
   }
 
   if (banners.length === 0 || isError) {
-    return null; // or error UI
+    return null;
   }
 
   const current = banners[currentIndex];
 
   function prevSlide() {
     setCurrentIndex((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
-    if (timerRef.current) clearInterval(timerRef.current);
+    startAutoScroll();
   }
 
   function nextSlide() {
     setCurrentIndex((prev) => (prev + 1) % banners.length);
-    if (timerRef.current) clearInterval(timerRef.current);
+    startAutoScroll();
   }
+
+  const isExternal = current.ctaUrl?.startsWith("http");
 
   return (
     <section className="py-20 px-6">
@@ -86,14 +93,31 @@ export function AdvertisingBanner() {
                 "Get your brand in front of thousands of listeners every day."}
             </p>
             {current.cta && current.ctaUrl && (
-              <Link href={current.ctaUrl}>
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold"
-                >
-                  {current.cta} <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
+              <>
+                {isExternal ? (
+                  <a
+                    href={current.ctaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button
+                      size="lg"
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold"
+                    >
+                      {current.cta} <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </a>
+                ) : (
+                  <Link href={current.ctaUrl}>
+                    <Button
+                      size="lg"
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold"
+                    >
+                      {current.cta} <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Link>
+                )}
+              </>
             )}
           </div>
 
@@ -118,7 +142,10 @@ export function AdvertisingBanner() {
             {banners.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => setCurrentIndex(idx)}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  startAutoScroll();
+                }}
                 className={`w-3 h-3 rounded-full transition-colors ${
                   idx === currentIndex ? "bg-white" : "bg-white/50"
                 }`}

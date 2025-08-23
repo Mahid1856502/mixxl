@@ -15,9 +15,20 @@ export function useWebSocket() {
   useEffect(() => {
     if (!user) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
+    // const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    // const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    const wsUrl =
+      process.env.NODE_ENV === "development"
+        ? "ws://localhost:3000/ws"
+        : "wss://mixxl.fm/ws";
+
+    // const wsUrl =
+    //   window.location.protocol === "https:"
+    //     ? "wss://localhost:3000/ws"
+    //     : "ws://localhost:3000/ws";
+    // ws.current = new WebSocket(wsUrl);
+
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
@@ -28,7 +39,7 @@ export function useWebSocket() {
     ws.current.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        setMessages(prev => [...prev, message]);
+        setMessages((prev) => [...prev, message]);
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
       }
@@ -61,7 +72,7 @@ export function useWebSocket() {
     sendMessage({
       type: "join_radio",
       sessionId,
-      user: user
+      user: user,
     });
   };
 
@@ -70,7 +81,7 @@ export function useWebSocket() {
       type: "radio_chat",
       sessionId,
       content,
-      user: user
+      user: user,
     });
   };
 
@@ -79,6 +90,6 @@ export function useWebSocket() {
     messages,
     sendMessage,
     joinRadio,
-    sendRadioChat
+    sendRadioChat,
   };
 }

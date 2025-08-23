@@ -12,19 +12,19 @@ import {
   Heart,
   Upload,
   Users,
-  Play,
-  TrendingUp,
-  Headphones,
   ArrowRight,
   PoundSterling,
   Shield,
   Zap,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { AdvertisingBanner } from "@/components/home/AdvertisingBanners";
 import { apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BENEFITS, FEATURES } from "@/lib/constants";
+import { useRadioSessions } from "@/api/hooks/radio/useRadioSession";
 
 interface FeaturedArtist {
   id: string;
@@ -40,15 +40,7 @@ export default function Home() {
   const { user } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const { data: tracks = [] } = useQuery({
-    queryKey: ["/api/tracks"],
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  }) as { data: any[] };
-
-  const { data: radioSessions = [] } = useQuery({
-    queryKey: ["/api/radio/sessions"],
-    staleTime: 60 * 1000, // 1 minute
-  }) as { data: any[] };
+  const { data: radioSessions = [] } = useRadioSessions();
 
   // Featured spots data from admin backend
   const { data: featuredSpots = [], isLoading } = useQuery({
@@ -73,220 +65,174 @@ export default function Home() {
       backgroundColor: "from-purple-600/20 to-pink-600/20",
     }));
 
-  console.log(
-    "Featured artist media URLs:",
-    featuredArtistsFromSpots.map((a) => a.mediaUrl)
-  );
-
-  // Fallback featured artists for when no active spots exist
-  const fallbackFeaturedArtists: FeaturedArtist[] = [
-    {
-      id: "1",
-      name: "Luna Rose",
-      description:
-        "Ethereal indie folk with haunting melodies that transport you to another world",
-      profileLink: "/profile/luna-rose",
-      mediaUrl:
-        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      mediaType: "image",
-      backgroundColor: "from-purple-600/20 to-pink-600/20",
-    },
-    {
-      id: "2",
-      name: "The Neon Collective",
-      description:
-        "Electronic fusion meets organic instruments in this groundbreaking sound",
-      profileLink: "/profile/neon-collective",
-      mediaUrl:
-        "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=800&h=600&fit=crop",
-      mediaType: "image",
-      backgroundColor: "from-blue-600/20 to-cyan-600/20",
-    },
-    {
-      id: "3",
-      name: "Marcus Stone",
-      description:
-        "Raw acoustic soul with powerful vocals that speak directly to the heart",
-      profileLink: "/profile/marcus-stone",
-      mediaUrl:
-        "https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&h=600&fit=crop",
-      mediaType: "image",
-      backgroundColor: "from-orange-600/20 to-red-600/20",
-    },
-  ];
-
-  // Use featured spots data if available, otherwise fallback
-  const displayedArtists: FeaturedArtist[] =
-    featuredArtistsFromSpots.length > 0
-      ? featuredArtistsFromSpots
-      : fallbackFeaturedArtists;
-
   // Auto-advance carousel
   useEffect(() => {
-    // if (displayedArtists.length > 1) {
-    //   const timer = setInterval(() => {
-    //     setCurrentSlide((prev) => (prev + 1) % displayedArtists.length);
-    //   }, 5000);
-    //   return () => clearInterval(timer);
-    // }
-  }, [displayedArtists.length]);
+    if (featuredArtistsFromSpots.length > 1) {
+      const timer = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % featuredArtistsFromSpots.length);
+      }, 3000);
+      return () => clearInterval(timer);
+    }
+  }, [featuredArtistsFromSpots.length]);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % displayedArtists.length);
+    setCurrentSlide((prev) => (prev + 1) % featuredArtistsFromSpots.length);
   };
 
   const prevSlide = () => {
     setCurrentSlide(
-      (prev) => (prev - 1 + displayedArtists.length) % displayedArtists.length
+      (prev) =>
+        (prev - 1 + featuredArtistsFromSpots.length) %
+        featuredArtistsFromSpots.length
     );
-  };
-
-  const features = [
-    {
-      icon: Upload,
-      title: "Upload & Stream Music",
-      description: "Share your tracks with professional audio streaming",
-      color: "text-amber-400",
-      bgGradient: "from-amber-500/20 to-orange-500/20",
-    },
-    {
-      icon: Radio,
-      title: "Live Radio Broadcasting",
-      description: "24/7 community radio with real-time chat",
-      color: "text-purple-400",
-      bgGradient: "from-purple-500/20 to-blue-500/20",
-    },
-    {
-      icon: Star,
-      title: "Artist Collaboration",
-      description: "Connect and create music together",
-      color: "text-pink-400",
-      bgGradient: "from-pink-500/20 to-purple-500/20",
-    },
-    {
-      icon: Heart,
-      title: "Fan Community",
-      description: "Discover, support, and connect with artists",
-      color: "text-orange-400",
-      bgGradient: "from-orange-500/20 to-pink-500/20",
-    },
-  ];
-
-  const banner = {
-    title: "Promote Your Next Drop",
-    description: "Reach thousands of listeners and grow your fanbase.",
-    ctaText: "Learn More",
-    ctaLink: "/",
-    backgroundImage:
-      "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=800&h=600&fit=crop",
   };
 
   return (
     <div className="min-h-screen">
       {/* Featured Artists Hero Carousel */}
       <section className="relative min-h-[80vh] overflow-hidden">
-        {displayedArtists.map((artist, index) => (
-          <div
-            key={artist.id}
-            className={`absolute inset-0 transition-transform duration-1000 ease-in-out ${
-              index === currentSlide
-                ? "translate-x-0"
-                : index < currentSlide
-                ? "-translate-x-full"
-                : "translate-x-full"
-            }`}
-          >
-            {/* Background Media */}
-            <div className="absolute inset-0">
-              {artist.mediaType === "video" ? (
-                <video
-                  src={artist.mediaUrl}
-                  autoPlay
-                  muted
-                  loop
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <img
-                  src={artist.mediaUrl}
-                  alt={artist.name}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-black/40"></div>
-              <div
-                className={`absolute inset-0 bg-gradient-to-r ${
-                  artist.backgroundColor || "from-purple-600/30 to-pink-600/30"
-                }`}
-              ></div>
+        {isLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <div className="w-full mx-auto px-6">
+              <Skeleton className="w-full h-64 md:h-96 rounded-xl" />
             </div>
+          </div>
+        ) : featuredArtistsFromSpots.length > 0 ? (
+          featuredArtistsFromSpots.map((artist, index) => (
+            <div
+              key={artist.id}
+              className={`absolute inset-0 transition-transform duration-1000 ease-in-out ${
+                index === currentSlide
+                  ? "translate-x-0"
+                  : index < currentSlide
+                  ? "-translate-x-full"
+                  : "translate-x-full"
+              }`}
+            >
+              {/* Background Media */}
+              <div className="absolute inset-0">
+                {artist.mediaType === "video" ? (
+                  <video
+                    src={artist.mediaUrl}
+                    autoPlay
+                    muted
+                    loop
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={artist.mediaUrl}
+                    alt={artist.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                <div className="absolute inset-0 bg-black/40"></div>
+                <div
+                  className={`absolute inset-0 bg-gradient-to-r ${
+                    artist.backgroundColor ||
+                    "from-purple-600/30 to-pink-600/30"
+                  }`}
+                ></div>
+              </div>
 
-            {/* Content Overlay */}
-            <div className="relative z-10 flex items-center min-h-[80vh] px-6">
-              <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="text-left">
-                  <Badge className="mb-4 bg-gradient-to-r from-orange-500 to-pink-600 text-white">
-                    Featured Artist
-                  </Badge>
+              {/* Content Overlay */}
+              <div className="relative z-10 flex items-center min-h-[80vh] px-6">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="text-left">
+                    <Badge className="mb-4 bg-gradient-to-r from-orange-500 to-pink-600 text-white">
+                      Featured Artist
+                    </Badge>
 
-                  <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-                    {artist.name}
-                  </h1>
+                    <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+                      {artist.name}
+                    </h1>
 
-                  <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-xl">
-                    {artist.description}
-                  </p>
+                    <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-xl">
+                      {artist.description}
+                    </p>
 
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link href={artist.profileLink}>
-                      <Button
-                        size="lg"
-                        className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold px-8 py-4 text-lg"
-                      >
-                        Visit Profile
-                        <ExternalLink className="ml-2 w-5 h-5" />
-                      </Button>
-                    </Link>
-
-                    {!user && (
-                      <Link href="/signup">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Link href={artist.profileLink}>
                         <Button
                           size="lg"
-                          variant="outline"
-                          className="border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm"
+                          className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold px-8 py-4 text-lg"
                         >
-                          Join Mixxl
+                          Visit Profile
+                          <ExternalLink className="ml-2 w-5 h-5" />
                         </Button>
                       </Link>
-                    )}
-                  </div>
-                </div>
 
-                {/* Secondary content or additional media */}
-                <div className="hidden lg:flex justify-center items-center">
-                  <div className="text-center text-white/80">
-                    <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-white/20">
-                      <Star className="w-4 h-4 text-amber-400" />
-                      <span className="text-sm font-medium">
-                        Independent Artist
-                      </span>
+                      {!user && (
+                        <Link href="/signup">
+                          <Button
+                            size="lg"
+                            variant="outline"
+                            className="border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm"
+                          >
+                            Join Mixxl
+                          </Button>
+                        </Link>
+                      )}
                     </div>
-                    <h3 className="text-2xl font-bold mb-4">
-                      Make a dent in the music scene: An Indepen'dent'
-                    </h3>
-                    <p className="text-lg">
-                      Where independent artists thrive and music lovers discover
-                      their next favorite sound
-                    </p>
+                  </div>
+
+                  {/* Secondary content or additional media */}
+                  <div className="hidden lg:flex justify-center items-center">
+                    <div className="text-center text-white/80">
+                      <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-white/20">
+                        <Star className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm font-medium">
+                          Independent Artist
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-bold mb-4">
+                        Make a dent in the music scene: An Indepen'dent'
+                      </h3>
+                      <p className="text-lg">
+                        Where independent artists thrive and music lovers
+                        discover their next favorite sound
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="absolute inset-0">
+            <img
+              src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&h=900&fit=crop"
+              alt="Mixxl Placeholder"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute z-10 flex items-center justify-center min-h-[80vh] w-full px-6 top-0">
+              <div className="text-center text-white max-w-2xl">
+                <Badge className="mb-4 bg-gradient-to-r from-orange-500 to-pink-600 text-white">
+                  Featured Artist
+                </Badge>
+                <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                  Be the First to Shine ✨
+                </h1>
+                <p className="text-lg text-gray-200 mb-8">
+                  No featured artists yet — upload your music and get featured
+                  on the Mixxl spotlight.
+                </p>
+                <Link href="/signup">
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold px-8 py-4 text-lg"
+                  >
+                    Join Now
+                    <ExternalLink className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
-        ))}
-
+        )}
         {/* Carousel Controls */}
-        {displayedArtists.length > 1 && (
+        {featuredArtistsFromSpots.length > 1 && (
           <>
             <button
               onClick={prevSlide}
@@ -303,22 +249,6 @@ export default function Home() {
             >
               <ChevronRight className="w-6 h-6" />
             </button>
-
-            {/* Slide Indicators */}
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-2">
-              {displayedArtists.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                    index === currentSlide
-                      ? "bg-white"
-                      : "bg-white/40 hover:bg-white/60"
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
-            </div>
           </>
         )}
       </section>
@@ -340,45 +270,24 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <Card className="glass-effect border-white/10 text-center">
-              <CardContent className="p-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                  <PoundSterling className="w-8 h-8 text-green-400" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  Keep 97% of Earnings
-                </h3>
-                <p className="text-muted-foreground">
-                  No platform commission - only payment processing fees
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-effect border-white/10 text-center">
-              <CardContent className="p-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                  <Shield className="w-8 h-8 text-blue-400" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  90-Day Free Trial
-                </h3>
-                <p className="text-muted-foreground">
-                  Try all premium features risk-free for 3 months
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-effect border-white/10 text-center">
-              <CardContent className="p-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                  <Zap className="w-8 h-8 text-purple-400" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Direct Payouts</h3>
-                <p className="text-muted-foreground">
-                  Get paid directly to your bank account via Stripe
-                </p>
-              </CardContent>
-            </Card>
+            {BENEFITS.map((benefit, index) => (
+              <Card
+                key={index}
+                className="glass-effect border-white/10 text-center"
+              >
+                <CardContent className="p-8">
+                  <div
+                    className={`w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br ${benefit.bgGradient} flex items-center justify-center`}
+                  >
+                    <benefit.icon className={`w-8 h-8 ${benefit.color}`} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-muted-foreground">{benefit.description}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <div className="text-center">
@@ -480,7 +389,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => {
+            {FEATURES.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <Card

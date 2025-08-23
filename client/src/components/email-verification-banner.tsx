@@ -15,7 +15,10 @@ interface EmailVerificationBannerProps {
   onDismiss?: () => void;
 }
 
-export function EmailVerificationBanner({ user, onDismiss }: EmailVerificationBannerProps) {
+export function EmailVerificationBanner({
+  user,
+  onDismiss,
+}: EmailVerificationBannerProps) {
   const [isDismissed, setIsDismissed] = useState(false);
   const { toast } = useToast();
 
@@ -59,8 +62,9 @@ export function EmailVerificationBanner({ user, onDismiss }: EmailVerificationBa
             Please verify your email address
           </div>
           <div className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-            We sent a verification link to <strong>{user.email}</strong>. 
-            Check your inbox and click the link to verify your account.
+            We sent a verification link to <strong>{user.email}</strong>. Check
+            your inbox and click the link to verify your account. (Expires in 24
+            hours)
           </div>
         </div>
         <div className="flex items-center space-x-2 flex-shrink-0">
@@ -83,14 +87,14 @@ export function EmailVerificationBanner({ user, onDismiss }: EmailVerificationBa
               </>
             )}
           </Button>
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={handleDismiss}
             className="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:text-yellow-200 dark:hover:bg-yellow-800"
           >
             <X className="w-4 h-4" />
-          </Button>
+          </Button> */}
         </div>
       </AlertDescription>
     </Alert>

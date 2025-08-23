@@ -1,7 +1,7 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, BASE_URL } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ import {
   Edit,
   Play,
   TrendingUp,
-  DollarSign,
+  Euro,
 } from "lucide-react";
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
@@ -271,18 +271,6 @@ export default function Profile() {
           <Button variant="secondary" size="icon" onClick={handleShare}>
             <Share className="w-4 h-4" />
           </Button>
-          {/* <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => {
-              toast({
-                title: "More options",
-                description: "Additional profile options coming soon",
-              });
-            }}
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </Button> */}
           {isOwnProfile && (
             <Button
               variant="secondary"
@@ -303,7 +291,10 @@ export default function Profile() {
               {/* Avatar */}
               <Avatar className="h-32 w-32 border-4 border-background">
                 <AvatarImage
-                  src={user.profileImage || ""}
+                  className="object-cover"
+                  src={
+                    user.profileImage ? `${BASE_URL}${user.profileImage}` : ""
+                  }
                   alt={user.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
@@ -321,7 +312,7 @@ export default function Profile() {
                         ? `${user.firstName} ${user.lastName}`
                         : user.username}
                     </h1>
-                    {user.isVerified && (
+                    {user.emailVerified && (
                       <Verified className="w-6 h-6 text-blue-500" />
                     )}
                     {user.role === "admin" && (
@@ -453,7 +444,7 @@ export default function Profile() {
                     </Button>
                     {user.role === "artist" && (
                       <Button variant="outline" onClick={handleTip}>
-                        <DollarSign className="w-4 h-4 mr-2" />
+                        <Euro className="w-4 h-4 mr-2" />
                         Tip Artist
                       </Button>
                     )}
@@ -763,7 +754,7 @@ export default function Profile() {
                         <p className="text-sm text-muted-foreground">Revenue</p>
                         <p className="text-2xl font-bold">£0.00</p>
                       </div>
-                      <DollarSign className="w-8 h-8 text-amber-500" />
+                      <Euro className="w-8 h-8 text-amber-500" />
                     </div>
                   </CardContent>
                 </Card>

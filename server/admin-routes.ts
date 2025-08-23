@@ -16,6 +16,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import { log } from "./vite";
 
 declare global {
   namespace Express {
@@ -153,14 +154,14 @@ export function registerAdminRoutes(app: Express) {
   // ========== ADMIN STATS ==========
 
   // Get admin dashboard stats
-  app.get("/api/admin/stats", authenticate, requireAdmin, async (req, res) => {
-    try {
-      const stats = await storage.getAdminStats();
-      res.json(stats);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // app.get("/api/admin/stats", authenticate, requireAdmin, async (req, res) => {
+  //   try {
+  //     const stats = await storage.getAdminStats();
+  //     res.json(stats);
+  //   } catch (error: any) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // });
 
   // ========== FEATURED SPOTS MANAGEMENT ==========
 
@@ -385,7 +386,15 @@ export function registerAdminRoutes(app: Express) {
   // Update broadcast
   app.put("/api/admin/broadcasts/:id", requireAdmin, async (req, res) => {
     try {
-      const updates = req.body;
+      // Prepare data for validation
+      const updates = { ...req.body };
+
+      log("before", JSON.stringify(updates));
+      // Remove scheduledFor if it's empty/null, or convert to Date if it's a string
+      if (typeof updates.scheduledFor === "string") {
+        updates.scheduledFor = new Date(updates.scheduledFor);
+      }
+      log("after", JSON.stringify(updates));
       const broadcast = await storage.updateAdminBroadcast(
         req.params.id,
         updates
@@ -437,7 +446,7 @@ export function registerAdminRoutes(app: Express) {
       } else if (broadcast.targetAudience === "subscribers") {
         targetUsers = await storage.getSubscribedUsers();
       } else if (broadcast.specificUserIds) {
-        const userIds = JSON.parse(broadcast.specificUserIds as string);
+        const userIds = broadcast.specificUserIds;
         targetUsers = await Promise.all(
           userIds.map(async (id: string) => storage.getUser(id))
         );
@@ -607,7 +616,6 @@ export function registerAdminRoutes(app: Express) {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          isVerified: user.isVerified,
           emailVerified: user.emailVerified,
           subscriptionStatus: user.subscriptionStatus,
           createdAt: user.createdAt,
