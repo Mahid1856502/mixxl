@@ -20,6 +20,8 @@ import {
   useNotifications,
   useUnreadNotificationCount,
 } from "@/api/hooks/notifications/useNotifications";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { useEffect } from "react";
 
 const NotificationIcon = ({ type }: { type: string }) => {
   switch (type) {
@@ -40,6 +42,11 @@ const NotificationIcon = ({ type }: { type: string }) => {
 
 export default function NotificationsPage() {
   const [, setLocation] = useLocation();
+  const { messages } = useWebSocket();
+
+  useEffect(() => {
+    console.log("notification messages", messages);
+  }, [messages]);
 
   const { data: notifications = [], isLoading: notificationsLoading } =
     useNotifications();

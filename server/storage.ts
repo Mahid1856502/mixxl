@@ -11,6 +11,8 @@ import {
   ne,
   isNull,
   ilike,
+  lt,
+  gt,
 } from "drizzle-orm";
 import {
   users,
@@ -76,12 +78,17 @@ import {
   Banner,
   InsertBanner,
   banners,
+  RadioChatMessage,
+  RadioChatMessageWithUser,
+  TrackWithArtistName,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
 
 // Import the shared database connection
 import { db } from "./db";
+import { isTimeSlotAvailable } from "./utils";
+import { log } from "./vite";
 
 export interface IStorage {
   // User operations
@@ -102,7 +109,7 @@ export interface IStorage {
   // Track operations
   getTrack(id: string): Promise<Track | undefined>;
   getTracksByArtist(artistId: string): Promise<Track[]>;
-  getTracks(limit?: number, offset?: number): Promise<Track[]>;
+  getTracks(query?: string, limit?: number, offset?: number): Promise<Track[]>;
   searchTracks(query: string): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
   updateTrack(id: string, updates: Partial<Track>): Promise<Track>;
@@ -169,8 +176,26 @@ export interface IStorage {
     id: string,
     updates: Partial<RadioSession>
   ): Promise<RadioSession>;
-  getActiveRadioSessions(): Promise<RadioSession[]>;
+  getActiveRadioSession(): Promise<
+    | (RadioSession & {
+        host: {
+          id: string;
+          username: string;
+          profileImage: string | null;
+          bio: string | null;
+        } | null;
+      })
+    | undefined
+  >;
   getRadioSession(id: string): Promise<RadioSession | undefined>;
+  endSession(sessionId: string): Promise<RadioSession | undefined>;
+  goLive(sessionId: string): Promise<RadioSession | undefined>;
+
+  // Radio Live Chat
+  getRadioChatMessages(
+    sessionId: string,
+    limit: number
+  ): Promise<RadioChatMessageWithUser[] | undefined>;
 
   // Collaboration operations
   createCollaboration(
@@ -189,11 +214,19 @@ export interface IStorage {
   // Mixxlist/Fan operations
   getUserMixxlists(userId: string): Promise<any[]>;
   getUserPurchasedTracks(userId: string): Promise<any[]>;
-  getPurchasedTracksByUser(userId: string): Promise<Track[]>;
+  getPurchasedTracksByUser(userId: string): Promise<TrackWithArtistName[]>;
   getUserFavoriteArtists(userId: string): Promise<any[]>;
   getUserTrackPurchase(userId: string, trackId: string): Promise<any | null>;
   recordTrackPurchase(purchaseData: any): Promise<any>;
   hasTrackAccess(userId: string, trackId: string): Promise<boolean>;
+  updatePurchasedTrackByIntentId(
+    intentId: string,
+    updates: Partial<{
+      paymentStatus: "pending" | "succeeded" | "failed" | "refunded";
+      stripeTransferId: string | null;
+    }>
+  ): Promise<any | null>;
+
   updateLiveStream(
     id: string,
     updates: Partial<LiveStream>
@@ -470,7 +503,20 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(tracks.createdAt));
   }
 
-  async getTracks(limit = 50, offset = 0): Promise<Track[]> {
+  async getTracks(query?: string, limit = 50, offset = 0): Promise<Track[]> {
+    const conditions = [eq(tracks.isPublic, true)] as any[];
+
+    if (query) {
+      conditions.push(
+        or(
+          like(tracks.title, `%${query}%`),
+          like(tracks.genre, `%${query}%`),
+          like(tracks.description, `%${query}%`),
+          like(users.username, `%${query}%`)
+        )
+      );
+    }
+
     const result = await db
       .select({
         id: tracks.id,
@@ -500,8 +546,8 @@ export class MySQLStorage implements IStorage {
       })
       .from(tracks)
       .leftJoin(users, eq(tracks.artistId, users.id))
-      .where(eq(tracks.isPublic, true))
-      .orderBy(desc(tracks.createdAt))
+      .where(and(...conditions))
+      .orderBy(query ? desc(tracks.playCount) : desc(tracks.createdAt))
       .limit(limit)
       .offset(offset);
 
@@ -830,6 +876,18 @@ export class MySQLStorage implements IStorage {
   async createRadioSession(
     insertSession: InsertRadioSession
   ): Promise<RadioSession> {
+    // Check for overlapping
+    if (
+      insertSession.scheduledStart &&
+      insertSession.scheduledEnd &&
+      !(await isTimeSlotAvailable(
+        insertSession.scheduledStart,
+        insertSession.scheduledEnd
+      ))
+    ) {
+      throw new Error("Time slot is already taken");
+    }
+
     const id = randomUUID();
     const sessionData = { ...insertSession, id };
 
@@ -843,17 +901,100 @@ export class MySQLStorage implements IStorage {
     id: string,
     updates: Partial<RadioSession>
   ): Promise<RadioSession> {
+    // Only check if both start and end are being updated
+    if (updates.scheduledStart && updates.scheduledEnd) {
+      const available = await isTimeSlotAvailable(
+        updates.scheduledStart,
+        updates.scheduledEnd,
+        id // exclude self
+      );
+      log("available", available?.toString());
+      log("scheduledStart", updates.scheduledStart.toString());
+      log("scheduledEnd", updates.scheduledEnd.toString());
+      if (!available) {
+        throw new Error("Time slot is already taken");
+      }
+    }
+
     await db.update(radioSessions).set(updates).where(eq(radioSessions.id, id));
     const result = await this.getRadioSession(id);
     if (!result) throw new Error("Radio session not found");
     return result;
   }
 
-  async getActiveRadioSessions(): Promise<RadioSession[]> {
+  // Radio Sessions
+  async goLive(sessionId: string) {
+    const updated = await db
+      .update(radioSessions)
+      .set({
+        isLive: true,
+        actualStart: sql`NOW()`,
+      })
+      .where(eq(radioSessions.id, sessionId))
+      .returning();
+
+    return updated[0] ?? null;
+  }
+
+  async endSession(sessionId: string) {
+    const updated = await db
+      .update(radioSessions)
+      .set({
+        isLive: false,
+        actualEnd: sql`NOW()`,
+      })
+      .where(eq(radioSessions.id, sessionId))
+      .returning();
+
+    return updated[0] ?? null;
+  }
+
+  async getActiveRadioSession(): Promise<
+    | (RadioSession & {
+        host: {
+          id: string;
+          username: string;
+          profileImage: string | null;
+          bio: string | null;
+        } | null;
+      })
+    | undefined
+  > {
+    const result = await db
+      .select({
+        id: radioSessions.id,
+        title: radioSessions.title,
+        description: radioSessions.description,
+        hostId: radioSessions.hostId,
+        radioCoStreamId: radioSessions.radioCoStreamId,
+        isLive: radioSessions.isLive,
+        listenerCount: radioSessions.listenerCount,
+        currentTrackId: radioSessions.currentTrackId,
+        scheduledStart: radioSessions.scheduledStart,
+        scheduledEnd: radioSessions.scheduledEnd,
+        actualStart: radioSessions.actualStart,
+        actualEnd: radioSessions.actualEnd,
+        createdAt: radioSessions.createdAt,
+        host: {
+          id: users.id,
+          username: users.username,
+          profileImage: users.profileImage,
+          bio: users.bio,
+        },
+      })
+      .from(radioSessions)
+      .leftJoin(users, eq(radioSessions.hostId, users.id))
+      .where(eq(radioSessions.isLive, true))
+      .orderBy(desc(radioSessions.actualStart))
+      .limit(1);
+
+    return result[0] ?? undefined;
+  }
+
+  async getAllRadioSessions(): Promise<RadioSession[]> {
     return db
       .select()
       .from(radioSessions)
-      .where(eq(radioSessions.isLive, true))
       .orderBy(desc(radioSessions.actualStart));
   }
 
@@ -864,6 +1005,33 @@ export class MySQLStorage implements IStorage {
       .where(eq(radioSessions.id, id))
       .limit(1);
     return result[0];
+  }
+
+  // Radio Live Chats
+  async getRadioChatMessages(
+    sessionId: string,
+    limit = 50
+  ): Promise<RadioChatMessageWithUser[] | undefined> {
+    return db
+      .select({
+        id: radioChat.id,
+        sessionId: radioChat.sessionId,
+        userId: radioChat.userId, // <-- add this
+        message: radioChat.message,
+        messageType: radioChat.messageType,
+        createdAt: radioChat.createdAt,
+        user: {
+          id: users.id,
+          username: users.username,
+          role: users.role,
+          profileImage: users.profileImage,
+        },
+      })
+      .from(radioChat)
+      .innerJoin(users, eq(users.id, radioChat.userId))
+      .where(eq(radioChat.sessionId, sessionId))
+      .orderBy(asc(radioChat.createdAt))
+      .limit(limit);
   }
 
   // Collaboration operations
@@ -1384,7 +1552,9 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(purchasedTracks.purchasedAt));
   }
 
-  async getPurchasedTracksByUser(userId: string): Promise<Track[]> {
+  async getPurchasedTracksByUser(
+    userId: string
+  ): Promise<TrackWithArtistName[]> {
     const result = await db
       .select({
         id: tracks.id,
@@ -1409,27 +1579,20 @@ export class MySQLStorage implements IStorage {
         mood: tracks.mood,
         tags: tracks.tags,
         waveformData: tracks.waveformData,
+        stripePriceId: tracks.stripePriceId,
+        downloadCount: tracks.downloadCount,
         artistName:
           sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as(
             "artistName"
           ),
       })
       .from(purchasedTracks)
-      .leftJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
-      .leftJoin(users, eq(tracks.artistId, users.id))
+      .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
+      .innerJoin(users, eq(tracks.artistId, users.id))
       .where(eq(purchasedTracks.userId, userId))
       .orderBy(desc(purchasedTracks.purchasedAt));
 
-    return result.map((track) => ({
-      ...track,
-      playCount: track.playCount || 0,
-      likesCount: track.likesCount || 0,
-      downloadCount: 0,
-      isExplicit: track.isExplicit || false,
-      hasPreviewOnly: track.hasPreviewOnly || false,
-      isPublic: track.isPublic || false,
-      submitToRadio: track.submitToRadio || false,
-    })) as Track[];
+    return result;
   }
 
   async getUserFavoriteArtists(userId: string): Promise<any[]> {
@@ -1476,7 +1639,7 @@ export class MySQLStorage implements IStorage {
     return purchase || null;
   }
 
-  async recordTrackPurchase(purchaseData: any): Promise<any> {
+  async recordTrackPurchase(purchaseData: InsertPurchasedTrack): Promise<any> {
     const id = randomUUID();
     const data = { ...purchaseData, id };
     const [purchase] = await db
@@ -1505,6 +1668,30 @@ export class MySQLStorage implements IStorage {
       console.error("Error checking track access:", error);
       return false;
     }
+  }
+
+  // ✅ Update purchased track by Stripe PaymentIntent ID
+  async updatePurchasedTrackByIntentId(
+    intentId: string,
+    updates: Partial<{
+      paymentStatus: "pending" | "succeeded" | "failed" | "refunded";
+      stripeTransferId: string | null;
+      purchasedAt: Date | null;
+    }>
+  ): Promise<any | null> {
+    const [purchase] = await db
+      .update(purchasedTracks)
+      .set({
+        ...(updates.paymentStatus && { paymentStatus: updates.paymentStatus }),
+        ...(updates.stripeTransferId !== undefined && {
+          stripeTransferId: updates.stripeTransferId,
+        }),
+        ...(updates.purchasedAt && { purchasedAt: updates.purchasedAt }),
+      })
+      .where(eq(purchasedTracks.stripePaymentIntentId, intentId))
+      .returning();
+
+    return purchase || null;
   }
 
   // Email verification operations

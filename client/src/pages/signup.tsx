@@ -30,10 +30,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Logo } from "@/components/ui/logo";
-import { Music, Eye, EyeOff, User, Mail, Lock, Users } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import {
+  Music,
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Lock,
+  Users,
+  Headphones,
+} from "lucide-react";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
+import { useAuth } from "@/hooks/use-auth";
 
 // Validation schema
 const signupSchema = z
@@ -50,7 +58,9 @@ const signupSchema = z
     email: z.string().email("Please enter a valid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
-    role: z.enum(["fan", "artist"], { required_error: "Please select a role" }),
+    role: z.enum(["fan", "artist", "DJ"], {
+      required_error: "Please select a role",
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -97,28 +107,7 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const { mutateAsync: signup, isPending } = useMutation({
-    mutationFn: async (userData: any) => {
-      const response = await apiRequest("POST", "/api/auth/signup", userData);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log(data);
-      toast({
-        title: "Please verify your email",
-        description:
-          data?.message || "Please check your email to verify your account.",
-        duration: 6000,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Signup failed",
-        description: error.message || "Failed to create account",
-        variant: "destructive",
-      });
-    },
-  });
+  const { user, signup, isLoading } = useAuth();
 
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
@@ -144,7 +133,16 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center  p-6">
+      {user && (
+        <EmailVerificationBanner
+          user={{
+            emailVerified: user.emailVerified || false,
+            email: user.email,
+            firstName: user.firstName || undefined,
+          }}
+        />
+      )}
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <div className="mb-4 flex justify-center">
@@ -263,6 +261,12 @@ export default function Signup() {
                               <span>Artist - Share and monetize my music</span>
                             </div>
                           </SelectItem>
+                          <SelectItem value="DJ">
+                            <div className="flex items-center space-x-2">
+                              <Headphones className="w-4 h-4" />
+                              <span>DJ - Curate and mix tracks</span>
+                            </div>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -312,9 +316,9 @@ export default function Signup() {
                   <Button
                     type="submit"
                     className="w-full mixxl-gradient text-white font-semibold"
-                    disabled={isPending}
+                    disabled={isLoading}
                   >
-                    {isPending && (
+                    {isLoading && (
                       <div className="loading-spinner rounded-full w-4 h-4 mr-2"></div>
                     )}
                     Create Account

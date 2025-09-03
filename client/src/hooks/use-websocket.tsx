@@ -9,6 +9,10 @@ interface WebSocketMessage {
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
+  const [sessionUpdates, setSessionUpdates] = useState<WebSocketMessage | null>(
+    null
+  );
+
   const ws = useRef<WebSocket | null>(null);
   const { user } = useAuth();
 
@@ -39,7 +43,12 @@ export function useWebSocket() {
     ws.current.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        setMessages((prev) => [...prev, message]);
+
+        if (message.type === "radio_session_updated") {
+          setSessionUpdates(message);
+        } else {
+          setMessages((prev) => [...prev, message]);
+        }
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
       }
@@ -77,6 +86,7 @@ export function useWebSocket() {
   };
 
   const sendRadioChat = (sessionId: string, content: string) => {
+    console.log("1. sendRadioChat", { sessionId, content });
     sendMessage({
       type: "radio_chat",
       sessionId,
@@ -88,6 +98,7 @@ export function useWebSocket() {
   return {
     isConnected,
     messages,
+    sessionUpdates,
     sendMessage,
     joinRadio,
     sendRadioChat,

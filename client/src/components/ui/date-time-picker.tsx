@@ -15,12 +15,14 @@ interface DateTimePickerProps {
   onChange: (date: Date | undefined | null) => void;
   label?: string;
   showTimePicker?: boolean; // optional prop to show/hide time picker
+  enableDatesFrom?: Date; // new prop to disable past dates
 }
 
 export function DateTimePicker({
   value = null,
   onChange,
   showTimePicker = false,
+  enableDatesFrom = new Date(),
 }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -30,12 +32,15 @@ export function DateTimePicker({
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const [hours, minutes, seconds] = e.target.value.split(":").map(Number);
 
-    // ✅ if no date yet, don’t force a default date — just bail out
     if (!value) return;
 
     const updated = new Date(value);
     updated.setHours(hours || 0, minutes || 0, seconds || 0);
     onChange(updated);
+  };
+
+  const isDateEnabled = (date: Date) => {
+    return date >= enableDatesFrom;
   };
 
   return (
@@ -66,18 +71,19 @@ export function DateTimePicker({
               mode="single"
               selected={value ?? undefined}
               captionLayout="dropdown"
+              disabled={(date) => !isDateEnabled(date)} // disable past dates
               onSelect={(selectedDate) => {
                 if (!selectedDate) return;
-                // ✅ initialize new date with picked day
-                let updated = new Date(selectedDate);
+
+                const updated = new Date(selectedDate);
                 if (value) {
-                  // if time already exists, preserve it
                   updated.setHours(
                     value.getHours(),
                     value.getMinutes(),
                     value.getSeconds()
                   );
                 }
+
                 onChange(updated);
                 setOpen(false);
               }}

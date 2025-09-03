@@ -44,7 +44,11 @@ import BroadcastsAdmin from "@/pages/admin/broadcasts";
 import UsersAdmin from "@/pages/admin/users";
 import AdminDiscountCodes from "@/pages/admin/discount-codes";
 import Unauthorized from "@/pages/unauthorized";
-import UnverifiedPage from "@/pages/unverified";
+import OnboardingComplete from "@/pages/connect-account/onboarding-complete";
+import PurchasingCancel from "@/pages/track-purchasing/cancel";
+import PurchasingSuccess from "@/pages/track-purchasing/success";
+import SubscriptionSuccess from "@/pages/subscription/success";
+import SubscriptionCancel from "@/pages/subscription/cancel";
 
 export interface AppRoute {
   path: string;
@@ -52,8 +56,7 @@ export interface AppRoute {
   roles?: string[]; // undefined = public
 }
 
-export const appRoutes: AppRoute[] = [
-  // Public
+export const PUBLIC_ROUTES: AppRoute[] = [
   { path: "/", component: Home },
   { path: "/login", component: Login },
   { path: "/signup", component: Signup },
@@ -68,7 +71,13 @@ export const appRoutes: AppRoute[] = [
   { path: "/blog", component: Blog },
   { path: "/contact", component: Contact },
   { path: "/faq", component: FAQ },
+  // Unauthorized
+  { path: "/unauthorized", component: Unauthorized },
+  // keep fallback here if you want it public
+  { path: "*", component: NotFound },
+];
 
+export const appRoutes: AppRoute[] = [
   // Logged-in: any role
   {
     path: "/dashboard",
@@ -76,16 +85,16 @@ export const appRoutes: AppRoute[] = [
     roles: ["fan", "artist", "admin"],
   },
   { path: "/discover", component: Discover, roles: ["fan", "artist", "admin"] },
-  { path: "/radio", component: Radio, roles: ["fan", "artist", "admin"] },
+  { path: "/radio", component: Radio },
   {
     path: "/profile/:id?",
     component: Profile,
-    roles: ["fan", "artist", "admin"],
+    roles: ["fan", "artist", "admin", "DJ"],
   },
   {
     path: "/profile-settings",
     component: ProfileSettings,
-    roles: ["fan", "artist", "admin"],
+    roles: ["fan", "artist", "admin", "DJ"],
   },
   {
     path: "/subscribe",
@@ -102,7 +111,7 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/notifications",
     component: Notifications,
-    roles: ["fan", "artist", "admin"],
+    roles: ["fan", "artist", "admin", "DJ"],
   },
   {
     path: "/stripe-setup",
@@ -154,11 +163,41 @@ export const appRoutes: AppRoute[] = [
     component: AdminDiscountCodes,
     roles: ["admin"],
   },
+  // artist subscription return urls
+  {
+    path: "/subscription/cancel",
+    component: SubscriptionCancel,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/subscription/success",
+    component: SubscriptionSuccess,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
 
-  // Unauthorized
-  { path: "/unauthorized", component: Unauthorized },
-  { path: "/unverified", component: UnverifiedPage },
+  // fan track purchasing return urls
+  {
+    path: "/purchase/cancel",
+    component: PurchasingCancel,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/purchase/success",
+    component: PurchasingSuccess,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
 
-  // Fallback
-  { path: "*", component: NotFound },
+  // artist connect accounts return urls
+  {
+    path: "/artist/onboarding/complete",
+    component: OnboardingComplete,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/artist/onboarding/refresh",
+    component: OnboardingComplete,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+
+  ...PUBLIC_ROUTES,
 ];

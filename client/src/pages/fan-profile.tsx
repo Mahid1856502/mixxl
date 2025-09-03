@@ -39,6 +39,8 @@ import {
   Star,
   List,
 } from "lucide-react";
+import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
+import { TrackWithArtistName } from "@shared/schema";
 
 interface Mixxlist {
   id: string;
@@ -74,10 +76,7 @@ export default function FanProfile() {
     enabled: !!profileUserId,
   }) as { data: Mixxlist[] };
 
-  const { data: purchasedTracks = [] } = useQuery({
-    queryKey: ["/api/users", profileUserId, "purchased-tracks"],
-    enabled: !!profileUserId && isOwnProfile,
-  }) as { data: any[] };
+  const { data: userTracks = [] } = useUserTracks();
 
   const { data: favoriteArtists = [] } = useQuery({
     queryKey: ["/api/users", profileUserId, "favorite-artists"],
@@ -261,7 +260,7 @@ export default function FanProfile() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">
-                      {purchasedTracks.length}
+                      {userTracks.length}
                     </div>
                     <div className="text-gray-400">Purchased</div>
                   </div>
@@ -299,7 +298,7 @@ export default function FanProfile() {
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600"
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                Purchased ({purchasedTracks.length})
+                Purchased ({userTracks.length})
               </TabsTrigger>
             )}
             <TabsTrigger
@@ -416,9 +415,9 @@ export default function FanProfile() {
                 </Link>
               </div>
 
-              {purchasedTracks.length > 0 ? (
+              {userTracks.length > 0 ? (
                 <div className="space-y-4">
-                  {purchasedTracks.map((track) => (
+                  {userTracks.map((track: TrackWithArtistName) => (
                     <TrackCard key={track.id} track={track} />
                   ))}
                 </div>

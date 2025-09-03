@@ -16,7 +16,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Enums
-export const roleEnum = pgEnum("role", ["fan", "artist", "admin"]);
+export const roleEnum = pgEnum("role", ["fan", "artist", "admin", "DJ"]);
 export const messageTypeEnum = pgEnum("message_type", [
   "text",
   "track",
@@ -97,6 +97,14 @@ export const currencyEnum = pgEnum("currency", [
   "HKD",
 ]);
 
+// payment_status enum
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "succeeded",
+  "failed",
+  "refunded",
+]);
+
 // Email verification tokens table
 export const emailVerificationTokens = pgTable(
   "email_verification_tokens",
@@ -112,6 +120,17 @@ export const emailVerificationTokens = pgTable(
     tokenIdx: index("email_verification_tokens_token_idx").on(table.token),
   })
 );
+// user subscription_status
+export const subscriptionStatusEnum = pgEnum("subscription_status_enum", [
+  "incomplete",
+  "incomplete_expired",
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "unpaid",
+  "paused",
+]);
 
 // Users table
 export const users = pgTable(
@@ -135,11 +154,15 @@ export const users = pgTable(
     isActive: boolean("is_active").default(true),
     stripeCustomerId: varchar("stripe_customer_id", { length: 100 }),
     stripeSubscriptionId: varchar("stripe_subscription_id", { length: 100 }),
-    subscriptionStatus: varchar("subscription_status", { length: 50 }),
+    subscriptionStatus: subscriptionStatusEnum("subscription_status").default(
+      "incomplete"
+    ),
     trialEndsAt: timestamp("trial_ends_at"),
     hasUsedTrial: boolean("has_used_trial").default(false),
     onboardingComplete: boolean("onboarding_complete").default(false),
     preferredCurrency: currencyEnum("preferred_currency").default("GBP"),
+    // NEW: Stripe Connect Account for payouts
+    stripeAccountId: varchar("stripe_account_id", { length: 100 }),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -231,6 +254,9 @@ export const tracks = pgTable(
     downloadCount: integer("download_count").default(0),
     playCount: integer("play_count").default(0),
     likesCount: integer("likes_count").default(0),
+    // NEW: Stripe Price ID for one-time payment
+    stripePriceId: varchar("stripe_price_id", { length: 255 }),
+
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -251,7 +277,12 @@ export const purchasedTracks = pgTable(
     userId: uuid("user_id").notNull(),
     trackId: uuid("track_id").notNull(),
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 10 }).notNull().default("usd"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+    stripeTransferId: varchar("stripe_transfer_id", { length: 255 }),
+    paymentStatus: paymentStatusEnum("payment_status")
+      .notNull()
+      .default("pending"),
     purchasedAt: timestamp("purchased_at").default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
@@ -299,8 +330,8 @@ export const radioSessions = pgTable(
     isLive: boolean("is_live").default(false),
     listenerCount: integer("listener_count").default(0),
     currentTrackId: uuid("current_track_id"),
-    scheduledStart: timestamp("scheduled_start"),
-    scheduledEnd: timestamp("scheduled_end"),
+    scheduledStart: timestamp("scheduled_start").notNull(),
+    scheduledEnd: timestamp("scheduled_end").notNull(),
     actualStart: timestamp("actual_start"),
     actualEnd: timestamp("actual_end"),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -571,6 +602,15 @@ export const insertRadioSessionSchema = createInsertSchema(radioSessions).omit({
   actualEnd: true,
 });
 
+export const updateRadioSessionSchema = insertRadioSessionSchema
+  .extend({
+    scheduledStart: z.date().optional(),
+    scheduledEnd: z.date().optional(),
+    actualStart: z.date().optional(),
+    actualEnd: z.date().optional(),
+  })
+  .partial(); // make all fields optional for PATCH
+
 export const insertCollaborationSchema = createInsertSchema(
   collaborations
 ).omit({
@@ -658,7 +698,6 @@ export const insertPurchasedTrackSchema = createInsertSchema(
 ).omit({
   id: true,
   purchasedAt: true,
-  stripePaymentIntentId: true,
 });
 
 export const insertEmailVerificationTokenSchema = createInsertSchema(
@@ -867,6 +906,7 @@ export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
+export type TrackWithArtistName = Track & { artistName: string };
 export type Playlist = typeof playlists.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
 export type PlaylistTrack = typeof playlistTracks.$inferSelect;
@@ -878,6 +918,15 @@ export type InsertTip = z.infer<typeof insertTipSchema>;
 export type RadioSession = typeof radioSessions.$inferSelect;
 export type InsertRadioSession = z.infer<typeof insertRadioSessionSchema>;
 export type RadioChatMessage = typeof radioChat.$inferSelect;
+export type RadioChatMessageWithUser = RadioChatMessage & {
+  userId: string;
+  user: {
+    id: string;
+    username: string;
+    role: string;
+    profileImage?: string | null;
+  };
+};
 export type Collaboration = typeof collaborations.$inferSelect;
 export type InsertCollaboration = z.infer<typeof insertCollaborationSchema>;
 export type Badge = typeof badges.$inferSelect;

@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
+import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
+import { useUserById } from "@/api/hooks/users/useUserById";
 
 export default function Profile() {
   const { id } = useParams();
@@ -50,17 +52,11 @@ export default function Profile() {
   const profileUserId = id || currentUser?.id;
   const isOwnProfile = profileUserId === currentUser?.id;
 
-  const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ["/api/users", profileUserId],
-    enabled: !!profileUserId,
-  }) as { data: any; isLoading: boolean };
+  const { data: user } = useUserById(profileUserId ?? "");
 
-  const { data: userTracks = [] } = useQuery({
-    queryKey: ["/api/users", profileUserId, "tracks"],
-    enabled: !!profileUserId,
-  }) as { data: any[] };
+  const { data: userTracks = [] } = useUserTracks();
 
-  const { data: userPlaylists = [] } = useUserPlaylists(currentUser?.id);
+  const { data: userPlaylists = [] } = useUserPlaylists(profileUserId);
   console.log("userPlaylists", userPlaylists);
 
   const { data: followers = [] } = useQuery({
@@ -169,7 +165,7 @@ export default function Profile() {
 
     if (!user?.id) return;
 
-    createConversationMutation.mutate(user.id);
+    createConversationMutation.mutate(user?.id);
   };
 
   const handleShare = () => {
@@ -220,42 +216,13 @@ export default function Profile() {
     setShowTipModal(true);
   };
 
-  if (userLoading) {
-    return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="h-64 bg-white/5 rounded-lg shimmer"></div>
-          <div className="h-32 bg-white/10 rounded-lg shimmer"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">User not found</h2>
-            <p className="text-muted-foreground mb-6">
-              The profile you're looking for doesn't exist or has been removed.
-            </p>
-            <Link href="/discover">
-              <Button>Discover Artists</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen">
       {/* Cover/Header Section */}
       <div className="relative h-64 bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-amber-500/20 overflow-hidden">
-        {user.backgroundImage ? (
+        {user?.backgroundImage ? (
           <img
-            src={user.backgroundImage}
+            src={user?.backgroundImage}
             alt="Profile background"
             className="w-full h-full object-cover"
           />
@@ -293,13 +260,13 @@ export default function Profile() {
                 <AvatarImage
                   className="object-cover"
                   src={
-                    user.profileImage ? `${BASE_URL}${user.profileImage}` : ""
+                    user?.profileImage ? `${BASE_URL}${user?.profileImage}` : ""
                   }
-                  alt={user.username}
+                  alt={user?.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {user.firstName?.[0]?.toUpperCase() ||
-                    user.username[0]?.toUpperCase()}
+                  {user?.firstName?.[0]?.toUpperCase() ||
+                    user?.username[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
@@ -308,32 +275,32 @@ export default function Profile() {
                 <div>
                   <div className="flex items-center space-x-3 mb-2">
                     <h1 className="text-3xl font-bold">
-                      {user.firstName && user.lastName
-                        ? `${user.firstName} ${user.lastName}`
-                        : user.username}
+                      {user?.firstName && user?.lastName
+                        ? `${user?.firstName} ${user?.lastName}`
+                        : user?.username}
                     </h1>
-                    {user.emailVerified && (
+                    {user?.emailVerified && (
                       <Verified className="w-6 h-6 text-blue-500" />
                     )}
-                    {user.role === "admin" && (
+                    {user?.role === "admin" && (
                       <Crown className="w-6 h-6 text-orange-500" />
                     )}
                   </div>
                   <p className="text-muted-foreground text-lg">
-                    @{user.username}
+                    @{user?.username}
                   </p>
 
                   <div className="flex items-center space-x-4 mt-2">
                     <Badge
                       className={`capitalize ${
-                        user.role === "artist"
+                        user?.role === "artist"
                           ? "bg-purple-500 hover:bg-purple-600"
-                          : user.role === "admin"
+                          : user?.role === "admin"
                           ? "bg-orange-500 hover:bg-orange-600"
                           : "bg-pink-500 hover:bg-pink-600"
                       }`}
                     >
-                      {user.role}
+                      {user?.role}
                     </Badge>
                     {!isOwnProfile && currentUser && (
                       <Button
@@ -345,41 +312,41 @@ export default function Profile() {
                       >
                         <MessageCircle className="w-3 h-3 mr-1" />
                         Message{" "}
-                        {user.firstName ? user.firstName : user.username}
+                        {user?.firstName ? user?.firstName : user?.username}
                       </Button>
                     )}
                     <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      <span>Joined {formatDate(user.createdAt)}</span>
+                      <span>Joined {formatDate(user?.createdAt)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Bio */}
-                {user.bio && (
+                {user?.bio && (
                   <p className="text-muted-foreground leading-relaxed">
-                    {user.bio}
+                    {user?.bio}
                   </p>
                 )}
 
                 {/* Location & Website */}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  {user.location && (
+                  {user?.location && (
                     <div className="flex items-center space-x-1">
                       <MapPin className="w-4 h-4" />
-                      <span>{user.location}</span>
+                      <span>{user?.location}</span>
                     </div>
                   )}
-                  {user.website && (
+                  {user?.website && (
                     <div className="flex items-center space-x-1">
                       <LinkIcon className="w-4 h-4" />
                       <a
-                        href={user.website}
+                        href={user?.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"
                       >
-                        {user.website.replace(/^https?:\/\//, "")}
+                        {user?.website.replace(/^https?:\/\//, "")}
                       </a>
                     </div>
                   )}
@@ -405,7 +372,7 @@ export default function Profile() {
                     <div className="font-bold text-lg">{following.length}</div>
                     <div className="text-muted-foreground">Following</div>
                   </div>
-                  {user.role === "artist" && (
+                  {user?.role === "artist" && (
                     <div className="text-center">
                       <div className="font-bold text-lg">
                         {getTotalPlays().toLocaleString()}
@@ -442,7 +409,7 @@ export default function Profile() {
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Message
                     </Button>
-                    {user.role === "artist" && (
+                    {user?.role === "artist" && (
                       <Button variant="outline" onClick={handleTip}>
                         <Euro className="w-4 h-4 mr-2" />
                         Tip Artist
@@ -485,7 +452,7 @@ export default function Profile() {
               <Users className="w-4 h-4" />
               <span>Social</span>
             </TabsTrigger>
-            {user.role === "artist" && (
+            {user?.role === "artist" && (
               <TabsTrigger
                 value="analytics"
                 className="flex items-center space-x-2"
@@ -500,11 +467,11 @@ export default function Profile() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">
                 {isOwnProfile
-                  ? user.role === "artist"
+                  ? user?.role === "artist"
                     ? "Your Tracks"
                     : "Your Music Library"
-                  : `${user.username}'s ${
-                      user.role === "artist" ? "Tracks" : "Music Library"
+                  : `${user?.username}'s ${
+                      user?.role === "artist" ? "Tracks" : "Music Library"
                     }`}
               </h2>
               {userTracks.length > 0 && (
@@ -521,30 +488,30 @@ export default function Profile() {
                   <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="text-xl font-semibold mb-2">
                     {isOwnProfile
-                      ? user.role === "artist"
+                      ? user?.role === "artist"
                         ? "No tracks uploaded yet"
                         : "No music purchased yet"
-                      : user.role === "artist"
+                      : user?.role === "artist"
                       ? "No tracks available"
                       : "No music in library"}
                   </h3>
                   <p className="text-muted-foreground mb-6">
                     {isOwnProfile
-                      ? user.role === "artist"
+                      ? user?.role === "artist"
                         ? "Start sharing your music with the world"
                         : "Discover and purchase tracks from your favorite artists"
-                      : user.role === "artist"
+                      : user?.role === "artist"
                       ? "This user hasn't uploaded any tracks yet"
                       : "This user hasn't purchased any music yet"}
                   </p>
-                  {isOwnProfile && user.role === "artist" && (
+                  {isOwnProfile && user?.role === "artist" && (
                     <Link href="/upload">
                       <Button className="mixxl-gradient text-white">
                         Upload Your First Track
                       </Button>
                     </Link>
                   )}
-                  {isOwnProfile && user.role === "fan" && (
+                  {isOwnProfile && user?.role === "fan" && (
                     <Link href="/discover">
                       <Button className="mixxl-gradient text-white">
                         Discover Music
@@ -562,7 +529,7 @@ export default function Profile() {
                     isPlaying={currentTrack?.id === track.id && isPlaying}
                     onPlay={handlePlay}
                     onPause={handlePause}
-                    showArtist={user.role === "fan"}
+                    showArtist={user?.role === "fan"}
                   />
                 ))}
               </div>
@@ -574,7 +541,7 @@ export default function Profile() {
               <h2 className="text-2xl font-bold">
                 {isOwnProfile
                   ? "Your Playlists"
-                  : `${user.username}'s Playlists`}
+                  : `${user?.username}'s Playlists`}
               </h2>
               {isOwnProfile && (
                 <Button
@@ -601,7 +568,10 @@ export default function Profile() {
                       : "This user hasn't created any public playlists yet"}
                   </p>
                   {isOwnProfile && (
-                    <Button className="mixxl-gradient text-white">
+                    <Button
+                      className="mixxl-gradient text-white"
+                      onClick={() => setModalOpen(true)}
+                    >
                       Create Your First Playlist
                     </Button>
                   )}
@@ -696,7 +666,7 @@ export default function Profile() {
             </div>
           </TabsContent>
 
-          {user.role === "artist" && (
+          {user?.role === "artist" && (
             <TabsContent value="analytics" className="space-y-6">
               <h2 className="text-2xl font-bold">Analytics Overview</h2>
 
@@ -781,7 +751,7 @@ export default function Profile() {
                             (b.playCount || 0) - (a.playCount || 0)
                         )
                         .slice(0, 5)
-                        .map((track: any, index) => (
+                        .map((track: any, index: number) => (
                           <div
                             key={track.id}
                             className="flex items-center space-x-4 p-3 rounded-lg hover:bg-white/5 transition-colors"
@@ -817,10 +787,10 @@ export default function Profile() {
         isOpen={showTipModal}
         onClose={() => setShowTipModal(false)}
         artist={{
-          id: user.id,
-          firstName: user.firstName || user.username,
-          lastName: user.lastName || "",
-          profileImage: user.profileImage,
+          id: user?.id,
+          firstName: user?.firstName || user?.username,
+          lastName: user?.lastName || "",
+          profileImage: user?.profileImage,
         }}
       />
       <CreatePlaylistModal open={modalOpen} onOpenChange={setModalOpen} />

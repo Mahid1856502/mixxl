@@ -18,14 +18,31 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
-import { User, Save, ArrowLeft, Camera, Settings } from "lucide-react";
+import {
+  User,
+  Save,
+  ArrowLeft,
+  Camera,
+  Settings,
+  Headphones,
+  AlertCircle,
+} from "lucide-react";
 import { useUpdateProfile } from "@/api/hooks/users/useUpdateProfile";
+import { useCancelSubscription } from "@/api/hooks/stripe/useSubscriptionCancel";
+import { ConfirmDialog } from "@/components/common/ConfirmPopup";
+import {
+  useStripeAccount,
+  useStripeAccountStatus,
+} from "@/api/hooks/stripe/useStripeAccount";
 
 export default function ProfileSettings() {
   const { user } = useAuth();
+  console.log("user", user);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,6 +52,16 @@ export default function ProfileSettings() {
   const [role, setRole] = useState<"fan" | "artist">("fan");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const { data, isLoading, error } = useStripeAccountStatus(
+    user?.stripeAccountId
+  );
+  const { mutate: setupArtistAccount, isPending: settingStripeAccount } =
+    useStripeAccount();
+  const { mutate: cancelSubscription, isPending: isCancelling } =
+    useCancelSubscription();
+
+  console.log(" data, isLoading, error", data, isLoading, error);
 
   useEffect(() => {
     if (user) {
@@ -112,7 +139,15 @@ export default function ProfileSettings() {
     });
   };
 
-  console.log("user.profileImage", user?.profileImage);
+  const handleCancelSubscription = () => {
+    cancelSubscription(undefined, {
+      onSuccess: () => {
+        setIsDialogOpen(false);
+        // optionally invalidate user subscription query here
+      },
+    });
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -245,12 +280,44 @@ export default function ProfileSettings() {
                         <SelectItem value="artist">
                           Artist - Share and promote your music
                         </SelectItem>
+                        <SelectItem value="DJ">
+                          <div className="flex items-center space-x-2">
+                            <Headphones className="w-4 h-4" />
+                            <span>DJ - Curate and mix tracks</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {user?.stripeSubscriptionId &&
+              user?.subscriptionStatus !== "canceled" && (
+                <Card className="glass-effect border-white/10 mt-6 w-full">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                      <span>Cancel Subscription</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Cancelling your subscription will stop future payments.
+                      You will retain access to premium features until the end
+                      of your current billing period.
+                    </p>
+                    <Button
+                      className="border border-red-500 bg-red-950"
+                      onClick={() => setIsDialogOpen(true)}
+                      disabled={isCancelling} // from your hook
+                    >
+                      {isCancelling ? "Cancelling..." : "Cancel Subscription"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
           </div>
 
           {/* Profile Preview */}
@@ -345,9 +412,69 @@ export default function ProfileSettings() {
                 </div>
               </CardContent>
             </Card>
+            {role === "artist" && (
+              <Card className="glass-effect border-white/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Settings className="w-5 h-5 text-primary" />
+                    <span>Artist Payouts</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {user?.stripeAccountId &&
+                    (data?.status === "none" ||
+                      data?.status === "rejected") && (
+                      <div className="space-y-3">
+                        <p className="text-muted-foreground text-sm">
+                          To receive direct payments for your songs, you need to
+                          connect your Stripe Express account.
+                        </p>
+                        <Button
+                          className="w-full text-white"
+                          onClick={() => setupArtistAccount()}
+                          disabled={settingStripeAccount}
+                        >
+                          Connect with Stripe
+                        </Button>
+                      </div>
+                    )}
+
+                  {data?.status === "pending" && (
+                    <div className="space-y-3">
+                      <p className="text-muted-foreground text-sm">
+                        Your Stripe account setup is pending. Please check your
+                        email or contact support to complete the process.
+                      </p>
+                      <Button variant="outline" className="w-full" disabled>
+                        Verification in progress
+                      </Button>
+                    </div>
+                  )}
+
+                  {data?.status === "complete" && (
+                    <div className="space-y-3">
+                      <p className="text-muted-foreground text-sm">
+                        Your Stripe account is connected. You’re ready to
+                        receive payouts!
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        title="Cancel Subscription"
+        description="Are you sure you want to cancel your subscription? You will lose access to premium features."
+        confirmText="Yes, Cancel"
+        cancelText="No, Keep it"
+        onConfirm={handleCancelSubscription}
+        isPending={isCancelling}
+      />
     </div>
   );
 }

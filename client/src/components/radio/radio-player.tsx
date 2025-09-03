@@ -8,17 +8,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Radio, 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Users, 
+import {
+  Radio,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Users,
   Send,
   Heart,
   MessageCircle,
-  Music
+  Music,
 } from "lucide-react";
 
 interface RadioSession {
@@ -40,7 +40,7 @@ interface ChatMessage {
   };
   message: string;
   timestamp: string;
-  type: 'chat' | 'reaction' | 'system';
+  type: "chat" | "reaction" | "system";
 }
 
 interface RadioPlayerProps {
@@ -55,7 +55,7 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentTrack, setCurrentTrack] = useState<any>(null);
-  
+
   const { user } = useAuth();
   const { toast } = useToast();
   const { isConnected, messages, joinRadio, sendRadioChat } = useWebSocket();
@@ -68,15 +68,18 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
 
   useEffect(() => {
     // Listen for WebSocket messages
-    messages.forEach(message => {
-      if (message.type === 'radio_chat' && message.sessionId === session.id) {
-        setChatMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          user: message.user,
-          message: message.message,
-          timestamp: message.timestamp,
-          type: 'chat'
-        }]);
+    messages.forEach((message) => {
+      if (message.type === "radio_chat" && message.sessionId === session.id) {
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            user: message.user,
+            message: message.message,
+            timestamp: message.timestamp,
+            type: "chat",
+          },
+        ]);
       }
     });
   }, [messages, session.id]);
@@ -101,7 +104,7 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -109,7 +112,7 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
 
   const sendReaction = (emoji: string) => {
     if (!user) return;
-    
+
     sendRadioChat(session.id, emoji);
     toast({
       title: "Reaction sent!",
@@ -139,7 +142,9 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
 
               {/* Station Info */}
               <div className="space-y-2">
-                <h1 className="text-2xl font-bold mixxl-gradient-text">{session.title}</h1>
+                <h1 className="text-2xl font-bold mixxl-gradient-text">
+                  {session.title}
+                </h1>
                 {session.description && (
                   <p className="text-muted-foreground">{session.description}</p>
                 )}
@@ -152,8 +157,8 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
                       {currentTrack.coverImage ? (
-                        <img 
-                          src={currentTrack.coverImage} 
+                        <img
+                          src={currentTrack.coverImage}
                           alt={currentTrack.title}
                           className="w-full h-full object-cover rounded-lg"
                         />
@@ -163,10 +168,12 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                     </div>
                     <div className="text-left">
                       <h3 className="font-semibold">{currentTrack.title}</h3>
-                      <p className="text-sm text-muted-foreground">Artist Name</p>
+                      <p className="text-sm text-muted-foreground">
+                        Artist Name
+                      </p>
                     </div>
                   </div>
-                  
+
                   {/* Audio Visualizer */}
                   <div className="flex items-center justify-center space-x-1 h-8">
                     {Array.from({ length: 20 }).map((_, i) => (
@@ -175,7 +182,7 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                         className="w-1 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full audio-visualizer"
                         style={{
                           height: `${Math.random() * 100 + 20}%`,
-                          animationDelay: `${i * 0.1}s`
+                          animationDelay: `${i * 0.1}s`,
                         }}
                       />
                     ))}
@@ -184,27 +191,37 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
               ) : (
                 <div className="bg-white/5 rounded-lg p-8 text-center">
                   <Radio className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Connecting to radio stream...</p>
+                  <p className="text-muted-foreground">
+                    Connecting to radio stream...
+                  </p>
                 </div>
               )}
 
               {/* Controls */}
               <div className="flex items-center justify-center space-x-4">
-                <Button 
+                <Button
                   onClick={handlePlay}
                   className="mixxl-gradient text-white w-16 h-16 rounded-full"
                 >
-                  {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+                  {isPlaying ? (
+                    <Pause className="w-8 h-8" />
+                  ) : (
+                    <Play className="w-8 h-8" />
+                  )}
                 </Button>
-                
+
                 <Button variant="ghost" size="icon" onClick={toggleMute}>
-                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                  {isMuted ? (
+                    <VolumeX className="w-5 h-5" />
+                  ) : (
+                    <Volume2 className="w-5 h-5" />
+                  )}
                 </Button>
               </div>
 
               {/* Quick Reactions */}
               <div className="flex items-center justify-center space-x-2">
-                {['🔥', '💜', '🎵', '👏', '😍'].map((emoji) => (
+                {["🔥", "💜", "🎵", "👏", "😍"].map((emoji) => (
                   <Button
                     key={emoji}
                     variant="outline"
@@ -238,7 +255,9 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
               </Avatar>
               <div>
                 <h3 className="font-semibold">Host Name</h3>
-                <p className="text-sm text-muted-foreground">Radio DJ & Music Curator</p>
+                <p className="text-sm text-muted-foreground">
+                  Radio DJ & Music Curator
+                </p>
               </div>
               <Button variant="outline" className="ml-auto">
                 Follow
@@ -275,7 +294,10 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                   chatMessages.map((msg) => (
                     <div key={msg.id} className="flex items-start space-x-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={msg.user.profileImage || ""} alt={msg.user.username} />
+                        <AvatarImage
+                          src={msg.user.profileImage || ""}
+                          alt={msg.user.username}
+                        />
                         <AvatarFallback className="text-xs">
                           {msg.user.username[0]?.toUpperCase()}
                         </AvatarFallback>
@@ -309,8 +331,8 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                     className="flex-1 bg-white/5 border-white/10"
                     maxLength={200}
                   />
-                  <Button 
-                    size="icon" 
+                  <Button
+                    size="icon"
                     onClick={handleSendMessage}
                     disabled={!chatMessage.trim() || !isConnected}
                     className="mixxl-gradient text-white"

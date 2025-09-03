@@ -40,8 +40,6 @@ export default function UserCard({
   const [following, setFollowing] = useState(isFollowing);
   const [, setLocation] = useLocation();
 
-  console.log("user", user?.createdAt);
-
   const followMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/users/${user.id}/follow`, {}),
     onSuccess: () => {

@@ -119,7 +119,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 // JWT authentication middleware (copied from routes.ts)
-const authenticate = async (req: any, res: any, next: any) => {
+export const authenticate = async (req: any, res: any, next: any) => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (!token) {
@@ -141,7 +141,7 @@ const authenticate = async (req: any, res: any, next: any) => {
 };
 
 // Admin middleware to check if user is admin
-const requireAdmin = async (req: any, res: any, next: any) => {
+export const requireAdmin = async (req: any, res: any, next: any) => {
   await authenticate(req, res, () => {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });

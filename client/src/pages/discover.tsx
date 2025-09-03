@@ -34,30 +34,11 @@ import {
 } from "lucide-react";
 import { useFeaturedArtists } from "@/api/hooks/artists/useArtists";
 import { usePublicPlaylists } from "@/api/hooks/playlist/usePlaylist";
-import { useRadioSessions } from "@/api/hooks/radio/useRadioSession";
+import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
 import { Track } from "@shared/schema";
-
-const genres = [
-  "All",
-  "Electronic",
-  "Hip Hop",
-  "Pop",
-  "Rock",
-  "Jazz",
-  "Classical",
-  "R&B",
-  "Country",
-  "Folk",
-  "Reggae",
-  "Blues",
-  "Indie",
-  "Alternative",
-  "Metal",
-  "Punk",
-  "Ambient",
-  "House",
-  "Techno",
-];
+import { Link } from "wouter";
+import { useTracks } from "@/api/hooks/tracks/useTracks";
+import { GENRES, MOODS } from "@/lib/constants";
 
 const sortOptions = [
   { value: "newest", label: "Newest First" },
@@ -78,38 +59,15 @@ export default function Discover() {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const { data: tracks = [], isLoading: tracksLoading } = useQuery({
-    queryKey: [
-      "/api/tracks",
-      { search: searchQuery, genre: selectedGenre, sort: sortBy },
-    ],
-    queryFn: async () => {
-      let url = "/api/tracks";
-      const params = new URLSearchParams();
-
-      if (searchQuery) {
-        url = "/api/tracks/search";
-        params.set("q", searchQuery);
-      }
-
-      if (selectedGenre !== "All") {
-        params.set("genre", selectedGenre);
-      }
-
-      params.set("sort", sortBy);
-      params.set("limit", "50");
-
-      const response = await fetch(`${url}?${params}`);
-      return response.json();
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const { data: tracks = [], isLoading: tracksLoading } = useTracks();
 
   const { data: playlists = [] } = usePublicPlaylists();
 
   const { data: featuredArtists = [] } = useFeaturedArtists(searchTrigger);
 
-  const { data: radioSessions = [] } = useRadioSessions();
+  const { data: radioSession } = useRadioSession();
+
+  console.log("radioSession", radioSession);
   // Listen for new tracks via WebSocket
   useEffect(() => {
     const newTrackMessages = messages.filter((msg) => msg.type === "new_track");
@@ -182,7 +140,7 @@ export default function Discover() {
               {/* Quick Genre Tags */}
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-2">
-                  {genres.slice(0, 8).map((genre) => (
+                  {GENRES.map((genre) => (
                     <Button
                       key={genre}
                       variant={selectedGenre === genre ? "default" : "outline"}
@@ -221,9 +179,9 @@ export default function Discover() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {genres.map((genre) => (
-                          <SelectItem key={genre} value={genre}>
-                            {genre}
+                        {MOODS.map((mood) => (
+                          <SelectItem key={mood} value={mood}>
+                            {mood}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -268,7 +226,7 @@ export default function Discover() {
         </Card>
 
         {/* Live Radio Banner */}
-        {radioSessions.length > 0 && (
+        {radioSession && (
           <Card className="glass-effect border-red-500/30 bg-gradient-to-r from-red-500/10 to-pink-500/10">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -284,15 +242,17 @@ export default function Discover() {
                       Radio is Live Now!
                     </h3>
                     <p className="text-muted-foreground">
-                      {radioSessions[0]?.title} •{" "}
-                      {radioSessions[0]?.listenerCount} listeners
+                      {radioSession?.title} • {radioSession?.listenerCount}{" "}
+                      listeners
                     </p>
                   </div>
                 </div>
-                <Button className="bg-red-500 hover:bg-red-600 text-white">
-                  <Radio className="w-4 h-4 mr-2" />
-                  Listen Live
-                </Button>
+                <Link href="/radio">
+                  <Button className="bg-red-500 hover:bg-red-600 text-white">
+                    <Radio className="w-4 h-4 mr-2" />
+                    Listen Live
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

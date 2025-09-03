@@ -25,6 +25,6 @@ export function useUnreadNotificationCount() {
       return res.json() as Promise<{ count: number }>;
     },
     staleTime: 1 * 60 * 1000, // cache for 1 minute
-    refetchInterval: 30000,
+    // refetchInterval: 30000, // uncomment to refetch every 30 seconds
   });
 }

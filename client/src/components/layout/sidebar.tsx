@@ -20,16 +20,13 @@ import {
   Crown,
   Zap,
 } from "lucide-react";
+import { usePublicPlaylists } from "@/api/hooks/playlist/usePlaylist";
 
 export default function Sidebar() {
   const { user } = useAuth();
   const [location] = useLocation();
 
-  const { data: playlists = [] } = useQuery({
-    queryKey: ["/api/playlists"],
-    staleTime: 5 * 60 * 1000,
-  });
-
+  const { data: playlists = [] } = usePublicPlaylists();
   const { data: collaborations = [] } = useQuery({
     queryKey: ["/api/collaborations/pending"],
     enabled: !!user,
@@ -234,7 +231,7 @@ export default function Sidebar() {
         )}
 
         {/* Collaboration Requests */}
-        {collaborations.length > 0 && (
+        {/* {collaborations.length > 0 && (
           <>
             <Separator className="my-6 bg-white/10" />
             <div className="space-y-2">
@@ -257,7 +254,7 @@ export default function Sidebar() {
               </Link>
             </div>
           </>
-        )}
+        )} */}
       </ScrollArea>
 
       {/* Bottom Actions */}

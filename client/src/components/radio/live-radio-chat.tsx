@@ -10,75 +10,104 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { MessageCircle, Send, Users } from "lucide-react";
-
-interface ChatMessage {
-  id: string;
-  user: {
-    id: string;
-    username: string;
-    role: string;
-    profileImage?: string;
-  };
-  message: string;
-  timestamp: string;
-  type: 'chat' | 'reaction' | 'system';
-}
+import { MessageCircle, Send } from "lucide-react";
+import { RadioChatMessageWithUser, RadioSession } from "@shared/schema";
+import { useRadioChatBySession } from "@/api/hooks/radio/chat/useRadioChat";
+import { BASE_URL } from "@/lib/queryClient";
 
 interface LiveRadioChatProps {
-  listenerCount?: number;
+  session?: RadioSession & {
+    host: {
+      id: string;
+      username: string;
+      profileImage: string | null;
+      bio: string | null;
+    } | null;
+  };
   className?: string;
 }
 
-export default function LiveRadioChat({ listenerCount = 0, className = "" }: LiveRadioChatProps) {
+export default function LiveRadioChat({
+  session,
+  className = "",
+}: LiveRadioChatProps) {
   const [chatMessage, setChatMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<RadioChatMessageWithUser[]>(
+    []
+  );
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  
+
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isConnected, messages, sendRadioChat } = useWebSocket();
+  const { isConnected, messages: wsMessages, sendRadioChat } = useWebSocket();
   const [, setLocation] = useLocation();
 
-  // Auto-scroll to bottom when new messages arrive
+  const { data: initialMessages = [] } = useRadioChatBySession(
+    session?.id,
+    user?.id
+  );
+
+  const hasLoadedInitialMessages = useRef(false);
+
+  useEffect(() => {
+    if (!hasLoadedInitialMessages.current && initialMessages.length) {
+      setChatMessages(initialMessages);
+      hasLoadedInitialMessages.current = true;
+    }
+  }, [initialMessages]);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      scrollAreaRef.current?.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [chatMessages]);
 
-  // Listen for WebSocket messages
+  // Merge WebSocket messages into local state
   useEffect(() => {
-    const newRadioMessages = messages.filter(msg => msg.type === 'radio_chat');
-    newRadioMessages.forEach(message => {
-      setChatMessages(prev => {
-        // Check if message already exists to prevent duplicates
-        if (prev.find(m => m.id === message.id)) return prev;
-        
-        return [...prev, {
-          id: message.id || Date.now().toString(),
-          user: message.user,
-          message: message.message,
-          timestamp: message.timestamp || new Date().toISOString(),
-          type: message.messageType || 'chat'
-        }];
-      });
+    const newRadioMessages: RadioChatMessageWithUser[] = wsMessages
+      .filter((msg) => msg.messageType === "chat" && msg.user) // make sure user exists
+      .map((msg) => ({
+        id: msg.id,
+        sessionId: msg.sessionId,
+        userId: msg.userId,
+        message: msg.message,
+        messageType: msg.messageType ?? "chat",
+        createdAt: new Date(msg.createdAt),
+        user: {
+          id: msg.user!.id,
+          username: msg.user!.username,
+          role: msg.user!.role,
+          profileImage: msg.user!.profileImage ?? null,
+        },
+      }));
+
+    console.log("newRadioMessages", newRadioMessages);
+
+    setChatMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      return [
+        ...prev,
+        ...newRadioMessages.filter((m) => !existingIds.has(m.id)),
+      ];
     });
-  }, [messages]);
+  }, [wsMessages]);
 
   const handleSendMessage = () => {
-    if (!chatMessage.trim() || !user || !isConnected) return;
-
-    sendRadioChat('radio-main', chatMessage);
+    if (!chatMessage.trim() || !user || !isConnected || !session?.id) return;
+    sendRadioChat(session.id, chatMessage);
     setChatMessage("");
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    setChatMessage(prev => prev + emoji);
+    setChatMessage((prev) => prev + emoji);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -86,19 +115,18 @@ export default function LiveRadioChat({ listenerCount = 0, className = "" }: Liv
 
   const sendReaction = (emoji: string) => {
     if (!user || !isConnected) return;
-    
-    sendRadioChat('radio-main', emoji);
-    toast({
-      title: "Reaction sent!",
-      description: emoji,
-    });
+    sendRadioChat("radio-main", emoji);
+    toast({ title: "Reaction sent!", description: emoji });
   };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-500';
-      case 'artist': return 'bg-purple-500';
-      default: return 'bg-blue-500';
+      case "admin":
+        return "bg-red-500";
+      case "artist":
+        return "bg-purple-500";
+      default:
+        return "bg-blue-500";
     }
   };
 
@@ -111,79 +139,91 @@ export default function LiveRadioChat({ listenerCount = 0, className = "" }: Liv
             <span>Live Chat</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <Badge variant="secondary" className="text-xs">
-              <Users className="w-3 h-3 mr-1" />
-              {listenerCount}
-            </Badge>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+            ></div>
           </div>
         </CardTitle>
       </CardHeader>
-      
-      <CardContent className="p-0 flex flex-col h-96">
-        {/* Chat Messages */}
-        <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-          <div className="space-y-3 pb-4">
-            {chatMessages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Be the first to chat during the live broadcast!</p>
-              </div>
-            ) : (
-              chatMessages.map((msg) => (
-                <div key={msg.id} className="flex items-start space-x-2">
-                  <Avatar className="h-6 w-6 flex-shrink-0">
-                    <AvatarImage src={msg.user.profileImage || ""} alt={msg.user.username} />
-                    <AvatarFallback className="text-xs">
-                      {msg.user.username[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-sm font-medium text-primary">
-                        {msg.user.username}
-                      </span>
-                      {msg.user.role !== 'fan' && (
-                        <Badge 
-                          className={`text-xs px-1 py-0 ${getRoleBadgeColor(msg.user.role)} text-white`}
-                        >
-                          {msg.user.role.toUpperCase()}
-                        </Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm break-words">{msg.message}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
 
-        {/* Quick Reactions */}
-        <div className="border-t border-white/10 px-4 py-2">
-          <div className="flex items-center justify-center space-x-2">
-            {['🔥', '💜', '🎵', '👏', '😍', '🎉'].map((emoji) => (
-              <Button
-                key={emoji}
-                variant="ghost"
-                size="sm"
-                onClick={() => sendReaction(emoji)}
-                disabled={!user || !isConnected}
-                className="text-lg hover:scale-110 transition-transform p-1 h-8 w-8"
-              >
-                {emoji}
-              </Button>
-            ))}
-          </div>
+      <CardContent className="p-0 flex flex-col h-96">
+        <div
+          ref={scrollAreaRef}
+          className="flex-1 px-4 overflow-y-auto space-y-3 pb-4"
+        >
+          {chatMessages.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">
+                {user
+                  ? "Be the first to chat during the live broadcast!"
+                  : "Sign In to interact with community chat"}
+              </p>
+            </div>
+          ) : (
+            chatMessages.map((msg) => (
+              <div key={msg.id} className="flex items-start space-x-2">
+                <Avatar className="h-6 w-6 flex-shrink-0">
+                  <AvatarImage
+                    className="object-cover"
+                    src={
+                      msg.user?.profileImage
+                        ? `${BASE_URL}${msg.user.profileImage}`
+                        : ""
+                    }
+                    alt={msg.user?.username}
+                  />
+                  <AvatarFallback className="text-xs">
+                    {msg.user?.username?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-sm font-medium text-primary">
+                      {msg.user?.username}
+                    </span>
+                    {msg.user?.role !== "fan" && (
+                      <Badge
+                        className={`text-xs px-1 py-0 ${getRoleBadgeColor(
+                          msg.user?.role
+                        )} text-white`}
+                      >
+                        {msg.user?.role?.toUpperCase()}
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {msg.createdAt
+                        ? new Date(msg.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </span>
+                  </div>
+                  <p className="text-sm break-words">{msg.message}</p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Chat Input */}
+        <div className="border-t border-white/10 px-4 py-2 flex items-center justify-center space-x-2">
+          {["🔥", "💜", "🎵", "👏", "😍", "🎉"].map((emoji) => (
+            <Button
+              key={emoji}
+              variant="ghost"
+              size="sm"
+              onClick={() => sendReaction(emoji)}
+              disabled={!user || !isConnected}
+              className="text-lg hover:scale-110 transition-transform p-1 h-8 w-8"
+            >
+              {emoji}
+            </Button>
+          ))}
+        </div>
+
         {user ? (
           <div className="border-t border-white/10 p-4">
             <div className="flex items-center space-x-2">
@@ -195,17 +235,17 @@ export default function LiveRadioChat({ listenerCount = 0, className = "" }: Liv
                   placeholder="Chat with the community..."
                   className="flex-1 bg-white/5 border-white/10"
                   maxLength={200}
-                  disabled={!isConnected}
+                  disabled={!isConnected || !session?.id}
                 />
-                <EmojiPicker 
+                <EmojiPicker
                   onEmojiSelect={handleEmojiSelect}
                   className="glass-effect border-white/10 bg-white/5 hover:bg-white/10"
                 />
               </div>
-              <Button 
-                size="icon" 
+              <Button
+                size="icon"
                 onClick={handleSendMessage}
-                disabled={!chatMessage.trim() || !isConnected}
+                disabled={!chatMessage.trim() || !isConnected || !session?.id}
                 className="mixxl-gradient text-white"
               >
                 <Send className="w-4 h-4" />
@@ -213,7 +253,7 @@ export default function LiveRadioChat({ listenerCount = 0, className = "" }: Liv
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-muted-foreground">
-                {isConnected ? 'Connected' : 'Connecting...'}
+                {isConnected ? "Connected" : "Connecting..."}
               </span>
               <span className="text-xs text-muted-foreground">
                 {chatMessage.length}/200
@@ -225,10 +265,10 @@ export default function LiveRadioChat({ listenerCount = 0, className = "" }: Liv
             <p className="text-sm text-muted-foreground mb-2">
               Sign in to join the live chat
             </p>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="mixxl-gradient text-white"
-              onClick={() => setLocation('/login')}
+              onClick={() => setLocation("/login")}
             >
               Sign In
             </Button>

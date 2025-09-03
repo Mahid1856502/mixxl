@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
+import { PUBLIC_ROUTES } from "./routes.config";
 
 interface ProtectedRouteProps {
   component: React.ComponentType<any>;
@@ -26,19 +27,28 @@ export function ProtectedRoute({
     return <Redirect to="/login" />;
   }
 
-  // If user exists but email is not verified
-  // Skip redirect if already on login or signup page
+  // If user exists but email is not verified → always send back to login
+  const allowedPaths = PUBLIC_ROUTES.map((r) => r.path);
   if (
     user &&
-    user?.emailVerified === false &&
-    !["/login", "/signup"].includes(location)
+    user.emailVerified === false &&
+    !allowedPaths.includes(location)
   ) {
-    return <Redirect to="/unverified" />;
+    return <Redirect to="/login" />;
   }
 
   // If route requires a specific role but user doesn't match
   if (roles && user && !roles.includes(user.role)) {
-    return <Redirect to="/unauthorized" />; // Or a 403 page
+    return <Redirect to="/unauthorized" />;
+  }
+
+  // ✅ NEW: prevent verified users from hitting /login or /signup
+  if (
+    user &&
+    user.emailVerified &&
+    (location === "/login" || location === "/signup")
+  ) {
+    return <Redirect to="/dashboard" />;
   }
 
   return <Component />;

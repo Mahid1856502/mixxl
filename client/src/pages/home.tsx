@@ -24,7 +24,7 @@ import { AdvertisingBanner } from "@/components/home/AdvertisingBanners";
 import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BENEFITS, FEATURES } from "@/lib/constants";
-import { useRadioSessions } from "@/api/hooks/radio/useRadioSession";
+import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
 
 interface FeaturedArtist {
   id: string;
@@ -40,7 +40,7 @@ export default function Home() {
   const { user } = useAuth();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const { data: radioSessions = [] } = useRadioSessions();
+  const { data: radioSession } = useRadioSession();
 
   // Featured spots data from admin backend
   const { data: featuredSpots = [], isLoading } = useQuery({
@@ -417,7 +417,7 @@ export default function Home() {
       </section>
 
       {/* Live Radio Section */}
-      {radioSessions.length > 0 && (
+      {radioSession && (
         <section className="py-20 px-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
           <div className="max-w-4xl mx-auto text-center">
             <div className="flex items-center justify-center space-x-2 mb-4">

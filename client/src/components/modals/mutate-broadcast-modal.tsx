@@ -98,8 +98,6 @@ export default function BroadcastModal({
   const { user } = useAuth();
   const { data: usersData, isLoading } = useAllUsers();
 
-  console.log("editingBroadcast", editingBroadcast);
-
   const { mutate: createBroadcast, isPending: isCreating } =
     useCreateBroadcast();
   const { mutate: updateBroadcast, isPending: isUpdating } =
@@ -150,8 +148,6 @@ export default function BroadcastModal({
       });
     }
   }, [editingBroadcast, reset, usersData?.users, user?.id]);
-
-  console.log("errors", errors);
 
   const onSubmit = (data: InsertAdminBroadcast) => {
     if (!user?.id) return;

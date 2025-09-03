@@ -62,7 +62,6 @@ export function AddFeaturedSpotModal({
 
   const { data: artists, isLoading } = useAllArtists();
 
-  console.log("artists", artists);
   function onSubmit(data: InsertFeaturedSpot) {
     createFeaturedSpot({
       ...data,

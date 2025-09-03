@@ -6,7 +6,6 @@ export function useAllBroadcasts() {
   return useQuery<AdminBroadcast[], Error>({
     queryKey: ["allBroadcasts"],
     queryFn: async () => {
-      console.log("fetch broadcasts");
       const res = await apiRequest("GET", "/api/admin/broadcasts");
       if (!res.ok) {
         throw new Error("Failed to fetch broadcasts");

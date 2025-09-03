@@ -13,7 +13,7 @@
   --card-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 10%, 20%);
   --input: hsl(240, 10%, 18%);
-  --primary: hsl(271, 91%, 65%);
+  --primary: #a855f7;
   --primary-foreground: hsl(0, 0%, 98%);
   --secondary: hsl(328, 86%, 70%);
   --secondary-foreground: hsl(0, 0%, 98%);
@@ -28,7 +28,12 @@
   --mixxl-purple: hsl(271, 91%, 65%);
   --mixxl-pink: hsl(328, 86%, 70%);
   --mixxl-amber: hsl(43, 96%, 56%);
-  --mixxl-gradient: linear-gradient(135deg, var(--mixxl-amber), var(--mixxl-pink), var(--mixxl-purple));
+  --mixxl-gradient: linear-gradient(
+    135deg,
+    var(--mixxl-amber),
+    var(--mixxl-pink),
+    var(--mixxl-purple)
+  );
 }
 
 .dark {
@@ -60,12 +65,22 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    background: radial-gradient(ellipse at top, hsl(271, 91%, 12%) 0%, hsl(240, 15%, 9%) 45%, hsl(240, 15%, 9%) 100%);
+    background: radial-gradient(
+      ellipse at top,
+      hsl(271, 91%, 12%) 0%,
+      hsl(240, 15%, 9%) 45%,
+      hsl(240, 15%, 9%) 100%
+    );
     min-height: 100vh;
   }
 
   .dark body {
-    background: radial-gradient(ellipse at top, hsl(271, 91%, 12%) 0%, hsl(240, 15%, 9%) 45%, hsl(240, 15%, 9%) 100%);
+    background: radial-gradient(
+      ellipse at top,
+      hsl(271, 91%, 12%) 0%,
+      hsl(240, 15%, 9%) 45%,
+      hsl(240, 15%, 9%) 100%
+    );
   }
 }
 
@@ -73,7 +88,7 @@
   .mixxl-gradient {
     background: var(--mixxl-gradient);
   }
-  
+
   .mixxl-gradient-text {
     background: var(--mixxl-gradient);
     -webkit-background-clip: text;
@@ -82,19 +97,28 @@
   }
 
   .glass-effect {
-    background: rgba(255, 255, 255, 0.05);
+    background: #ffffff0d;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .audio-visualizer {
-    background: linear-gradient(90deg, var(--mixxl-amber), var(--mixxl-pink), var(--mixxl-purple));
+    background: linear-gradient(
+      90deg,
+      var(--mixxl-amber),
+      var(--mixxl-pink),
+      var(--mixxl-purple)
+    );
     animation: audioWave 2s ease-in-out infinite alternate;
   }
 
   @keyframes audioWave {
-    0% { transform: scaleY(0.5); }
-    100% { transform: scaleY(1); }
+    0% {
+      transform: scaleY(0.5);
+    }
+    100% {
+      transform: scaleY(1);
+    }
   }
 
   .floating-music-note {
@@ -102,18 +126,32 @@
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   .shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
     animation: shimmer 1.5s infinite;
   }
 
   @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
   }
 
   .pulse-ring {
@@ -121,8 +159,15 @@
   }
 
   @keyframes pulse-ring {
-    0% { transform: scale(0.8); opacity: 1; }
-    80%, 100% { transform: scale(1.2); opacity: 0; }
+    0% {
+      transform: scale(0.8);
+      opacity: 1;
+    }
+    80%,
+    100% {
+      transform: scale(1.2);
+      opacity: 0;
+    }
   }
 
   .track-card {
@@ -131,7 +176,8 @@
 
   .track-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
 
   .loading-spinner {
@@ -142,16 +188,21 @@
   }
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 }
 
 /* Music player custom styles */
 .waveform-container {
-  background: linear-gradient(90deg, 
-    var(--mixxl-amber) 0%, 
-    var(--mixxl-pink) 50%, 
+  background: linear-gradient(
+    90deg,
+    var(--mixxl-amber) 0%,
+    var(--mixxl-pink) 50%,
     var(--mixxl-purple) 100%
   );
   height: 4px;
@@ -209,8 +260,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Track card hover effects */
@@ -236,9 +291,10 @@
 
 /* User profile styles */
 .profile-header {
-  background: linear-gradient(135deg, 
-    rgba(139, 92, 246, 0.1) 0%, 
-    rgba(236, 72, 153, 0.1) 50%, 
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(236, 72, 153, 0.1) 50%,
     rgba(251, 191, 36, 0.1) 100%
   );
 }
@@ -260,7 +316,7 @@
   .playlist-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .track-card {
     margin-bottom: 1rem;
   }
@@ -301,7 +357,7 @@ select:focus-visible {
     -webkit-text-fill-color: currentColor;
     background: none;
   }
-  
+
   .glass-effect {
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid currentColor;
@@ -315,11 +371,69 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   .floating-music-note,
   .audio-visualizer,
   .shimmer,
   .pulse-ring {
     animation: none;
   }
+}
+
+.schedule-wrapper {
+  width: 100%;
+  max-width: 1200px; /* optional max width */
+  margin: 20px auto; /* centers the widget and adds vertical spacing */
+  padding: 0 15px; /* horizontal padding */
+  box-sizing: border-box;
+  overflow: hidden; /* prevents scrollbars from appearing */
+}
+
+.schedule-wrapper iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 500px; /* base height */
+  margin: 0 !important; /* remove iframe's default margins */
+  padding: 0 !important; /* remove iframe's default padding */
+  border: none !important;
+}
+
+.radioco-schedule-embed {
+  margin-bottom: 100px;
+}
+
+/* fullcalendar overrides */
+.fc {
+  --fc-border-color: rgba(255, 255, 255, 0.1);
+  --fc-button-bg-color: #1f2937;
+  --fc-button-border-color: transparent;
+  --fc-button-text-color: #fff;
+  --fc-today-bg-color: rgba(59, 130, 246, 0.15);
+}
+
+.fc-event {
+  border-radius: 0.5rem;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+.past-date {
+  background-color: #f0f0f020; /* light gray */
+  color: #999; /* gray text */
+  pointer-events: none; /* optional: prevent clicking */
+}
+
+/* Events */
+.past-event {
+  background-color: #7e7e7e !important;
+  color: #555 !important;
+  border: 1px solid #a8a8a8;
+}
+.present-event {
+  background-color: #c1ffb3 !important;
+  color: #000 !important;
+}
+.future-event {
+  background-color: #a855f7 !important;
+  color: #000 !important;
 }

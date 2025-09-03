@@ -17,16 +17,19 @@ import {
   insertLiveStreamSchema,
   insertLiveStreamMessageSchema,
   insertPurchasedTrackSchema,
+  updateRadioSessionSchema,
 } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
 import { sendEmail, generateVerificationEmail } from "./email";
-import {
-  generateVerificationToken,
-  getTokenExpirationDate,
-  isTokenExpired,
-} from "./utils";
+// import {
+//   generateVerificationToken,
+//   getTokenExpirationDate,
+//   isTokenExpired,
+// } from "./utils";
+import { log } from "./vite";
+import { getWSS } from "./ws";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
@@ -160,30 +163,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Encode user data in a temporary JWT token
-      const verificationToken = jwt.sign(
-        { userData },
-        JWT_SECRET,
-        { expiresIn: "1h" } // expires after 1 hour
-      );
+      // Create user in DB with emailVerified = false
+      const newUser = await storage.createUser({
+        ...userData,
+        emailVerified: false,
+      });
+
+      // Generate verification token (contains only userId)
+      const verificationToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+        expiresIn: "1h",
+      });
 
       // Send verification email
       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
       const emailContent = generateVerificationEmail(
         verificationUrl,
-        userData.firstName || "User"
+        newUser.firstName || "User"
       );
 
       await sendEmail({
-        to: userData.email,
+        to: newUser.email,
         from: "noreply@mixxl.fm",
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
       });
 
+      // Generate an auth JWT immediately (even if not verified)
+      const jwtToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
       res.json({
-        message: "Verification email sent. Complete signup via email link.",
+        message: "Signup successful. Verification email sent.",
+        user: { ...newUser, password: undefined },
+        token: jwtToken,
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -199,37 +213,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email verification routes
+  // Email verification route
   app.get("/api/auth/verify-email", async (req, res) => {
     try {
       const { token } = req.query;
-      if (!token || typeof token !== "string")
+      if (!token || typeof token !== "string") {
         return res.status(400).json({ message: "Invalid token" });
+      }
 
       // Decode token
       let decoded;
       try {
-        decoded = jwt.verify(token, JWT_SECRET) as { userData: any };
-      } catch (err) {
+        decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      } catch {
         return res.status(400).json({ message: "Token invalid or expired" });
       }
 
-      const { userData } = decoded;
+      // Find user
+      const user = await storage.getUser(decoded.userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-      // Create user in DB after verification
-      const user = await storage.createUser({
-        ...userData,
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      // Mark as verified
+      const verifiedUser = await storage.updateUser(user.id, {
         emailVerified: true,
       });
 
-      // Generate JWT token
-      const jwtToken = jwt.sign({ userId: user.id }, JWT_SECRET, {
+      // Return a fresh JWT (could be same as signup one, but safer to refresh)
+      const jwtToken = jwt.sign({ userId: verifiedUser.id }, JWT_SECRET, {
         expiresIn: "7d",
       });
 
       res.json({
-        message: "Signup complete",
-        user: { ...user, password: undefined },
+        message: "Email verified successfully",
+        user: { ...verifiedUser, password: undefined },
         token: jwtToken,
       });
     } catch (error) {
@@ -238,61 +258,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post(
-    "/api/auth/resend-verification",
-    authenticate,
-    async (req: any, res) => {
-      try {
-        const user = req.user;
+  // Resend verification route
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
 
-        // Check if user is already verified
-        if (user.emailVerified) {
-          return res.status(400).json({ message: "Email is already verified" });
-        }
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-        // Generate new verification token
-        const verificationToken = generateVerificationToken();
-        const expiresAt = getTokenExpirationDate();
-
-        // Store new verification token
-        await storage.createEmailVerificationToken({
-          userId: user.id,
-          token: verificationToken,
-          expiresAt,
-        });
-
-        // Send verification email if SendGrid is configured
-        if (process.env.SENDGRID_API_KEY) {
-          const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-          const emailContent = generateVerificationEmail(
-            verificationUrl,
-            user.firstName || "User"
-          );
-
-          const emailSent = await sendEmail({
-            to: user.email,
-            from: "noreply@mixxl.fm",
-            subject: emailContent.subject,
-            html: emailContent.html,
-            text: emailContent.text,
-          });
-
-          if (emailSent) {
-            res.json({ message: "Verification email sent successfully" });
-          } else {
-            res
-              .status(500)
-              .json({ message: "Failed to send verification email" });
-          }
-        } else {
-          res.status(503).json({ message: "Email service not configured" });
-        }
-      } catch (error) {
-        console.error("Resend verification error:", error);
-        res.status(500).json({ message: "Server error" });
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email is already verified" });
       }
+
+      // Generate new verification token
+      const verificationToken = jwt.sign({ userId: user.id }, JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+      const emailContent = generateVerificationEmail(
+        verificationUrl,
+        user.firstName || "User"
+      );
+
+      await sendEmail({
+        to: user.email,
+        from: "noreply@mixxl.fm",
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
+
+      res.json({ message: "Verification email resent" });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ message: "Server error" });
     }
-  );
+  });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -329,6 +332,218 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Stripe Connect account for artist
+  app.post("/api/artist/stripe-account", authenticate, async (req, res) => {
+    try {
+      const { id } = req.user;
+
+      // Fetch user from DB
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Create a Stripe Express account
+      const account = await stripe.accounts.create({
+        type: "express",
+        country: "US",
+        email: user.email,
+        metadata: {
+          userId: user.id, // 🔑 store your app’s userId
+        },
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_type: "individual",
+        individual: {
+          first_name: user.firstName || undefined,
+          last_name: user.lastName || undefined,
+          email: user.email,
+        },
+        business_profile: {
+          name: user.username,
+          product_description: "Musician selling songs on Mixxl FM",
+          url: user.website || "https://mixxl.fm",
+        },
+      } as Stripe.AccountCreateParams);
+
+      // Save stripeAccountId in DB
+      await storage.updateUser(id, { stripeAccountId: account.id });
+
+      // Create onboarding link for Stripe Connect
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${process.env.FRONTEND_URL}/artist/onboarding/refresh`,
+        return_url: `${process.env.FRONTEND_URL}/artist/onboarding/complete`,
+        type: "account_onboarding",
+      });
+
+      res.json({
+        message: "Stripe account created",
+        stripeAccountId: account.id,
+        onboardingUrl: accountLink.url,
+        user: { ...user, password: undefined },
+      });
+    } catch (error) {
+      console.error("Stripe account creation error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/artist/account-status", authenticate, async (req, res) => {
+    try {
+      const { id } = req.user;
+
+      const user = await storage.getUser(id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (!user?.stripeAccountId)
+        return res.status(404).json({ message: "User not found" });
+      const account = await stripe.accounts.retrieve(user?.stripeAccountId);
+
+      let status: "none" | "pending" | "complete" | "rejected" = "none";
+      let rejectReason: string | null = null;
+      if (account.details_submitted) {
+        if (account.requirements?.disabled_reason) {
+          status = "rejected";
+          rejectReason = account.requirements.disabled_reason; // e.g. "requirements.past_due"
+        } else if (account.requirements?.pending_verification?.length) {
+          status = "pending";
+        } else if (account.requirements?.currently_due?.length) {
+          status = "pending";
+        } else {
+          status = "complete";
+        }
+      } else {
+        status = "none";
+      }
+
+      res.json({
+        accountId: user?.stripeAccountId,
+        status,
+        rejectReason,
+        raw: {
+          details_submitted: account.details_submitted,
+          requirements: account.requirements,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching Stripe account status:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post(
+    "/api/artist/stripe-account/refresh",
+    authenticate,
+    async (req, res) => {
+      try {
+        const { id } = req.user;
+
+        // Fetch user
+        const user = await storage.getUser(id);
+        if (!user || !user.stripeAccountId) {
+          return res.status(404).json({ message: "Stripe account not found" });
+        }
+
+        // Create a fresh onboarding link
+        const accountLink = await stripe.accountLinks.create({
+          account: user.stripeAccountId,
+          refresh_url: `${process.env.FRONTEND_URL}/artist/onboarding/refresh`,
+          return_url: `${process.env.FRONTEND_URL}/artist/onboarding/complete`,
+          type: "account_onboarding",
+        });
+
+        // Redirect user straight to Stripe onboarding
+        res.redirect(accountLink.url);
+      } catch (error) {
+        console.error("Stripe account refresh error:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    }
+  );
+
+  app.post("/api/connect/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+    } catch (err) {
+      console.error("Webhook signature verification failed.", err);
+      return res.sendStatus(400);
+    }
+
+    try {
+      if (event.type === "account.updated") {
+        const account = event.data.object as Stripe.Account;
+
+        // Determine account status
+        let status: "none" | "pending" | "complete" | "rejected" = "pending";
+        let rejectReason: string | null = null;
+
+        if (account.requirements?.disabled_reason) {
+          status = "rejected";
+          rejectReason = account.requirements.disabled_reason;
+        } else if (account.details_submitted && account.charges_enabled) {
+          status = "complete";
+        } else {
+          status = "pending";
+        }
+
+        const userId = account.metadata?.userId;
+        if (!userId) {
+          console.error(
+            `No userId found in metadata for account ${account.id}`
+          );
+          return res.sendStatus(400); // or just skip
+        }
+        console.log(`Updated Stripe account ${account.id} → ${status}`);
+
+        // 1️⃣ Insert into notifications table
+        const notification = await storage.createNotification({
+          userId, // assuming you store userId in Stripe account metadata
+          actorId: account.id, // could also be system bot uuid
+          type: "message", // or maybe add a new "payout_status" enum
+          title: "Payout Account Update",
+          message:
+            status === "rejected"
+              ? `Your payout account was rejected: ${rejectReason}`
+              : `Your payout account status is now: ${status}`,
+          actionUrl: "/dashboard/payouts", // where you want user to go
+          metadata: {
+            stripeAccountId: account.id,
+            status,
+            rejectReason,
+          },
+        });
+
+        // 2️⃣ Push via WebSocket
+        const wss = getWSS();
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "notification",
+                data: notification, // send inserted notification
+              })
+            );
+          }
+        });
+      }
+
+      res.sendStatus(200);
+    } catch (err) {
+      console.error("Webhook handler failed:", err);
+      res.sendStatus(500);
+    }
+  });
+
   app.get("/api/auth/me", authenticate, (req: any, res) => {
     res.json({ ...req.user, password: undefined });
   });
@@ -356,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users/:identifier", async (req, res) => {
+  app.get("/api/user/:identifier", async (req, res) => {
     try {
       let user;
       const identifier = req.params.identifier;
@@ -420,7 +635,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const updateData: any = { ...req.body };
         // If an image was uploaded, validate and add its URL
-        updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+        if (req.file) {
+          updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+        }
         console.log(`Profile update request: ${JSON.stringify(updateData)}`);
 
         const user = await storage.updateUser(req.user.id, updateData);
@@ -437,9 +654,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
-      const tracks = await storage.getTracks(limit, offset);
+      const query = req.query.q as string | undefined;
+
+      const tracks = await storage.getTracks(query, limit, offset);
+
       res.json(tracks);
     } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -469,109 +690,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post(
-    "/api/tracks/upload",
-    authenticate,
-    upload.fields([
-      { name: "track", maxCount: 1 },
-      { name: "cover", maxCount: 1 },
-    ]),
-    async (req: any, res) => {
-      try {
-        const files = req.files as {
-          [fieldname: string]: Express.Multer.File[];
-        };
+  app.post("/api/tracks", authenticate, async (req: any, res) => {
+    try {
+      const trackData = req.body;
 
-        if (!files.track || files.track.length === 0) {
-          return res.status(400).json({ message: "Track file is required" });
-        }
+      const validatedData = insertTrackSchema.parse(trackData);
+      const track = await storage.createTrack(validatedData);
 
-        const trackFile = files.track[0];
-        const coverFile = files.cover?.[0];
-
-        // Create preview file if hasPreviewOnly is enabled
-        let previewUrl = null;
-        if (req.body.hasPreviewOnly === "true") {
-          const previewDuration = parseInt(req.body.previewDuration) || 30;
-          const previewFilePath = `uploads/preview_${Date.now()}_${
-            trackFile.filename
-          }`;
-
-          try {
-            // Use ffmpeg to create preview clip (first N seconds)
-            const { spawn } = require("child_process");
-            const ffmpeg = spawn("ffmpeg", [
-              "-i",
-              trackFile.path,
-              "-t",
-              previewDuration.toString(),
-              "-c",
-              "copy",
-              previewFilePath,
-            ]);
-
-            await new Promise((resolve, reject) => {
-              ffmpeg.on("close", (code: number) => {
-                if (code === 0) {
-                  previewUrl = `/${previewFilePath}`;
-                  resolve(code);
-                } else {
-                  reject(new Error(`FFmpeg process exited with code ${code}`));
-                }
-              });
-              ffmpeg.on("error", reject);
-            });
-          } catch (error) {
-            console.error("Preview creation failed:", error);
-            // Continue without preview - user will get full track access
-          }
-        }
-
-        const trackData = {
-          ...req.body,
-          artistId: req.user.id,
-          fileUrl: `/uploads/${trackFile.filename}`,
-          previewUrl,
-          previewDuration:
-            req.body.hasPreviewOnly === "true"
-              ? parseInt(req.body.previewDuration) || 30
-              : 30,
-          hasPreviewOnly: req.body.hasPreviewOnly === "true",
-          coverImage: coverFile ? `/uploads/${coverFile.filename}` : null,
-          tags: req.body.tags ? JSON.parse(req.body.tags) : [],
-          price: req.body.price ? parseFloat(req.body.price) : null,
-          isPublic: req.body.isPublic === "true",
-          isExplicit: req.body.isExplicit === "true",
-          submitToRadio: req.body.submitToRadio === "true",
-        };
-
-        const validatedData = insertTrackSchema.parse(trackData);
-        const track = await storage.createTrack(validatedData);
-
-        // Broadcast new track to WebSocket clients
-        const message = JSON.stringify({
-          type: "new_track",
-          track,
-          user: { ...req.user, password: undefined },
-        });
-
-        wsClients.forEach((ws) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(message);
-          }
-        });
-
-        res.json(track);
-      } catch (error) {
-        if (error instanceof ZodError) {
-          return res
-            .status(400)
-            .json({ message: "Invalid data", errors: error.errors });
-        }
-        res.status(500).json({ message: "Server error" });
+      res.json(track);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: "Server error" });
     }
-  );
+  });
 
   app.post("/api/tracks/:id/play", async (req, res) => {
     try {
@@ -603,72 +738,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Purchase track endpoint
-  app.post("/api/purchases", authenticate, async (req: any, res) => {
-    try {
-      const { trackId, playlistId } = req.body;
+  // // Purchase track endpoint
+  // app.post("/api/purchases", authenticate, async (req: any, res) => {
+  //   try {
+  //     const { trackId, playlistId } = req.body;
 
-      const track = await storage.getTrack(trackId);
-      if (!track) {
-        return res.status(404).json({ message: "Track not found" });
-      }
+  //     const track = await storage.getTrack(trackId);
+  //     if (!track) {
+  //       return res.status(404).json({ message: "Track not found" });
+  //     }
+
+  //     // Check if user already owns the track
+  //     const existingPurchase = await storage.getUserTrackPurchase(
+  //       req.user.id,
+  //       trackId
+  //     );
+  //     if (existingPurchase) {
+  //       return res.status(400).json({ message: "Track already purchased" });
+  //     }
+
+  //     // For now, simulate a successful purchase
+  //     // In production, this would integrate with Stripe
+  //     const purchase = await storage.recordTrackPurchase({
+  //       userId: req.user.id,
+  //       trackId: trackId,
+  //       price: track.price || 0,
+  //     });
+
+  //     // If a playlist was selected, add the track to it
+  //     if (playlistId) {
+  //       try {
+  //         console.log(`Adding track ${trackId} to playlist ${playlistId}`);
+  //         await storage.addTrackToPlaylist(playlistId, trackId, req.user.id);
+  //         console.log("Track added to playlist successfully");
+  //       } catch (playlistError) {
+  //         console.error("Error adding track to playlist:", playlistError);
+  //         // Continue with purchase success even if playlist addition fails
+  //       }
+  //     }
+
+  //     res.json({ success: true, purchase });
+  //   } catch (error) {
+  //     console.error("Purchase error:", error);
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // });
+
+  app.post("/api/buy-track", authenticate, async (req, res) => {
+    try {
+      const { trackId } = req.body;
+      const { id: buyerId } = req.user;
 
       // Check if user already owns the track
       const existingPurchase = await storage.getUserTrackPurchase(
-        req.user.id,
+        buyerId,
         trackId
       );
       if (existingPurchase) {
         return res.status(400).json({ message: "Track already purchased" });
       }
 
-      // For now, simulate a successful purchase
-      // In production, this would integrate with Stripe
-      const purchase = await storage.recordTrackPurchase({
-        userId: req.user.id,
-        trackId: trackId,
-        price: track.price || 0,
-      });
+      // Fetch buyer, track, and artist
+      const buyer = await storage.getUser(buyerId);
+      if (!buyer) return res.status(404).json({ message: "Buyer not found" });
 
-      // If a playlist was selected, add the track to it
-      if (playlistId) {
-        try {
-          console.log(`Adding track ${trackId} to playlist ${playlistId}`);
-          await storage.addTrackToPlaylist(playlistId, trackId, req.user.id);
-          console.log("Track added to playlist successfully");
-        } catch (playlistError) {
-          console.error("Error adding track to playlist:", playlistError);
-          // Continue with purchase success even if playlist addition fails
-        }
+      const track = await storage.getTrack(trackId);
+      if (!track) return res.status(404).json({ message: "Track not found" });
+
+      const artist = await storage.getUser(track.artistId);
+      if (!artist || !artist.stripeAccountId) {
+        return res
+          .status(400)
+          .json({ message: "Artist has no Stripe account set up" });
       }
 
-      res.json({ success: true, purchase });
-    } catch (error) {
-      console.error("Purchase error:", error);
-      res.status(500).json({ message: "Server error" });
+      // Create Checkout Session on platform account
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: buyer.preferredCurrency || "usd",
+              product_data: {
+                name: track.title,
+                images: track.coverImage ? [track.coverImage] : [],
+              },
+              unit_amount: Math.round(Number(track.price) * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        customer: buyer.stripeCustomerId || undefined,
+        success_url: `${process.env.FRONTEND_URL}/purchase/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/purchase/cancel`,
+        metadata: {
+          buyerId,
+          trackId: track.id,
+          artistId: artist.id,
+        },
+      });
+
+      // Insert pending purchase record
+      await storage.recordTrackPurchase({
+        userId: buyerId,
+        trackId: track.id,
+        price: String(track?.price || 0),
+        currency: buyer.preferredCurrency || "usd",
+        stripePaymentIntentId: session.payment_intent as string,
+        stripeTransferId: null, // transfer will happen in webhook
+        paymentStatus: "pending",
+      });
+
+      return res.json({ checkoutUrl: session.url });
+    } catch (error: any) {
+      console.error("Buy track error:", error);
+      return res
+        .status(500)
+        .json({ message: "Server error", error: error.message });
     }
   });
 
-  app.get("/api/users/:identifier/tracks", async (req, res) => {
+  app.get("/api/purchase/verify", authenticate, async (req: any, res) => {
     try {
-      let user;
-      const identifier = req.params.identifier;
+      const { session_id } = req.query;
 
-      // Check if identifier looks like a UUID
-      const isUUID =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          identifier
-        );
-
-      if (isUUID) {
-        user = await storage.getUser(identifier);
-      } else {
-        user = await storage.getUserByUsername(identifier);
+      if (!session_id) {
+        return res.status(400).json({ message: "Missing session_id" });
       }
 
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      // 1️⃣ Retrieve session
+      const session = await stripe.checkout.sessions.retrieve(
+        session_id as string,
+        {
+          expand: ["payment_intent"],
+        }
+      );
+
+      if (!session || !session.payment_intent) {
+        return res.status(404).json({ message: "PaymentIntent not found" });
       }
+
+      // 2️⃣ Pull info from PaymentIntent
+      const paymentIntent = session.payment_intent as Stripe.PaymentIntent;
+      const paymentStatus = paymentIntent.status;
+      const amount = paymentIntent.amount_received || paymentIntent.amount;
+      const price = (amount / 100).toFixed(2);
+      const currency = paymentIntent.currency.toUpperCase();
+
+      // 3️⃣ Return status
+      res.json({
+        paymentStatus,
+        price,
+        currency,
+      });
+    } catch (err: any) {
+      console.error("Purchase verify error:", err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/stripe/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+    } catch (err) {
+      console.error("Webhook signature verification failed.", err);
+      return res.sendStatus(400);
+    }
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as any;
+
+          // Mark purchase as succeeded and add timestamp
+          const purchase = await storage.updatePurchasedTrackByIntentId(
+            session.payment_intent,
+            {
+              paymentStatus: "succeeded",
+              purchasedAt: new Date(),
+            }
+          );
+
+          // ✅ Transfer funds to the connected artist account (zero commission for now)
+          if (purchase && session.metadata?.artistId) {
+            const artist = await storage.getUser(session.metadata.artistId);
+            if (artist?.stripeAccountId) {
+              await stripe.transfers.create({
+                amount: Math.round(parseFloat(purchase.price) * 100), // in cents
+                currency: purchase.currency,
+                destination: artist.stripeAccountId,
+                metadata: {
+                  trackId: purchase.trackId,
+                  purchaseId: purchase.id,
+                },
+              });
+            }
+          }
+
+          console.log("✅ Purchase and transfer completed", {
+            purchaseId: purchase?.id,
+          });
+          break;
+        }
+
+        case "payment_intent.payment_failed": {
+          const intent = event.data.object as any;
+          await storage.updatePurchasedTrackByIntentId(intent.id, {
+            paymentStatus: "failed",
+          });
+          console.log("⚠️ Purchase failed", { intentId: intent.id });
+          break;
+        }
+
+        case "charge.refunded": {
+          const charge = event.data.object as any;
+          if (charge.payment_intent) {
+            await storage.updatePurchasedTrackByIntentId(
+              charge.payment_intent,
+              { paymentStatus: "refunded" }
+            );
+            console.log("💸 Purchase refunded", {
+              intent: charge.payment_intent,
+            });
+          }
+          break;
+        }
+
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      console.error("🔥 Webhook handler error:", err);
+      res.status(500).send("Webhook handler error");
+    }
+  });
+
+  app.get("/api/users/tracks", authenticate, async (req, res) => {
+    try {
+      const { id } = req.user;
+      log("tracks buyer id", id);
+
+      const user = await storage.getUser(id);
+      if (!user)
+        return res.status(404).json({ message: "User not found again" });
 
       let tracks;
       if (user.role === "artist") {
@@ -1413,76 +1735,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Subscription route for 90-day free trial
   app.post("/api/create-subscription", authenticate, async (req: any, res) => {
-    if (!req.user) {
-      return res.sendStatus(401);
+    try {
+      const { id, email } = req.user;
+
+      const user = await storage.getUser(id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const priceId = process.env.STRIPE_PRICE_ID;
+      if (!priceId)
+        return res.status(500).json({ message: "STRIPE_PRICE_ID not set" });
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({ email });
+        customerId = customer.id;
+        await storage.updateUser(id, { stripeCustomerId: customerId });
+      }
+
+      // Determine if user can create a new subscription
+      const inactiveStatuses: string[] = [
+        "canceled",
+        "unpaid",
+        "incomplete_expired",
+      ];
+
+      const hasActiveSubscription =
+        user.stripeSubscriptionId &&
+        user.subscriptionStatus &&
+        !inactiveStatuses.includes(user.subscriptionStatus);
+
+      if (hasActiveSubscription) {
+        return res
+          .status(400)
+          .json({ message: "User already has an active subscription" });
+      }
+
+      // Create Stripe Checkout session
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        mode: "subscription",
+        line_items: [{ price: priceId, quantity: 1 }],
+        subscription_data: { trial_period_days: 90, metadata: { userId: id } },
+        expand: ["subscription"], // ensures session.subscription is a Subscription object
+        allow_promotion_codes: true,
+        success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
+      });
+
+      const subscriptionObj =
+        typeof session.subscription === "string" ? null : session.subscription;
+
+      const trialEndsAt = subscriptionObj
+        ? new Date((subscriptionObj.trial_end ?? 0) * 1000)
+        : null;
+
+      // Save new subscription ID to user
+      await storage.updateUser(id, {
+        stripeSubscriptionId:
+          typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription?.id ?? null,
+      });
+
+      // Return checkout URL and trial info
+      res.json({ url: session.url, trialEndsAt });
+    } catch (err: any) {
+      console.error("Error creating subscription:", err);
+      res.status(500).json({ message: err.message || "Internal server error" });
     }
+  });
 
-    let user = req.user;
+  app.get("/api/checkout/verify", authenticate, async (req: any, res) => {
+    try {
+      const { session_id } = req.query;
+      const { id: userId } = req.user;
 
-    if (user.stripeSubscriptionId) {
-      const subscription = await stripe.subscriptions.retrieve(
+      if (!session_id)
+        return res.status(400).json({ message: "Missing session_id" });
+
+      // 1️⃣ Get user from DB
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // 2️⃣ If user already has subscription info, return it
+      if (user.stripeSubscriptionId && user.subscriptionStatus) {
+        return res.json({
+          subscriptionId: user.stripeSubscriptionId,
+          status: user.subscriptionStatus,
+          trialEndsAt: user.trialEndsAt,
+        });
+      }
+
+      // 3️⃣ Retrieve Checkout Session from Stripe
+      const session = await stripe.checkout.sessions.retrieve(
+        session_id as string,
+        {
+          expand: ["subscription"],
+        }
+      );
+
+      if (!session || !session.subscription) {
+        return res
+          .status(404)
+          .json({ message: "Subscription not found in session" });
+      }
+
+      const subscription = session.subscription as Stripe.Subscription;
+
+      console.log("verify subscription", subscription);
+
+      const trialEndsAt = subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : null;
+
+      // 5️⃣ Update user in DB
+      await storage.updateUser(userId, {
+        stripeSubscriptionId: subscription.id,
+        subscriptionStatus: subscription.status || "trialing",
+        trialEndsAt,
+        hasUsedTrial: true,
+      });
+
+      // 6️⃣ Return subscription info
+      res.json({
+        subscriptionId: subscription.id,
+        status: subscription.status || "trialing",
+        trialEndsAt,
+      });
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/subscription/cancel", authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.user;
+
+      // Fetch user to get Stripe subscription ID
+      const user = await storage.getUser(id);
+      if (!user?.stripeSubscriptionId) {
+        return res
+          .status(400)
+          .json({ message: "No active subscription found" });
+      }
+
+      // Cancel immediately
+      const subscription = await stripe.subscriptions.cancel(
         user.stripeSubscriptionId
       );
 
-      res.send({
-        subscriptionId: subscription.id,
-        clientSecret:
-          subscription.latest_invoice?.payment_intent?.client_secret || null,
+      // Update user's subscription status in DB
+      const updatedUser = await storage.updateUser(id, {
+        subscriptionStatus: subscription.status, // "canceled"
+        trialEndsAt: null,
+        hasUsedTrial: true, // optional, mark trial used if needed
       });
 
-      return;
-    }
-
-    if (!user.email) {
-      throw new Error("No user email on file");
-    }
-
-    try {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.username,
+      res.json({
+        message: "Subscription cancelled immediately",
+        subscription,
+        updatedUser,
       });
-
-      user = await storage.updateUser(user.id, {
-        stripeCustomerId: customer.id,
-      });
-
-      // Create subscription with 90-day trial
-      const subscription = await stripe.subscriptions.create({
-        customer: customer.id,
-        items: [
-          {
-            price_data: {
-              currency: "gbp",
-              product_data: {
-                name: "Mixxl Artist Subscription",
-                description:
-                  "Upload unlimited music, advanced analytics, and monetization features",
-              },
-              unit_amount: 1000, // £10.00
-              recurring: {
-                interval: "month",
-              },
-            },
-          },
-        ],
-        trial_period_days: 90,
-        payment_behavior: "default_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-      });
-
-      await storage.updateUser(user.id, {
-        stripeCustomerId: customer.id,
-        stripeSubscriptionId: subscription.id,
-      });
-
-      res.send({
-        subscriptionId: subscription.id,
-        clientSecret:
-          subscription.latest_invoice?.payment_intent?.client_secret,
-      });
-    } catch (error: any) {
-      return res.status(400).send({ error: { message: error.message } });
+    } catch (err: any) {
+      console.error("Error cancelling subscription:", err);
+      res.status(500).json({ message: err.message || "Internal server error" });
     }
   });
 
@@ -1547,9 +1965,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Radio routes
+  app.post("/api/radio/sessions/:id/go-live", async (req, res) => {
+    try {
+      const updated = await storage.goLive(req.params.id);
+      if (!updated) {
+        return res.status(404).json({ message: "Session not found" });
+      } else {
+        // Broadcast to all clients
+        const wss = getWSS();
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "radio_session_updated",
+                data: updated,
+              })
+            );
+          }
+        });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Go live error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/radio/sessions/:id/end", async (req, res) => {
+    try {
+      const updated = await storage.endSession(req.params.id);
+      if (!updated) {
+        return res.status(404).json({ message: "Session not found" });
+      } else {
+        const wss = getWSS();
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({
+                type: "radio_session_updated",
+                data: updated,
+              })
+            );
+          }
+        });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("End session error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   app.get("/api/radio/sessions", async (req, res) => {
     try {
-      const sessions = await storage.getActiveRadioSessions();
+      const sessions = await storage.getAllRadioSessions();
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/radio/active-session", async (req, res) => {
+    try {
+      const sessions = await storage.getActiveRadioSession();
       res.json(sessions);
     } catch (error) {
       res.status(500).json({ message: "Server error" });
@@ -1558,26 +2036,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/radio/sessions", authenticate, async (req: any, res) => {
     try {
+      // Convert date strings to Date objects if they exist
       const sessionData = {
         ...req.body,
         hostId: req.user.id,
+        scheduledStart: req.body.scheduledStart
+          ? new Date(req.body.scheduledStart)
+          : undefined,
+        scheduledEnd: req.body.scheduledEnd
+          ? new Date(req.body.scheduledEnd)
+          : undefined,
+        actualStart: req.body.actualStart
+          ? new Date(req.body.actualStart)
+          : undefined,
+        actualEnd: req.body.actualEnd
+          ? new Date(req.body.actualEnd)
+          : undefined,
       };
 
       const validatedData = insertRadioSessionSchema.parse(sessionData);
       const session = await storage.createRadioSession(validatedData);
-
-      // Broadcast new radio session
-      const message = JSON.stringify({
-        type: "new_radio_session",
-        session,
-        host: { ...req.user, password: undefined },
-      });
-
-      wsClients.forEach((ws) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(message);
-        }
-      });
 
       res.json(session);
     } catch (error) {
@@ -1586,6 +2064,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.patch("/api/radio/sessions/:id", authenticate, async (req: any, res) => {
+    try {
+      const sessionId = req.params.id;
+
+      // Convert date strings to Date objects if they exist
+      const updateData = {
+        ...req.body,
+        scheduledStart: req.body.scheduledStart
+          ? new Date(req.body.scheduledStart)
+          : undefined,
+        scheduledEnd: req.body.scheduledEnd
+          ? new Date(req.body.scheduledEnd)
+          : undefined,
+        actualStart: req.body.actualStart
+          ? new Date(req.body.actualStart)
+          : undefined,
+        actualEnd: req.body.actualEnd
+          ? new Date(req.body.actualEnd)
+          : undefined,
+      };
+
+      // Validate the incoming data
+      const validatedData = updateRadioSessionSchema.parse(updateData);
+
+      // Update the session in storage
+      const updatedSession = await storage.updateRadioSession(
+        sessionId,
+        validatedData
+      );
+
+      res.json(updatedSession);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Radio Live Chat
+  app.get("/api/radio-chat/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+
+      const messages = await storage.getRadioChatMessages(sessionId, 150);
+
+      res.json(messages); // already oldest → newest in storage fn
+    } catch (error) {
+      console.error("Error fetching radio chat:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -1890,7 +2423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         liveStreamId: req.params.id,
         amount: amount.toString(),
         message: message,
-        stripePaymentIntentId: paymentIntent.id,
+        // stripePaymentIntentId: paymentIntent.id,
       });
 
       res.json({
@@ -1905,9 +2438,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import and register admin routes
   try {
     const { registerAdminRoutes } = await import("./admin-routes");
+    const { registerUploadRoutes } = await import("./upload-routes");
     registerAdminRoutes(app);
+    registerUploadRoutes(app);
   } catch (error) {
-    console.error("Failed to register admin routes:", error);
+    console.error("Failed to register admin or upload routes:", error);
   }
 
   const httpServer = createServer(app);
@@ -1940,6 +2475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           case "radio_chat":
             // Broadcast radio chat message
+
             const chatMessage = JSON.stringify({
               type: "radio_chat",
               message: message.content,
@@ -1948,6 +2484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               timestamp: new Date().toISOString(),
             });
 
+            log("chatMessage", chatMessage);
             wsClients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(chatMessage);

@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,23 +11,28 @@ import Navbar from "@/components/layout/navbar";
 import { appRoutes } from "./routes/routes.config";
 import { ProtectedRoute } from "./routes/protected";
 import ScrollToTop from "./components/common/scroll-to-top";
+import { Toaster as SonnerToaster } from "sonner";
 
 function Router() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
+  const [location, setLocation] = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="loading-spinner rounded-full w-8 h-8"></div>
-      </div>
-    );
+  if (user?.role === "DJ" && location === "/dashboard") {
+    setLocation("/radio");
   }
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <div className="loading-spinner rounded-full w-8 h-8"></div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen">
       <Navbar />
       <ScrollToTop />
-      <div className="pb-20">
+      <div className="">
         <Switch>
           {appRoutes.map(({ path, component, roles }) => (
             <Route
@@ -55,6 +60,7 @@ function App() {
               <Toaster />
               <Router />
               <GlobalAudioPlayer />
+              <SonnerToaster position="bottom-right" richColors />
             </TooltipProvider>
           </MusicPlayerProvider>
         </AuthProvider>

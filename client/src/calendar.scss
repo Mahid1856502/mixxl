@@ -1,0 +1,79 @@
+@import "react-big-calendar/lib/sass/styles";
+
+// Variables
+$calendar-border-color: #ffffff1c;
+$calendar-bg: #ffffff0d;
+$calendar-event-bg: #a855f7;
+$calendar-event-color: #ffffff;
+$calendar-today-bg: #4b1f759e;
+
+// Global override: ALL borders inside the calendar
+.rbc-calendar,
+.rbc-calendar * {
+  border-color: $calendar-border-color !important;
+}
+
+// Calendar container
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view {
+  background-color: $calendar-bg;
+  border: 1px solid $calendar-border-color;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+}
+
+// Header
+.rbc-header {
+  background-color: $calendar-bg;
+  color: #fff;
+  font-weight: 600;
+  padding: 8px;
+}
+
+// Today highlight
+.rbc-today {
+  background-color: $calendar-today-bg !important;
+  border: 2px solid $calendar-border-color !important;
+}
+
+// Events
+.rbc-event {
+  //   background-color: $calendar-event-bg !important;
+  color: $calendar-event-color !important;
+  border-radius: 0.5rem;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+// Toolbar buttons
+.rbc-toolbar button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #ffffff1c;
+  border-radius: 0.5rem;
+  padding: 6px 12px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(0);
+  }
+
+  &.rbc-active {
+    background: #a855f7;
+    border-color: #a855f7;
+    color: #fff;
+    font-weight: 600;
+  }
+}

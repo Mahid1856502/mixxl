@@ -3,14 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
 import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
-import UserCard from "@/components/social/user-card";
 import { useMusicPlayer } from "@/hooks/use-music-player";
-import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import {
   Upload,
   Music,
@@ -20,13 +17,13 @@ import {
   TrendingUp,
   Crown,
   Zap,
-  Calendar,
   MessageCircle,
   Euro,
   Play,
   Pause,
   Video,
 } from "lucide-react";
+import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -39,10 +36,9 @@ export default function Dashboard() {
   const { currentTrack, isPlaying, playTrack, pause } = useMusicPlayer();
   const queryClient = useQueryClient();
 
-  const { data: userTracks = [] } = useQuery({
-    queryKey: ["/api/users", user?.id, "tracks"],
-    enabled: !!user,
-  });
+  const { data: userTracks = [] } = useUserTracks();
+
+  console.log("userTracks", userTracks);
 
   const { data: userPlaylists = [] } = useQuery({
     queryKey: ["/api/users", user?.id, "playlists"],
@@ -121,17 +117,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Email Verification Banner */}
-        {user && (
-          <EmailVerificationBanner
-            user={{
-              emailVerified: user.emailVerified || false,
-              email: user.email,
-              firstName: user.firstName || undefined,
-            }}
-          />
-        )}
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -177,52 +162,54 @@ export default function Dashboard() {
         </div>
 
         {/* Subscription Status for Artists */}
-        {user.role === "artist" && !user.stripeSubscriptionId && (
-          <Card className="glass-effect border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Crown className="w-5 h-5 text-amber-500" />
-                    <h3 className="text-lg font-semibold">
-                      Start Your 90-Day Free Trial
-                    </h3>
+        {user.role === "artist" &&
+          (!user.stripeSubscriptionId ||
+            user?.subscriptionStatus === "canceled") && (
+            <Card className="glass-effect border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Crown className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-lg font-semibold">
+                        Start Your 90-Day Free Trial
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Upload unlimited music, access advanced analytics, and
+                      monetize your content
+                    </p>
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-1">
+                        <Upload className="w-4 h-4 text-amber-500" />
+                        <span>Unlimited uploads</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <TrendingUp className="w-4 h-4 text-amber-500" />
+                        <span>Advanced analytics</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Euro className="w-4 h-4 text-amber-500" />
+                        <span>Monetization</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      90 days free, then £10/mo. Cancel anytime.
+                    </p>
                   </div>
-                  <p className="text-muted-foreground">
-                    Upload unlimited music, access advanced analytics, and
-                    monetize your content
-                  </p>
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-1">
-                      <Upload className="w-4 h-4 text-amber-500" />
-                      <span>Unlimited uploads</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <TrendingUp className="w-4 h-4 text-amber-500" />
-                      <span>Advanced analytics</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Euro className="w-4 h-4 text-amber-500" />
-                      <span>Monetization</span>
-                    </div>
+                  <div className="text-right space-y-2">
+                    <p className="text-sm text-muted-foreground">After trial</p>
+                    <p className="text-2xl font-bold">£10/mo</p>
+                    <Link href="/subscribe">
+                      <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                        Start Free Trial
+                      </Button>
+                    </Link>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    90 days free, then £10/mo. Cancel anytime.
-                  </p>
                 </div>
-                <div className="text-right space-y-2">
-                  <p className="text-sm text-muted-foreground">After trial</p>
-                  <p className="text-2xl font-bold">£10/mo</p>
-                  <Link href="/subscribe">
-                    <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                      Start Free Trial
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">

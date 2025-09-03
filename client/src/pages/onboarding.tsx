@@ -46,6 +46,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { GENRES } from "@/lib/constants";
 
 // Welcome Step Schema
 const welcomeSchema = z.object({
@@ -98,32 +99,6 @@ const finalSchema = z.object({
     .refine((val) => val === true, "You must agree to the terms"),
   subscribedToNewsletter: z.boolean().default(false),
 });
-
-const MUSIC_GENRES = [
-  "Rock",
-  "Pop",
-  "Hip Hop",
-  "R&B",
-  "Country",
-  "Electronic",
-  "Jazz",
-  "Blues",
-  "Classical",
-  "Reggae",
-  "Folk",
-  "Indie",
-  "Alternative",
-  "Metal",
-  "Punk",
-  "Funk",
-  "Soul",
-  "Gospel",
-  "World",
-  "Ambient",
-  "House",
-  "Techno",
-  "Dubstep",
-];
 
 const LISTEN_GOALS = [
   "Discover new artists",
@@ -568,7 +543,7 @@ export default function Onboarding() {
                     <FormItem>
                       <FormLabel>Favorite Genres</FormLabel>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {MUSIC_GENRES.map((genre) => {
+                        {GENRES.map((genre) => {
                           const currentValues = Array.isArray(field.value)
                             ? field.value
                             : [];

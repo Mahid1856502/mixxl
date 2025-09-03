@@ -1,119 +1,19 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  useStripe,
-  Elements,
-  PaymentElement,
-  useElements,
-} from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Check,
-  Crown,
-  Upload,
-  TrendingUp,
-  Euro,
-  Music,
-  Users,
-  Zap,
-} from "lucide-react";
+import { Check, Crown } from "lucide-react";
 import { FREE_TRAIL } from "@/lib/constants";
+import { useCreateSubscription } from "@/api/hooks/stripe/useSubscribe";
 
 // Stripe init outside render
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
   throw new Error("Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY");
 }
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-
-// Subscription payment form
-const SubscribeForm = () => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    if (!stripe || !elements) {
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/dashboard?subscription=success`,
-      },
-    });
-
-    if (error) {
-      toast({
-        title: "Payment Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Subscription Started!",
-        description:
-          "Your 90-day free trial has begun. Welcome to Mixxl Premium!",
-      });
-    }
-    setIsLoading(false);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
-      <Button
-        type="submit"
-        disabled={!stripe || isLoading}
-        className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-      >
-        {isLoading ? "Processing..." : "Start 90-Day Free Trial"}
-      </Button>
-    </form>
-  );
-};
 
 export default function Subscribe() {
   const { user } = useAuth();
-  const { toast } = useToast();
-
-  // // Query to create subscription
-  // const { data, isLoading, isError } = useQuery({
-  //   queryKey: ["create-subscription"],
-  //   queryFn: async () => {
-  //     const res = await apiRequest("POST", "/api/create-subscription");
-  //     if (!res.ok) throw new Error("Failed to initialize subscription");
-  //     return res.json();
-  //   },
-  //   retry: false, // don't retry if Stripe key is bad
-  // });
-
-  // Show toast on error
-  // useEffect(() => {
-  //   if (isError) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Failed to initialize subscription. Please try again.",
-  //       variant: "destructive",
-  //     });
-  //   }
-  // }, [isError, toast]);
-
-  // const clientSecret = data?.clientSecret ?? "";
-  const clientSecret = "";
-  const isLoading = true;
-  const options = useMemo(() => ({ clientSecret }), [clientSecret]);
+  const { mutate: subscribe, isPending } = useCreateSubscription();
 
   if (!user) {
     return (
@@ -130,21 +30,21 @@ export default function Subscribe() {
     );
   }
 
-  if (user.stripeSubscriptionId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <Crown className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4">Already Subscribed</h2>
-            <p className="text-muted-foreground mb-6">
-              You already have an active Mixxl subscription
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // if (user.stripeSubscriptionId) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <Card className="w-full max-w-md">
+  //         <CardContent className="pt-6 text-center">
+  //           <Crown className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+  //           <h2 className="text-2xl font-bold mb-4">Already Subscribed</h2>
+  //           <p className="text-muted-foreground mb-6">
+  //             You already have an active Mixxl subscription
+  //           </p>
+  //         </CardContent>
+  //       </Card>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen p-6">
@@ -226,29 +126,68 @@ export default function Subscribe() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="glass-effect">
-              <CardHeader>
-                <CardTitle>Start Your Free Trial</CardTitle>
-                <p className="text-muted-foreground">
-                  No payment required for 90 days. We'll remind you before your
-                  trial ends.
-                </p>
-              </CardHeader>
-              <CardContent>
-                {isLoading || !clientSecret ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                    <p className="text-muted-foreground mt-4">
-                      Setting up your subscription...
-                    </p>
-                  </div>
-                ) : (
-                  <Elements stripe={stripePromise} options={options}>
-                    <SubscribeForm />
-                  </Elements>
-                )}
-              </CardContent>
-            </Card>
+            {user.subscriptionStatus === "trialing" ? (
+              <Card className="glass-effect">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold">
+                    Trial Active
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You’re enjoying your 90-day free trial. Explore all premium
+                    features! We’ll notify you before it ends.
+                  </p>
+                </CardHeader>
+                <CardContent className="mt-4 flex flex-col items-center space-y-4">
+                  <Button disabled className="w-full max-w-xs">
+                    Trial Active
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Trial ends on{" "}
+                    {user?.trialEndsAt
+                      ? new Date(user.trialEndsAt).toLocaleDateString()
+                      : ""}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : user.subscriptionStatus === "canceled" ||
+              !user.stripeSubscriptionId ? (
+              <Card className="glass-effect p-6">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold">
+                    Start Your Free Trial
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    No payment required for 90 days. Unlock premium features and
+                    get reminded before your trial ends.
+                  </p>
+                </CardHeader>
+                <CardContent className="mt-4 flex flex-col items-center space-y-4">
+                  <Button
+                    onClick={() => subscribe()}
+                    disabled={isPending}
+                    className="w-full max-w-xs"
+                  >
+                    {isPending ? "Processing..." : "Start Free Trial"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="glass-effect p-6">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold">
+                    Subscribed ✅
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You’re currently subscribed. Enjoy all premium features!
+                  </p>
+                </CardHeader>
+                <CardContent className="mt-4 flex flex-col items-center space-y-4">
+                  <Button disabled className="w-full max-w-xs">
+                    Subscribed
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="text-center text-sm text-muted-foreground">
               <p>

@@ -25,11 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/auth/me"],
     enabled: !!token,
-    staleTime: Infinity,
+    staleTime: 0,
   });
 
   const loginMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+    mutationFn: async ({
+      email,
+      password,
+    }: {
+      email: string;
+      password: string;
+    }) => {
       const response = await apiRequest("POST", "/api/auth/login", {
         email,
         password,

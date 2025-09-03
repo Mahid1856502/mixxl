@@ -37,7 +37,7 @@ export default function Navbar() {
   // Get unread notification count
   const { data: unreadData } = useUnreadNotificationCount();
 
-  const navigation = [
+  let navigation = [
     { name: "Discover", href: "/discover", icon: Compass },
     { name: "Radio", href: "/radio", icon: Radio },
   ];
@@ -54,6 +54,12 @@ export default function Navbar() {
     // Remove Dashboard for admins
     userNavigation = userNavigation.filter((item) => item.name !== "Dashboard");
     userNavigation.push({ name: "Admin", href: "/admin", icon: Shield });
+  }
+
+  if (user?.role === "DJ") {
+    // Remove Dashboard for admins
+    userNavigation = userNavigation.filter((item) => item.name !== "Dashboard");
+    navigation = navigation.filter((item) => item.name !== "Discover");
   }
 
   const isActive = (href: string) => {

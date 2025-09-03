@@ -143,3 +143,37 @@ export const FREE_TRAIL = [
     description: "Allow fans and promoters to book you directly for events",
   },
 ];
+
+export const GENRES = [
+  "Electronic",
+  "Hip Hop",
+  "Pop",
+  "Rock",
+  "Jazz",
+  "Classical",
+  "R&B",
+  "Country",
+  "Folk",
+  "Reggae",
+  "Blues",
+  "Indie",
+  "Alternative",
+  "Metal",
+  "Punk",
+  "Ambient",
+  "House",
+  "Techno",
+];
+
+export const MOODS = [
+  "Energetic",
+  "Chill",
+  "Romantic",
+  "Melancholic",
+  "Uplifting",
+  "Aggressive",
+  "Peaceful",
+  "Dark",
+  "Bright",
+  "Mysterious",
+];

@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,56 +10,36 @@ import { apiRequest } from "@/lib/queryClient";
 import PreviewPlayer from "./preview-player";
 import PurchaseModal from "./purchase-modal";
 import TipModal from "@/components/modals/tip-modal";
-import { 
-  Play, 
-  Pause, 
-  Heart, 
-  Share, 
-  Download,
+import {
+  Play,
+  Pause,
+  Heart,
+  Share,
   MoreHorizontal,
   Music,
   Coins,
-  Lock,
-  Crown
+  Crown,
 } from "lucide-react";
-
-interface Track {
-  id: string;
-  title: string;
-  artistId: string;
-  description?: string;
-  genre?: string;
-  duration?: number;
-  fileUrl: string;
-  previewUrl?: string;
-  previewDuration?: number;
-  hasPreviewOnly?: boolean;
-  coverImage?: string;
-  price?: number;
-  playCount: number;
-  likesCount: number;
-  isExplicit: boolean;
-  createdAt: string;
-}
+import { TrackWithArtistName } from "@shared/schema";
 
 interface TrackCardProps {
-  track: Track;
+  track: TrackWithArtistName;
   isPlaying?: boolean;
-  onPlay?: (track: Track) => void;
+  onPlay?: (track: TrackWithArtistName) => void;
   onPause?: () => void;
   className?: string;
   showArtist?: boolean;
   compact?: boolean;
 }
 
-export default function TrackCard({ 
-  track, 
-  isPlaying = false, 
-  onPlay, 
+export default function TrackCard({
+  track,
+  isPlaying = false,
+  onPlay,
   onPause,
   className = "",
   showArtist = true,
-  compact = false
+  compact = false,
 }: TrackCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -73,7 +52,7 @@ export default function TrackCard({
     mutationFn: () => apiRequest("POST", `/api/tracks/${track.id}/play`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
-    }
+    },
   });
 
   const handlePlay = () => {
@@ -85,7 +64,7 @@ export default function TrackCard({
     }
   };
 
-  const handlePurchase = (trackId: string) => {
+  const handlePurchase = () => {
     setShowPurchaseModal(true);
   };
 
@@ -93,7 +72,7 @@ export default function TrackCard({
   if (compact) {
     return (
       <>
-        <PreviewPlayer 
+        <PreviewPlayer
           track={track}
           onPurchase={handlePurchase}
           className={className}
@@ -102,12 +81,6 @@ export default function TrackCard({
           track={showPurchaseModal ? track : null}
           isOpen={showPurchaseModal}
           onClose={() => setShowPurchaseModal(false)}
-          onSuccess={() => {
-            toast({
-              title: "Track purchased!",
-              description: `"${track.title}" is now in your library`,
-            });
-          }}
         />
       </>
     );
@@ -122,7 +95,9 @@ export default function TrackCard({
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/track/${track.id}`);
+    navigator.clipboard.writeText(
+      `${window.location.origin}/track/${track.id}`
+    );
     toast({
       title: "Link copied!",
       description: "Track link has been copied to clipboard",
@@ -145,7 +120,7 @@ export default function TrackCard({
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -158,8 +133,8 @@ export default function TrackCard({
         {/* Cover Image */}
         <div className="aspect-square bg-gradient-to-br from-purple-500/20 to-pink-500/20 relative overflow-hidden rounded-t-lg">
           {track.coverImage ? (
-            <img 
-              src={track.coverImage} 
+            <img
+              src={track.coverImage}
               alt={track.title}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -168,22 +143,28 @@ export default function TrackCard({
               <Music className="w-16 h-16 text-white/50" />
             </div>
           )}
-          
+
           {/* Play Button Overlay */}
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <Button 
-              size="icon" 
+            <Button
+              size="icon"
               className="rounded-full w-12 h-12 mixxl-gradient text-white"
               onClick={handlePlay}
             >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              {isPlaying ? (
+                <Pause className="w-6 h-6" />
+              ) : (
+                <Play className="w-6 h-6" />
+              )}
             </Button>
           </div>
 
           {/* Badges */}
-          <div className="absolute top-2 left-2 space-y-1">
+          <div className="absolute gap-1 top-2 left-2 flex">
             {track.isExplicit && (
-              <Badge variant="destructive" className="text-xs">E</Badge>
+              <Badge variant="destructive" className="text-xs">
+                Explicit
+              </Badge>
             )}
             {track.price && (
               <Badge className="text-xs bg-green-500 hover:bg-green-600">
@@ -194,8 +175,11 @@ export default function TrackCard({
 
           {/* Duration */}
           <div className="absolute bottom-2 right-2">
-            <Badge variant="secondary" className="text-xs bg-black/50 text-white">
-              {formatDuration(track.duration)}
+            <Badge
+              variant="secondary"
+              className="text-xs bg-black/50 text-white"
+            >
+              {track.duration ? formatDuration(track.duration) : ""}
             </Badge>
           </div>
         </div>
@@ -208,7 +192,7 @@ export default function TrackCard({
                 {track.title}
               </h3>
             </Link>
-            
+
             {showArtist && (
               <Link href={`/profile/${track.artistId}`}>
                 <p className="text-sm text-muted-foreground hover:text-foreground transition-colors truncate">
@@ -216,7 +200,7 @@ export default function TrackCard({
                 </p>
               </Link>
             )}
-            
+
             {track.genre && (
               <Badge variant="outline" className="mt-1 text-xs">
                 {track.genre}
@@ -243,30 +227,34 @@ export default function TrackCard({
                 <span>{(track.likesCount || 0).toLocaleString()}</span>
               </div>
             </div>
-            <span>{formatDate(track.createdAt)}</span>
+            <span>
+              {track?.createdAt ? formatDate(track.createdAt.toString()) : ""}
+            </span>
           </div>
 
           {/* Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleLike}
-                className={`h-8 w-8 ${isLiked ? "text-red-500" : "text-muted-foreground"}`}
+                className={`h-8 w-8 ${
+                  isLiked ? "text-red-500" : "text-muted-foreground"
+                }`}
               >
                 <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleShare}
                 className="h-8 w-8 text-muted-foreground"
               >
                 <Share className="w-4 h-4" />
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground"
               >
@@ -275,35 +263,45 @@ export default function TrackCard({
             </div>
 
             <div className="flex items-center space-x-2">
-              {track.hasPreviewOnly && track.price && user && user.id !== track.artistId && (
-                <Button 
-                  size="sm" 
-                  onClick={handlePurchase}
-                  className="h-8 px-3 text-xs mixxl-gradient text-white"
-                >
-                  <Crown className="w-3 h-3 mr-1" />
-                  Buy £{track.price}
-                </Button>
-              )}
-              {track.price && user && user.id !== track.artistId && !track.hasPreviewOnly && (
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={handleTip}
-                  className="h-8 px-3 text-xs"
-                >
-                  <Coins className="w-3 h-3 mr-1" />
-                  Tip
-                </Button>
-              )}
-              <Button 
-                size="sm" 
+              {track.hasPreviewOnly &&
+                track.price &&
+                user &&
+                user.id !== track.artistId && (
+                  <Button
+                    size="sm"
+                    onClick={handlePurchase}
+                    className="h-8 px-3 text-xs mixxl-gradient text-white"
+                  >
+                    <Crown className="w-3 h-3 mr-1" />
+                    Buy £{track.price}
+                  </Button>
+                )}
+              {track.price &&
+                user &&
+                user.id !== track.artistId &&
+                !track.hasPreviewOnly && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTip}
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Coins className="w-3 h-3 mr-1" />
+                    Tip
+                  </Button>
+                )}
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={handlePlay}
                 className="h-8 px-3 text-xs"
               >
-                {isPlaying ? <Pause className="w-3 h-3 mr-1" /> : <Play className="w-3 h-3 mr-1" />}
-                {isPlaying ? 'Pause' : 'Play'}
+                {isPlaying ? (
+                  <Pause className="w-3 h-3 mr-1" />
+                ) : (
+                  <Play className="w-3 h-3 mr-1" />
+                )}
+                {isPlaying ? "Pause" : "Play"}
               </Button>
             </div>
           </div>
@@ -314,12 +312,6 @@ export default function TrackCard({
         track={showPurchaseModal ? track : null}
         isOpen={showPurchaseModal}
         onClose={() => setShowPurchaseModal(false)}
-        onSuccess={() => {
-          toast({
-            title: "Track purchased!",
-            description: `"${track.title}" is now in your library`,
-          });
-        }}
       />
 
       <TipModal

@@ -1,10 +1,7 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Mail, X, Loader2, CheckCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Mail, Loader2 } from "lucide-react";
+import { useResendVerification } from "@/api/hooks/users/useResendVerfication";
 
 interface EmailVerificationBannerProps {
   user: {
@@ -17,40 +14,15 @@ interface EmailVerificationBannerProps {
 
 export function EmailVerificationBanner({
   user,
-  onDismiss,
 }: EmailVerificationBannerProps) {
-  const [isDismissed, setIsDismissed] = useState(false);
-  const { toast } = useToast();
-
-  const resendMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/resend-verification"),
-    onSuccess: () => {
-      toast({
-        title: "Verification Email Sent",
-        description: "Check your inbox for the verification link.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to Send Email",
-        description: error.message || "Please try again later.",
-        variant: "destructive",
-      });
-    },
-  });
-
+  const resendMutation = useResendVerification();
   // Don't show banner if user is verified or if dismissed
-  if (user.emailVerified || isDismissed) {
+  if (user.emailVerified) {
     return null;
   }
 
-  const handleDismiss = () => {
-    setIsDismissed(true);
-    onDismiss?.();
-  };
-
   const handleResendEmail = () => {
-    resendMutation.mutate();
+    resendMutation.mutate({ email: user.email });
   };
 
   return (
@@ -87,14 +59,6 @@ export function EmailVerificationBanner({
               </>
             )}
           </Button>
-          {/* <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-            className="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:text-yellow-200 dark:hover:bg-yellow-800"
-          >
-            <X className="w-4 h-4" />
-          </Button> */}
         </div>
       </AlertDescription>
     </Alert>

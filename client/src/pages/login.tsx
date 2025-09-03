@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Logo } from "@/components/ui/logo";
 import { Music, Eye, EyeOff } from "lucide-react";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -35,7 +36,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function Login() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuth();
+  const { user, login, isLoading } = useAuth();
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -55,7 +56,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center p-6">
+      {user && (
+        <EmailVerificationBanner
+          user={{
+            emailVerified: user.emailVerified || false,
+            email: user.email,
+            firstName: user.firstName || undefined,
+          }}
+        />
+      )}
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <div className="mb-4 flex justify-center">
