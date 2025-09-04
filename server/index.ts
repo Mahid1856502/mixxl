@@ -15,6 +15,8 @@ const CORS_ORIGIN =
   NODE_ENV === "development" ? "http://localhost:5173" : "https://mixxl.fm";
 
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
