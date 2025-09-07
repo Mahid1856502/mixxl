@@ -81,6 +81,9 @@ import {
   RadioChatMessage,
   RadioChatMessageWithUser,
   TrackWithArtistName,
+  PasswordResetInsert,
+  PasswordReset,
+  passwordResets,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -105,6 +108,9 @@ export interface IStorage {
   ): Promise<User>;
   deleteUser(id: string): Promise<void>;
   getFeaturedArtists(): Promise<User[]>;
+  createPasswordReset(data: PasswordResetInsert): Promise<PasswordReset>;
+  getPasswordResetByUserId(userId: string): Promise<PasswordReset | null>;
+  deletePasswordReset(userId: string): Promise<void>;
 
   // Track operations
   getTrack(id: string): Promise<Track | undefined>;
@@ -397,6 +403,40 @@ export class MySQLStorage implements IStorage {
     await db.delete(users).where(eq(users.id, id));
   }
 
+  /**
+   * Create a password reset record
+   */
+  async createPasswordReset(data: PasswordResetInsert): Promise<PasswordReset> {
+    const [record] = await db.insert(passwordResets).values(data).returning();
+    return record;
+  }
+
+  /**
+   * Get a password reset by userId
+   */
+  async getPasswordResetByUserId(
+    userId: string
+  ): Promise<PasswordReset | null> {
+    const [record] = await db
+      .select()
+      .from(passwordResets)
+      .where(
+        and(
+          eq(passwordResets.userId, userId),
+          gt(passwordResets.expiresAt, Date.now())
+        )
+      );
+
+    return record || null;
+  }
+
+  /**
+   * Delete a password reset by userId
+   */
+  async deletePasswordReset(userId: string): Promise<void> {
+    await db.delete(passwordResets).where(eq(passwordResets.userId, userId));
+  }
+
   // inside your function
   async getFeaturedArtists(search?: string): Promise<User[]> {
     let whereCondition: ReturnType<typeof eq> | ReturnType<typeof and>;
@@ -551,7 +591,7 @@ export class MySQLStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
-    return result as Track[];
+    return result;
   }
 
   async searchTracks(query: string): Promise<Track[]> {

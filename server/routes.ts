@@ -6,6 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
+import crypto from "crypto";
 import {
   insertUserSchema,
   insertTrackSchema,
@@ -41,86 +42,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-const profileStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), "uploads", "profiles");
-
-    try {
-      // Ensure directory exists
-      fs.mkdirSync(uploadDir, { recursive: true });
-    } catch (err) {
-      return cb(err as Error, uploadDir);
-    }
-
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-
-export const uploadProfile = multer({
-  storage: profileStorage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === "image" && !file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files are allowed"));
-    }
-    cb(null, true);
-  },
-});
-
-const uploadStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir =
-      process.env.UPLOAD_PATH || path.join(process.cwd(), "uploads");
-
-    // Check if directory exists, if not create it
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true }); // recursive: true creates nested dirs if needed
-    }
-
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-
-const upload = multer({
-  storage: uploadStorage,
-  limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit for larger WAV files
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === "track") {
-      // Audio files
-      if (file.mimetype.startsWith("audio/")) {
-        cb(null, true);
-      } else {
-        cb(new Error("Only audio files are allowed for tracks"));
-      }
-    } else if (file.fieldname === "image") {
-      // Image files
-      if (file.mimetype.startsWith("image/")) {
-        cb(null, true);
-      } else {
-        cb(new Error("Only image files are allowed"));
-      }
-    } else {
-      cb(null, true);
-    }
-  },
-});
-
 // WebSocket clients storage
 const wsClients = new Map<string, WebSocket>();
 
@@ -145,6 +66,8 @@ const authenticate = async (req: any, res: any, next: any) => {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+const otpStore = new Map<string, { otp: string; expires: number }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
@@ -548,25 +471,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ ...req.user, password: undefined });
   });
 
-  // Temporary password reset route for development
+  // Request password reset (send email with token)
+  app.post("/api/auth/request-reset", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await storage.getUserByEmail(email);
+
+      if (!user) {
+        // Do not reveal if user exists
+        return res.json({
+          message: "If the email exists, reset link has been sent",
+        });
+      }
+
+      // Generate secure random token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = Date.now() + 1000 * 60 * 15; // 15 min expiry
+
+      // Store hashed token in DB (so even if DB leaks, token isn’t usable)
+      const hashedToken = await bcrypt.hash(token, 10);
+
+      await storage.createPasswordReset({
+        userId: user.id,
+        token: hashedToken,
+        expiresAt,
+      });
+
+      const resetUrl = `${
+        process.env.FRONTEND_URL
+      }/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+      const emailContent = {
+        subject: "Password Reset Request",
+        text: `Click the link to reset your password: ${resetUrl}`,
+        html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. The link expires in 15 minutes.</p>`,
+      };
+
+      await sendEmail({
+        to: email,
+        from: "noreply@mixxl.fm",
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
+
+      res.json({ message: "If the email exists, reset link has been sent" });
+    } catch (err) {
+      console.error("Request reset error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Reset or change password
   app.post("/api/auth/reset-password", async (req, res) => {
     try {
-      const { email, newPassword } = req.body;
-      console.log("Password reset attempt for email:", email);
+      const { email, token, newPassword, oldPassword } = req.body;
 
       const user = await storage.getUserByEmail(email);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(400).json({ message: "Invalid request" });
       }
 
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await storage.updateUser(user.id, { password: hashedPassword });
+      // --- CASE 1: Token-based reset ---
+      if (token) {
+        // Fetch latest valid reset record (non-expired handled in storage)
+        const resetRecord = await storage.getPasswordResetByUserId(user.id);
+        if (!resetRecord) {
+          return res.status(400).json({ message: "Invalid or expired token" });
+        }
 
-      console.log("Password updated successfully for user:", email);
-      res.json({ message: "Password updated successfully" });
-    } catch (error) {
-      console.error("Password reset error:", error);
-      res.status(500).json({ message: "Server error" });
+        // Verify token against hashed version in DB
+        const isValid = await bcrypt.compare(token, resetRecord.token);
+        if (!isValid) {
+          return res.status(400).json({ message: "Invalid token" });
+        }
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await storage.updateUser(user.id, { password: hashedPassword });
+
+        // Delete token after use
+        await storage.deletePasswordReset(user.id);
+
+        return res.json({ message: "Password updated successfully" });
+      }
+
+      // --- CASE 2: Old-password change ---
+      if (oldPassword) {
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+          return res.status(400).json({ message: "Old password is incorrect" });
+        }
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await storage.updateUser(user.id, { password: hashedPassword });
+
+        return res.json({ message: "Password updated successfully" });
+      }
+
+      // If neither token nor oldPassword provided
+      return res
+        .status(400)
+        .json({ message: "Invalid request: missing credentials" });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      return res.status(500).json({ message: "Server error" });
     }
   });
 
@@ -627,27 +637,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Combined profile update + image upload route
-  app.patch(
-    "/api/users/profile",
-    authenticate,
-    uploadProfile.single("image"), // optional profile image
-    async (req: any, res) => {
-      try {
-        const updateData: any = { ...req.body };
-        // If an image was uploaded, validate and add its URL
-        if (req.file) {
-          updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
-        }
-        console.log(`Profile update request: ${JSON.stringify(updateData)}`);
+  app.patch("/api/users/profile", authenticate, async (req: any, res) => {
+    try {
+      // remove null/undefined fields
+      const updateData = Object.fromEntries(
+        Object.entries(req.body).filter(
+          ([_, v]) => v !== null && v !== undefined
+        )
+      );
 
-        const user = await storage.updateUser(req.user.id, updateData);
-        res.json({ ...user, password: undefined });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
-      }
+      const user = await storage.updateUser(req.user.id, updateData);
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
     }
-  );
+  });
 
   // Track routes
   app.get("/api/tracks", async (req, res) => {

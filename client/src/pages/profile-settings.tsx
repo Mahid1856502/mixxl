@@ -1,8 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { BASE_URL } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,135 +14,119 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
-import {
-  User,
-  Save,
-  ArrowLeft,
-  Camera,
-  Settings,
-  Headphones,
-  AlertCircle,
-} from "lucide-react";
+import { User, Save, ArrowLeft, Settings, AlertCircle } from "lucide-react";
 import { useUpdateProfile } from "@/api/hooks/users/useUpdateProfile";
 import { useCancelSubscription } from "@/api/hooks/stripe/useSubscriptionCancel";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
-import {
-  useStripeAccount,
-  useStripeAccountStatus,
-} from "@/api/hooks/stripe/useStripeAccount";
+import { z } from "zod";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useUploadFile } from "@/api/hooks/s3/useUploadFile";
+import ProfilePreview from "@/components/profile/profile-preview";
+
+const schema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  bio: z.string().max(200).optional(),
+  location: z.string().optional(),
+  website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  role: z.enum(["fan", "artist"]).nullable().catch(null), // 👈 if not fan/artist → null
+  profileImage: z.string().url().nullable().or(z.literal("")), // 👈 empty string is fine
+});
+
+export type userProfileInput = z.infer<typeof schema>;
 
 export default function ProfileSettings() {
   const { user } = useAuth();
-  console.log("user", user);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { uploadFile, isUploading } = useUploadFile();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [bio, setBio] = useState("");
-  const [userLocation, setUserLocation] = useState("");
-  const [website, setWebsite] = useState("");
-  const [role, setRole] = useState<"fan" | "artist">("fan");
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const form = useForm<userProfileInput>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      bio: "",
+      location: "",
+      website: "",
+      role: null,
+      profileImage: "",
+    },
+  });
 
-  const { data, isLoading, error } = useStripeAccountStatus(
-    user?.stripeAccountId
-  );
-  const { mutate: setupArtistAccount, isPending: settingStripeAccount } =
-    useStripeAccount();
+  console.log("form.formState.errors", form.formState.errors);
+
   const { mutate: cancelSubscription, isPending: isCancelling } =
     useCancelSubscription();
 
-  console.log(" data, isLoading, error", data, isLoading, error);
-
   useEffect(() => {
     if (user) {
-      setFirstName(user.firstName || "");
-      setLastName(user.lastName || "");
-      setBio(user.bio || "");
-      setUserLocation(user.location || "");
-      setWebsite(user.website || "");
-      setRole(user.role as "fan" | "artist");
+      form.reset({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        bio: user.bio || "",
+        location: user.location || "",
+        website: user.website || "",
+        role: ["fan", "artist"].includes(user.role)
+          ? (user.role as "fan" | "artist")
+          : null, // 👈 force null if invalid
+        profileImage: user.profileImage || "",
+      });
     }
-  }, [user]);
+  }, [user, form]);
 
   const { mutate: updateProfile, isPending } = useUpdateProfile();
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
+  const handleImageChange = async (file: File) => {
+    try {
+      debugger;
+      const publicUrl = await uploadFile(file); // uploadFile returns a URL
+      console.log("publicUrl", publicUrl);
+      form.setValue("profileImage", publicUrl);
+    } catch (err: any) {
       toast({
-        title: "File too large",
-        description: "Select an image smaller than 5MB",
+        title: "Upload failed",
+        description: err.message,
         variant: "destructive",
       });
-      return;
     }
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Select a valid image file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSelectedImage(file);
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
   };
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
-  const handleSave = () => {
-    const formData = new FormData();
-    formData.append("firstName", firstName || "");
-    formData.append("lastName", lastName || "");
-    formData.append("bio", bio || "");
-    formData.append("location", userLocation || "");
-    formData.append("website", website || "");
-    formData.append("role", role);
-    if (selectedImage) formData.append("image", selectedImage);
-
-    updateProfile(formData, {
-      onSuccess: () => {
-        toast({ title: "Profile updated successfully!" });
-        queryClient.invalidateQueries({ queryKey: ["user"] });
-        setSelectedImage(null);
-        if (imagePreview) {
-          URL.revokeObjectURL(imagePreview);
-          setImagePreview(null);
-        }
+  const onSubmit = async (values: userProfileInput) => {
+    updateProfile(
+      {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        bio: values.bio,
+        location: values.location,
+        website: values.website,
+        role: values.role ?? null, // 👈 safe null
+        profileImage: values?.profileImage || null,
       },
-      onError: (err: any) => {
-        toast({
-          title: "Error updating profile",
-          description: err.message,
-          variant: "destructive",
-        });
-      },
-    });
+      {
+        onSuccess: () => {
+          toast({ title: "Profile updated successfully!" });
+          queryClient.invalidateQueries({ queryKey: ["user"] });
+        },
+        onError: (err: any) => {
+          toast({
+            title: "Error updating profile",
+            description: err.message,
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const handleCancelSubscription = () => {
     cancelSubscription(undefined, {
       onSuccess: () => {
         setIsDialogOpen(false);
-        // optionally invalidate user subscription query here
       },
     });
   };
@@ -168,7 +151,10 @@ export default function ProfileSettings() {
 
   return (
     <div className="min-h-screen p-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="max-w-4xl mx-auto space-y-8"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -188,12 +174,12 @@ export default function ProfileSettings() {
             </div>
           </div>
           <Button
-            onClick={handleSave}
-            disabled={isPending}
+            type="submit"
+            disabled={isPending || isUploading}
             className="text-white"
           >
             <Save className="w-4 h-4 mr-2" />
-            {isPending ? "Saving..." : "Save Changes"}
+            {isPending || isUploading ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
@@ -212,18 +198,14 @@ export default function ProfileSettings() {
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      {...form.register("firstName")}
                       placeholder="Enter your first name"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      {...form.register("lastName")}
                       placeholder="Enter your last name"
                     />
                   </div>
@@ -233,8 +215,7 @@ export default function ProfileSettings() {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
+                    {...form.register("bio")}
                     placeholder="Tell us about yourself..."
                     rows={3}
                   />
@@ -243,19 +224,13 @@ export default function ProfileSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={userLocation}
-                      onChange={(e) => setUserLocation(e.target.value)}
-                      placeholder="City, Country"
-                    />
+                    <Input id="location" {...form.register("location")} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="website">Website</Label>
                     <Input
                       id="website"
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
+                      {...form.register("website")}
                       placeholder="https://yourwebsite.com"
                     />
                   </div>
@@ -264,30 +239,35 @@ export default function ProfileSettings() {
                 {user.role !== "admin" && (
                   <div className="space-y-2">
                     <Label htmlFor="role">Account Type</Label>
-                    <Select
-                      value={role}
-                      onValueChange={(value: "fan" | "artist") =>
-                        setRole(value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your account type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fan">
-                          Fan - Discover and enjoy music
-                        </SelectItem>
-                        <SelectItem value="artist">
-                          Artist - Share and promote your music
-                        </SelectItem>
-                        <SelectItem value="DJ">
-                          <div className="flex items-center space-x-2">
-                            <Headphones className="w-4 h-4" />
-                            <span>DJ - Curate and mix tracks</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Controller
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => {
+                        const isRoleInvalid = field.value === null;
+
+                        return (
+                          <Select
+                            value={field.value ?? undefined}
+                            onValueChange={field.onChange}
+                            disabled={isRoleInvalid} // 👈 disables the dropdown
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  isRoleInvalid
+                                    ? user?.role
+                                    : "Select your account type"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fan">Fan</SelectItem>
+                              <SelectItem value="artist">Artist</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
                   </div>
                 )}
               </CardContent>
@@ -320,151 +300,15 @@ export default function ProfileSettings() {
               )}
           </div>
 
-          {/* Profile Preview */}
-          <div className="space-y-6">
-            <Card className="glass-effect border-white/10">
-              <CardHeader>
-                <CardTitle>Profile Preview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="relative inline-block">
-                    <Avatar className="h-24 w-24 mx-auto mb-4">
-                      <AvatarImage
-                        className="object-cover"
-                        src={
-                          imagePreview ??
-                          (user.profileImage
-                            ? `${BASE_URL}${user.profileImage}`
-                            : "")
-                        }
-                        alt={user.username}
-                      />
-                      <AvatarFallback className="text-xl">
-                        {firstName?.[0]?.toUpperCase() ||
-                          user.username[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {imagePreview && (
-                      <div className="absolute top-0 right-0 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">✓</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Camera className="w-4 h-4 mr-2" />
-                      Change Photo
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <h3 className="font-semibold">
-                    {firstName && lastName
-                      ? `${firstName} ${lastName}`
-                      : user.username}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    @{user.username}
-                  </p>
-                  {bio && (
-                    <p className="text-sm text-muted-foreground italic">
-                      "{bio}"
-                    </p>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Account Type:</span>
-                    <span className="capitalize font-medium">{role}</span>
-                  </div>
-                  {userLocation && (
-                    <div className="flex justify-between">
-                      <span>Location:</span>
-                      <span>{userLocation}</span>
-                    </div>
-                  )}
-                  {website && (
-                    <div className="flex justify-between">
-                      <span>Website:</span>
-                      <span className="text-primary">
-                        {website.replace(/^https?:\/\//, "")}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            {role === "artist" && (
-              <Card className="glass-effect border-white/10">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Settings className="w-5 h-5 text-primary" />
-                    <span>Artist Payouts</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {user?.stripeAccountId &&
-                    (data?.status === "none" ||
-                      data?.status === "rejected") && (
-                      <div className="space-y-3">
-                        <p className="text-muted-foreground text-sm">
-                          To receive direct payments for your songs, you need to
-                          connect your Stripe Express account.
-                        </p>
-                        <Button
-                          className="w-full text-white"
-                          onClick={() => setupArtistAccount()}
-                          disabled={settingStripeAccount}
-                        >
-                          Connect with Stripe
-                        </Button>
-                      </div>
-                    )}
-
-                  {data?.status === "pending" && (
-                    <div className="space-y-3">
-                      <p className="text-muted-foreground text-sm">
-                        Your Stripe account setup is pending. Please check your
-                        email or contact support to complete the process.
-                      </p>
-                      <Button variant="outline" className="w-full" disabled>
-                        Verification in progress
-                      </Button>
-                    </div>
-                  )}
-
-                  {data?.status === "complete" && (
-                    <div className="space-y-3">
-                      <p className="text-muted-foreground text-sm">
-                        Your Stripe account is connected. You’re ready to
-                        receive payouts!
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <ProfilePreview
+            user={user}
+            form={form}
+            handleImageChange={handleImageChange}
+            fileInputRef={fileInputRef}
+            isUploading={isUploading}
+          />
         </div>
-      </div>
+      </form>
       <ConfirmDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}

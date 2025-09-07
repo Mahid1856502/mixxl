@@ -5283,6 +5283,7 @@ var NODE_ENV = process.env.NODE_ENV || "development";
 var PORT = parseInt(process.env.PORT || "5000", 10);
 var CORS_ORIGIN = NODE_ENV === "development" ? "http://localhost:5173" : "https://mixxl.fm";
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
 app.use("/uploads", express2.static(path5.join(process.cwd(), "uploads")));

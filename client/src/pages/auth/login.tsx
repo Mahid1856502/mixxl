@@ -6,7 +6,6 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -142,6 +141,9 @@ export default function Login() {
                     </FormItem>
                   )}
                 />
+                <div className="flex justify-end">
+                  <Link href="/forget-password">Forget Password?</Link>
+                </div>
 
                 <Button
                   type="submit"

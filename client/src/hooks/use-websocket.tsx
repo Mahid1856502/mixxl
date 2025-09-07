@@ -19,19 +19,10 @@ export function useWebSocket() {
   useEffect(() => {
     if (!user) return;
 
-    // const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    // const wsUrl = `${protocol}//${window.location.host}/ws`;
-
     const wsUrl =
       process.env.NODE_ENV === "development"
         ? "ws://localhost:3000/ws"
-        : "wss://mixxl.fm/ws";
-
-    // const wsUrl =
-    //   window.location.protocol === "https:"
-    //     ? "wss://localhost:3000/ws"
-    //     : "ws://localhost:3000/ws";
-    // ws.current = new WebSocket(wsUrl);
+        : "wss://server1.mixxl.fm/ws";
 
     ws.current = new WebSocket(wsUrl);
 

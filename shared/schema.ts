@@ -11,6 +11,7 @@ import {
   pgEnum,
   index,
   uuid,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -131,6 +132,15 @@ export const subscriptionStatusEnum = pgEnum("subscription_status_enum", [
   "unpaid",
   "paused",
 ]);
+
+export const passwordResets = pgTable("password_resets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull(), // hashed token
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+});
 
 // Users table
 export const users = pgTable(
@@ -964,3 +974,5 @@ export type InsertBroadcastRecipient = z.infer<
 >;
 export type Banner = typeof banners.$inferSelect;
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
+export type PasswordResetInsert = typeof passwordResets.$inferInsert;
+export type PasswordReset = typeof passwordResets.$inferSelect;

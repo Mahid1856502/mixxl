@@ -1,29 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
-import { User } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { userProfileInput } from "@/pages/profile-settings";
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const token = localStorage.getItem("token");
-
-      const url = `${BASE_URL}/api/users/profile`;
-
-      const method = "PATCH";
-
-      const res = await fetch(url, {
-        method,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: data,
-      });
-
+    mutationFn: async (data: userProfileInput) => {
+      const res = await apiRequest("PATCH", `/api/users/profile`, data);
       if (!res.ok) {
         throw new Error(await res.text());
       }
-
       return res.json();
     },
     onSuccess: () => {

@@ -3,10 +3,10 @@ import type { ComponentType } from "react";
 
 // Auth / Public pages
 import Home from "@/pages/home";
-import Login from "@/pages/login";
-import Signup from "@/pages/signup";
+import Login from "@/pages/auth/login";
+import Signup from "@/pages/auth/signup";
 import VerifyEmail from "@/pages/verify-email";
-import ResetPassword from "@/pages/reset-password";
+import ResetPassword from "@/pages/auth/reset-password";
 import SetupRole from "@/pages/setup-role";
 import Onboarding from "@/pages/onboarding";
 import PricingComparison from "@/pages/pricing-comparison";
@@ -49,6 +49,7 @@ import PurchasingCancel from "@/pages/track-purchasing/cancel";
 import PurchasingSuccess from "@/pages/track-purchasing/success";
 import SubscriptionSuccess from "@/pages/subscription/success";
 import SubscriptionCancel from "@/pages/subscription/cancel";
+import ForgetPassword from "@/pages/auth/forget-password";
 
 export interface AppRoute {
   path: string;
@@ -62,6 +63,7 @@ export const PUBLIC_ROUTES: AppRoute[] = [
   { path: "/signup", component: Signup },
   { path: "/verify-email", component: VerifyEmail },
   { path: "/reset-password", component: ResetPassword },
+  { path: "/forget-password", component: ForgetPassword },
   { path: "/setup-role", component: SetupRole },
   { path: "/onboarding", component: Onboarding },
   { path: "/pricing-comparison", component: PricingComparison },

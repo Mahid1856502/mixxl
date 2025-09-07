@@ -9,6 +9,9 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+const withCredentials =
+  import.meta.env.MODE !== "development" ? "include" : "omit";
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -30,7 +33,7 @@ export async function apiRequest(
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: withCredentials,
   });
 
   await throwIfResNotOk(res);
@@ -54,7 +57,7 @@ export const getQueryFn: <T>(options: {
     const path = queryKey.join("/") as string;
     const res = await fetch(`${BASE_URL}${path}`, {
       headers,
-      credentials: "include",
+      credentials: withCredentials,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
