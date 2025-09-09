@@ -8,6 +8,8 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
+    "worker:broadcast": "node --import ts-node/register/esm server/workers/broadcastWorker.ts",
+    "worker:test": "node --import ts-node/register/esm server/workers/testWorker.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
@@ -124,8 +126,9 @@
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.1",
-    "typescript": "5.6.3",
+    "typescript": "^5.6.3",
     "vite": "^5.4.19"
   },
   "optionalDependencies": {

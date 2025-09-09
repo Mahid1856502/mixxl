@@ -97,30 +97,15 @@ export default function ProfileSettings() {
   };
 
   const onSubmit = async (values: userProfileInput) => {
-    updateProfile(
-      {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        bio: values.bio,
-        location: values.location,
-        website: values.website,
-        role: values.role ?? null, // 👈 safe null
-        profileImage: values?.profileImage || null,
-      },
-      {
-        onSuccess: () => {
-          toast({ title: "Profile updated successfully!" });
-          queryClient.invalidateQueries({ queryKey: ["user"] });
-        },
-        onError: (err: any) => {
-          toast({
-            title: "Error updating profile",
-            description: err.message,
-            variant: "destructive",
-          });
-        },
-      }
-    );
+    updateProfile({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      bio: values.bio,
+      location: values.location,
+      website: values.website,
+      role: values.role ?? null, // 👈 safe null
+      profileImage: values?.profileImage || null,
+    });
   };
 
   const handleCancelSubscription = () => {

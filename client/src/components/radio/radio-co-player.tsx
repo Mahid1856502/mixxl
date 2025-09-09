@@ -5,7 +5,6 @@ import { Radio } from "lucide-react";
 import { RadioSession } from "@shared/schema";
 import { useRadioStatus } from "@/api/hooks/radio/useRadioStatus";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { BASE_URL } from "@/lib/queryClient";
 import { useEndSession } from "@/api/hooks/radio/useSessionStatus";
 import { Button } from "../ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -79,11 +78,7 @@ export default function RadioCoPlayer({
                   <Avatar className="h-12 w-12 rounded-lg">
                     <AvatarImage
                       className="object-cover"
-                      src={
-                        session?.host?.profileImage
-                          ? `${BASE_URL}${session?.host?.profileImage}`
-                          : ""
-                      }
+                      src={session?.host?.profileImage ?? ""}
                       alt={session?.host?.username}
                     />
                     <AvatarFallback className="bg-primary text-primary-foreground">

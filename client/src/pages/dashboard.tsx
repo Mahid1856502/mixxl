@@ -24,9 +24,13 @@ import {
   Video,
 } from "lucide-react";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
+import { useState } from "react";
+import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
+import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Redirect admin users to admin dashboard
   if (user?.role === "admin") {
@@ -40,10 +44,7 @@ export default function Dashboard() {
 
   console.log("userTracks", userTracks);
 
-  const { data: userPlaylists = [] } = useQuery({
-    queryKey: ["/api/users", user?.id, "playlists"],
-    enabled: !!user,
-  });
+  const { data: userPlaylists = [] } = useUserPlaylists(user?.id);
 
   const { data: recentTracks = [] } = useQuery({
     queryKey: ["/api/tracks"],
@@ -473,15 +474,12 @@ export default function Dashboard() {
           <TabsContent value="playlists" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Your Playlists</h2>
-              <Link
-                href={
-                  user?.role === "fan" ? "/fan-profile" : "/playlists/create"
-                }
+              <Button
+                className="mixxl-gradient text-white"
+                onClick={() => setModalOpen(true)}
               >
-                <Button className="mixxl-gradient text-white">
-                  Create Playlist
-                </Button>
-              </Link>
+                Create Playlist
+              </Button>
             </div>
 
             {playlists.length === 0 ? (
@@ -494,17 +492,12 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-6">
                     Create your first playlist to organize your favorite tracks
                   </p>
-                  <Link
-                    href={
-                      user?.role === "fan"
-                        ? "/fan-profile"
-                        : "/playlists/create"
-                    }
+                  <Button
+                    className="mixxl-gradient text-white"
+                    onClick={() => setModalOpen(true)}
                   >
-                    <Button className="mixxl-gradient text-white">
-                      Create Your First Playlist
-                    </Button>
-                  </Link>
+                    Create Your First Playlist
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -615,6 +608,9 @@ export default function Dashboard() {
           )}
         </Tabs>
       </div>
+      {modalOpen && (
+        <CreatePlaylistModal open={modalOpen} onOpenChange={setModalOpen} />
+      )}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { BASE_URL } from "@/lib/queryClient";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
@@ -180,22 +179,24 @@ export default function ProfilePreview({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {user?.stripeAccountId &&
-              (data?.status === "none" || data?.status === "rejected") && (
-                <div className="space-y-3">
-                  <p className="text-muted-foreground text-sm">
-                    To receive direct payments for your songs, you need to
-                    connect your Stripe Express account.
-                  </p>
-                  <Button
-                    className="w-full text-white"
-                    onClick={() => setupArtistAccount()}
-                    disabled={settingStripeAccount}
-                  >
-                    Connect with Stripe
-                  </Button>
-                </div>
-              )}
+            {(!user?.stripeAccountId ||
+              data?.status === "none" ||
+              data?.status === "rejected") && (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-sm">
+                  To receive direct payments for your songs, you need to connect
+                  your Stripe Express account.
+                </p>
+                <Button
+                  type="button"
+                  className="w-full text-white"
+                  onClick={() => setupArtistAccount()}
+                  disabled={settingStripeAccount}
+                >
+                  Connect with Stripe
+                </Button>
+              </div>
+            )}
 
             {data?.status === "pending" && (
               <div className="space-y-3">

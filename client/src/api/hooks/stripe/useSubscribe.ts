@@ -19,7 +19,7 @@ export function useCreateSubscription() {
         title: "Subscription created!",
         description: data.trialEndsAt
           ? `Trial ends at ${new Date(data.trialEndsAt).toLocaleDateString()}`
-          : undefined,
+          : "Redirecting to stripe account onboarding ...",
       });
 
       // Redirect to Stripe Checkout

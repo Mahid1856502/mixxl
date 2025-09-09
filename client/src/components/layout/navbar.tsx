@@ -23,18 +23,13 @@ import {
   LayoutDashboard,
   Shield,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
-import { BASE_URL } from "@/lib/queryClient";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { isConnected } = useWebSocket();
 
-  console.log("isConnected", isConnected);
-
-  // Get unread notification count
   const { data: unreadData } = useUnreadNotificationCount();
 
   let navigation = [
@@ -220,11 +215,7 @@ export default function Navbar() {
                       >
                         <AvatarImage
                           className="object-cover"
-                          src={
-                            user.profileImage
-                              ? `${BASE_URL}${user.profileImage}`
-                              : ""
-                          }
+                          src={user.profileImage ?? ""}
                           alt={user.username}
                         />
                         <AvatarFallback className="bg-primary text-primary-foreground">

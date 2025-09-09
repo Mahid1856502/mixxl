@@ -242,16 +242,6 @@ export default function PricingComparison() {
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-
-              <Link href="/stripe-setup">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-orange-500 text-orange-400 hover:bg-orange-500/10 px-8 py-3 text-lg"
-                >
-                  Stripe Setup Guide
-                </Button>
-              </Link>
             </div>
           </CardContent>
         </Card>

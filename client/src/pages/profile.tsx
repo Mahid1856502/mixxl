@@ -1,7 +1,7 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -259,9 +259,7 @@ export default function Profile() {
               <Avatar className="h-32 w-32 border-4 border-background">
                 <AvatarImage
                   className="object-cover"
-                  src={
-                    user?.profileImage ? `${BASE_URL}${user?.profileImage}` : ""
-                  }
+                  src={user?.profileImage ?? ""}
                   alt={user?.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
@@ -793,7 +791,9 @@ export default function Profile() {
           profileImage: user?.profileImage,
         }}
       />
-      <CreatePlaylistModal open={modalOpen} onOpenChange={setModalOpen} />
+      {modalOpen && (
+        <CreatePlaylistModal open={modalOpen} onOpenChange={setModalOpen} />
+      )}
     </div>
   );
 }

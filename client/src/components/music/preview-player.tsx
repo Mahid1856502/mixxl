@@ -25,6 +25,7 @@ import {
   Heart,
 } from "lucide-react";
 import { TrackWithArtistName } from "@shared/schema";
+import { useTrackAccess } from "@/api/hooks/tracks/useTrackAccess";
 
 interface PreviewPlayerProps {
   track: TrackWithArtistName;
@@ -65,16 +66,11 @@ export default function PreviewPlayer({
   });
 
   // Check if user has access to full track
-  const { data: accessInfo, isLoading: accessLoading } = useQuery({
-    queryKey: ["/api/tracks", track.id, "access"],
-    queryFn: () =>
-      apiRequest("GET", `/api/tracks/${track.id}/access`).then((res) =>
-        res.json()
-      ),
-    enabled: !!user && !!track.hasPreviewOnly,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: accessInfo, isLoading: accessLoading } = useTrackAccess(
+    track.id,
+    user,
+    track.hasPreviewOnly ?? undefined
+  );
 
   const hasFullAccess =
     !track.hasPreviewOnly ||

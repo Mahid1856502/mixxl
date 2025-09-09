@@ -45,6 +45,8 @@ export default function TrackCard({
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const { user } = useAuth();
+
+  console.log("track user", user);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -233,7 +235,7 @@ export default function TrackCard({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between">
+          <div className="">
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
@@ -262,7 +264,7 @@ export default function TrackCard({
               </Button>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 mt-4">
               {track.hasPreviewOnly &&
                 track.price &&
                 user &&

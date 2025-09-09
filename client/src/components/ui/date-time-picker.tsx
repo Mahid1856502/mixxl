@@ -29,18 +29,40 @@ export function DateTimePicker({
   const formatTime = (date: Date | undefined | null) =>
     date ? date.toLocaleTimeString("en-GB", { hour12: false }) : "";
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const [hours, minutes, seconds] = e.target.value.split(":").map(Number);
+  const isDateEnabled = (date: Date) => {
+    const now = new Date();
 
-    if (!value) return;
+    // If it's today, allow it (we'll handle past times separately)
+    if (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    ) {
+      return true;
+    }
 
-    const updated = new Date(value);
-    updated.setHours(hours || 0, minutes || 0, seconds || 0);
-    onChange(updated);
+    // Disable past dates
+    return date >= enableDatesFrom;
   };
 
-  const isDateEnabled = (date: Date) => {
-    return date >= enableDatesFrom;
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [hours, minutes, seconds] = e.target.value.split(":").map(Number);
+    if (!value) return;
+
+    const now = new Date();
+    const updated = new Date(value);
+    updated.setHours(hours || 0, minutes || 0, seconds || 0);
+
+    // If selecting today, prevent past time
+    if (
+      updated.toDateString() === now.toDateString() &&
+      updated.getTime() < now.getTime()
+    ) {
+      onChange(now); // fallback to current time
+      return;
+    }
+
+    onChange(updated);
   };
 
   return (

@@ -65,6 +65,7 @@ __export(schema_exports, {
   messages: () => messages,
   notificationTypeEnum: () => notificationTypeEnum,
   notifications: () => notifications,
+  passwordResets: () => passwordResets,
   paymentStatusEnum: () => paymentStatusEnum,
   playlistTracks: () => playlistTracks,
   playlists: () => playlists,
@@ -93,11 +94,12 @@ import {
   json,
   pgEnum,
   index,
-  uuid
+  uuid,
+  bigint
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var roleEnum, messageTypeEnum, statusEnum, collaborationStatusEnum, collaborationTypeEnum, badgeTypeEnum, liveStreamStatusEnum, featuredSpotStatusEnum, broadcastTypeEnum, broadcastStatusEnum, discountCodeTypeEnum, discountCodeStatusEnum, currencyEnum, paymentStatusEnum, emailVerificationTokens, subscriptionStatusEnum, users, playlists, playlistTracks, follows, tracks, purchasedTracks, tips, radioSessions, radioChatMessageTypeEnum, radioChat, collaborations, badges, userBadges, liveStreams, liveStreamViewers, liveStreamMessages, conversations, messages, banners, insertBannerSchema, insertUserSchema, insertTrackSchema, insertPlaylistSchema, insertMessageSchema, insertTipSchema, insertRadioSessionSchema, updateRadioSessionSchema, insertCollaborationSchema, insertLiveStreamSchema, insertLiveStreamMessageSchema, insertFollowerSchema, insertConversationSchema, notificationTypeEnum, notifications, insertNotificationSchema, insertPurchasedTrackSchema, insertEmailVerificationTokenSchema, featuredSpots, adminBroadcasts, broadcastRecipients, discountCodes, discountCodeUsage, insertFeaturedSpotSchema, insertAdminBroadcastSchema, insertBroadcastRecipientSchema, insertDiscountCodeSchema, insertDiscountCodeUsageSchema;
+var roleEnum, messageTypeEnum, statusEnum, collaborationStatusEnum, collaborationTypeEnum, badgeTypeEnum, liveStreamStatusEnum, featuredSpotStatusEnum, broadcastTypeEnum, broadcastStatusEnum, discountCodeTypeEnum, discountCodeStatusEnum, currencyEnum, paymentStatusEnum, emailVerificationTokens, subscriptionStatusEnum, passwordResets, users, playlists, playlistTracks, follows, tracks, purchasedTracks, tips, radioSessions, radioChatMessageTypeEnum, radioChat, collaborations, badges, userBadges, liveStreams, liveStreamViewers, liveStreamMessages, conversations, messages, banners, insertBannerSchema, insertUserSchema, insertTrackSchema, insertPlaylistSchema, insertMessageSchema, insertTipSchema, insertRadioSessionSchema, updateRadioSessionSchema, insertCollaborationSchema, insertLiveStreamSchema, insertLiveStreamMessageSchema, insertFollowerSchema, insertConversationSchema, notificationTypeEnum, notifications, insertNotificationSchema, insertPurchasedTrackSchema, insertEmailVerificationTokenSchema, featuredSpots, adminBroadcasts, broadcastRecipients, discountCodes, discountCodeUsage, insertFeaturedSpotSchema, insertAdminBroadcastSchema, insertBroadcastRecipientSchema, insertDiscountCodeSchema, insertDiscountCodeUsageSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -211,6 +213,13 @@ var init_schema = __esm({
       "unpaid",
       "paused"
     ]);
+    passwordResets = pgTable("password_resets", {
+      id: uuid("id").primaryKey().defaultRandom(),
+      userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      token: text("token").notNull(),
+      // hashed token
+      expiresAt: bigint("expires_at", { mode: "number" }).notNull()
+    });
     users = pgTable(
       "users",
       {
@@ -1095,7 +1104,8 @@ import {
   sql as sql3,
   ne as ne2,
   isNull,
-  ilike
+  ilike,
+  gt as gt2
 } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -1155,6 +1165,31 @@ var init_storage = __esm({
       }
       async deleteUser(id) {
         await db.delete(users).where(eq(users.id, id));
+      }
+      /**
+       * Create a password reset record
+       */
+      async createPasswordReset(data) {
+        const [record] = await db.insert(passwordResets).values(data).returning();
+        return record;
+      }
+      /**
+       * Get a password reset by userId
+       */
+      async getPasswordResetByUserId(userId) {
+        const [record] = await db.select().from(passwordResets).where(
+          and2(
+            eq(passwordResets.userId, userId),
+            gt2(passwordResets.expiresAt, Date.now())
+          )
+        );
+        return record || null;
+      }
+      /**
+       * Delete a password reset by userId
+       */
+      async deletePasswordReset(userId) {
+        await db.delete(passwordResets).where(eq(passwordResets.userId, userId));
       }
       // inside your function
       async getFeaturedArtists(search) {
@@ -3177,7 +3212,7 @@ var init_upload_routes = __esm({
 
 // server/index.ts
 import express2 from "express";
-import path5 from "path";
+import path4 from "path";
 
 // server/routes.ts
 init_storage();
@@ -3187,9 +3222,7 @@ init_vite();
 import { createServer } from "http";
 import { WebSocketServer as WebSocketServer2, WebSocket as WebSocket2 } from "ws";
 import Stripe2 from "stripe";
-import multer2 from "multer";
-import path4 from "path";
-import fs3 from "fs";
+import crypto from "crypto";
 import bcrypt2 from "bcrypt";
 import jwt2 from "jsonwebtoken";
 import { ZodError } from "zod";
@@ -3262,75 +3295,6 @@ var stripe2 = new Stripe2(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-06-30.basil"
 });
 var JWT_SECRET2 = process.env.JWT_SECRET || "your-secret-key";
-var profileStorage = multer2.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path4.join(process.cwd(), "uploads", "profiles");
-    try {
-      fs3.mkdirSync(uploadDir, { recursive: true });
-    } catch (err) {
-      return cb(err, uploadDir);
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path4.extname(file.originalname)
-    );
-  }
-});
-var uploadProfile = multer2({
-  storage: profileStorage,
-  limits: { fileSize: 100 * 1024 * 1024 },
-  // 100MB
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === "image" && !file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files are allowed"));
-    }
-    cb(null, true);
-  }
-});
-var uploadStorage = multer2.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = process.env.UPLOAD_PATH || path4.join(process.cwd(), "uploads");
-    if (!fs3.existsSync(uploadDir)) {
-      fs3.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path4.extname(file.originalname)
-    );
-  }
-});
-var upload = multer2({
-  storage: uploadStorage,
-  limits: {
-    fileSize: 100 * 1024 * 1024
-    // 100MB limit for larger WAV files
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === "track") {
-      if (file.mimetype.startsWith("audio/")) {
-        cb(null, true);
-      } else {
-        cb(new Error("Only audio files are allowed for tracks"));
-      }
-    } else if (file.fieldname === "image") {
-      if (file.mimetype.startsWith("image/")) {
-        cb(null, true);
-      } else {
-        cb(new Error("Only image files are allowed"));
-      }
-    } else {
-      cb(null, true);
-    }
-  }
-});
 var wsClients = /* @__PURE__ */ new Map();
 var authenticate2 = async (req, res, next) => {
   try {
@@ -3673,21 +3637,76 @@ async function registerRoutes(app2) {
   app2.get("/api/auth/me", authenticate2, (req, res) => {
     res.json({ ...req.user, password: void 0 });
   });
-  app2.post("/api/auth/reset-password", async (req, res) => {
+  app2.post("/api/auth/request-reset", async (req, res) => {
     try {
-      const { email, newPassword } = req.body;
-      console.log("Password reset attempt for email:", email);
+      const { email } = req.body;
       const user = await storage.getUserByEmail(email);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.json({
+          message: "If the email exists, reset link has been sent"
+        });
       }
-      const hashedPassword = await bcrypt2.hash(newPassword, 10);
-      await storage.updateUser(user.id, { password: hashedPassword });
-      console.log("Password updated successfully for user:", email);
-      res.json({ message: "Password updated successfully" });
-    } catch (error) {
-      console.error("Password reset error:", error);
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = Date.now() + 1e3 * 60 * 15;
+      const hashedToken = await bcrypt2.hash(token, 10);
+      await storage.createPasswordReset({
+        userId: user.id,
+        token: hashedToken,
+        expiresAt
+      });
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+      const emailContent = {
+        subject: "Password Reset Request",
+        text: `Click the link to reset your password: ${resetUrl}`,
+        html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. The link expires in 15 minutes.</p>`
+      };
+      await sendEmail({
+        to: email,
+        from: "noreply@mixxl.fm",
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      });
+      res.json({ message: "If the email exists, reset link has been sent" });
+    } catch (err) {
+      console.error("Request reset error:", err);
       res.status(500).json({ message: "Server error" });
+    }
+  });
+  app2.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, token, newPassword, oldPassword } = req.body;
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+      if (token) {
+        const resetRecord = await storage.getPasswordResetByUserId(user.id);
+        if (!resetRecord) {
+          return res.status(400).json({ message: "Invalid or expired token" });
+        }
+        const isValid = await bcrypt2.compare(token, resetRecord.token);
+        if (!isValid) {
+          return res.status(400).json({ message: "Invalid token" });
+        }
+        const hashedPassword = await bcrypt2.hash(newPassword, 10);
+        await storage.updateUser(user.id, { password: hashedPassword });
+        await storage.deletePasswordReset(user.id);
+        return res.json({ message: "Password updated successfully" });
+      }
+      if (oldPassword) {
+        const isMatch = await bcrypt2.compare(oldPassword, user.password);
+        if (!isMatch) {
+          return res.status(400).json({ message: "Old password is incorrect" });
+        }
+        const hashedPassword = await bcrypt2.hash(newPassword, 10);
+        await storage.updateUser(user.id, { password: hashedPassword });
+        return res.json({ message: "Password updated successfully" });
+      }
+      return res.status(400).json({ message: "Invalid request: missing credentials" });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      return res.status(500).json({ message: "Server error" });
     }
   });
   app2.get("/api/user/:identifier", async (req, res) => {
@@ -3733,26 +3752,20 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Server error" });
     }
   });
-  app2.patch(
-    "/api/users/profile",
-    authenticate2,
-    uploadProfile.single("image"),
-    // optional profile image
-    async (req, res) => {
-      try {
-        const updateData = { ...req.body };
-        if (req.file) {
-          updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
-        }
-        console.log(`Profile update request: ${JSON.stringify(updateData)}`);
-        const user = await storage.updateUser(req.user.id, updateData);
-        res.json({ ...user, password: void 0 });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
-      }
+  app2.patch("/api/users/profile", authenticate2, async (req, res) => {
+    try {
+      const updateData = Object.fromEntries(
+        Object.entries(req.body).filter(
+          ([_, v]) => v !== null && v !== void 0
+        )
+      );
+      const user = await storage.updateUser(req.user.id, updateData);
+      res.json({ ...user, password: void 0 });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
     }
-  );
+  });
   app2.get("/api/tracks", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 50;
@@ -5286,7 +5299,7 @@ app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
-app.use("/uploads", express2.static(path5.join(process.cwd(), "uploads")));
+app.use("/uploads", express2.static(path4.join(process.cwd(), "uploads")));
 (async () => {
   const server = http.createServer(app);
   await registerRoutes(app);

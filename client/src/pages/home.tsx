@@ -514,11 +514,6 @@ export default function Home() {
                     Why Fans Choose Mixxl
                   </span>
                 </Link>
-                <Link href="/stripe-setup">
-                  <span className="text-gray-400 hover:text-white transition-colors cursor-pointer block">
-                    Stripe Setup Guide
-                  </span>
-                </Link>
                 <Link href="/blog">
                   <span className="text-gray-400 hover:text-white transition-colors cursor-pointer block">
                     Mixxl Blog

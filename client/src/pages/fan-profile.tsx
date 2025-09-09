@@ -1,13 +1,12 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 
 import TrackCard from "@/components/music/track-card";
 import UserCard from "@/components/social/user-card";
@@ -176,9 +175,7 @@ export default function FanProfile() {
               <Avatar className="w-32 h-32">
                 <AvatarImage
                   className="object-cover"
-                  src={
-                    user.profileImage ? `${BASE_URL}${user.profileImage}` : ""
-                  }
+                  src={user.profileImage ?? ""}
                   alt={user.username}
                 />
                 <AvatarFallback className="text-2xl bg-gradient-to-r from-pink-500 to-purple-600">

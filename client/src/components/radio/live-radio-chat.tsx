@@ -13,7 +13,6 @@ import { useLocation } from "wouter";
 import { MessageCircle, Send } from "lucide-react";
 import { RadioChatMessageWithUser, RadioSession } from "@shared/schema";
 import { useRadioChatBySession } from "@/api/hooks/radio/chat/useRadioChat";
-import { BASE_URL } from "@/lib/queryClient";
 
 interface LiveRadioChatProps {
   session?: RadioSession & {
@@ -168,11 +167,7 @@ export default function LiveRadioChat({
                 <Avatar className="h-6 w-6 flex-shrink-0">
                   <AvatarImage
                     className="object-cover"
-                    src={
-                      msg.user?.profileImage
-                        ? `${BASE_URL}${msg.user.profileImage}`
-                        : ""
-                    }
+                    src={msg.user?.profileImage ?? ""}
                     alt={msg.user?.username}
                   />
                   <AvatarFallback className="text-xs">

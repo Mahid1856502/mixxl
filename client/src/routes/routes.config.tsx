@@ -30,7 +30,6 @@ import Checkout from "@/pages/checkout";
 import LiveStreamPage from "@/pages/live-stream";
 import Messages from "@/pages/messages";
 import Notifications from "@/pages/notifications";
-import StripeSetup from "@/pages/stripe-setup";
 import FanProfile from "@/pages/fan-profile";
 import PlaylistPage from "@/pages/playlist";
 import TrackPage from "@/pages/track";
@@ -114,11 +113,6 @@ export const appRoutes: AppRoute[] = [
     path: "/notifications",
     component: Notifications,
     roles: ["fan", "artist", "admin", "DJ"],
-  },
-  {
-    path: "/stripe-setup",
-    component: StripeSetup,
-    roles: ["fan", "artist", "admin"],
   },
   {
     path: "/fan-profile/:id?",

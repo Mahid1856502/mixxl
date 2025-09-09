@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/queryClient";
 import { Playlist } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 async function fetchPlaylists(identifier: string): Promise<Playlist[]> {
   const res = await apiRequest("GET", `/api/users/${identifier}/playlists`);
@@ -18,7 +18,7 @@ export function useUserPlaylists(identifier: string | undefined) {
     queryKey: ["userPlaylists", identifier],
     queryFn: () => fetchPlaylists(identifier!),
     enabled: !!identifier, // only fetch if identifier is defined
-    staleTime: 5 * 60 * 1000, // 5 minutes cache freshness, tweak as needed
+    staleTime: 5 * 60 * 1000, // 5 minutes cache freshness
     retry: 1,
   });
 }
@@ -32,5 +32,39 @@ export function usePublicPlaylists() {
       return res.json() as Promise<Playlist[]>;
     },
     staleTime: 5 * 60 * 1000, // cache for 5 minutes
+  });
+}
+
+// ✅ New mutation hook
+export function useAddTrackToPlaylist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      playlistId,
+      trackId,
+    }: {
+      playlistId: string;
+      trackId: string;
+    }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/playlists/${playlistId}/tracks`,
+        { trackId }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to add track to playlist");
+      }
+
+      return res.json();
+    },
+    onSuccess: (_, { playlistId }) => {
+      // invalidate so playlists update with new track
+      queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["playlist", playlistId] });
+    },
   });
 }

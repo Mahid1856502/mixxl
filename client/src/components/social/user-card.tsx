@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import {
   UserPlus,
   UserCheck,
@@ -167,7 +167,7 @@ export default function UserCard({
           <Avatar className="h-10 w-10">
             <AvatarImage
               className="object-cover"
-              src={user.profileImage ? `${BASE_URL}${user.profileImage}` : ""}
+              src={user.profileImage ?? ""}
               alt={user.username}
             />
             <AvatarFallback className="bg-primary text-primary-foreground">
@@ -264,9 +264,7 @@ export default function UserCard({
               <Avatar className="h-12 w-12 -mt-8 border-2 border-background">
                 <AvatarImage
                   className="object-cover"
-                  src={
-                    user.profileImage ? `${BASE_URL}${user.profileImage}` : ""
-                  }
+                  src={user.profileImage ?? ""}
                   alt={user.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground">
