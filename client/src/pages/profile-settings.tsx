@@ -39,7 +39,6 @@ export type userProfileInput = z.infer<typeof schema>;
 
 export default function ProfileSettings() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadFile, isUploading } = useUploadFile();
 

@@ -2,8 +2,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { userProfileInput } from "@/pages/profile-settings";
+import { useAuth } from "@/hooks/use-auth";
 
 export function useUpdateProfile() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -16,6 +18,7 @@ export function useUpdateProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["user", user?.id] });
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",

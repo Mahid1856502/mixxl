@@ -1,19 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   classifyPlaybackError,
-  validateAudioUrl,
   getAudioErrorMessage,
-  detectUserInteraction,
 } from "@/utils/audio-utils";
 import { useAudioPlayer } from "@/hooks/use-audio-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Play,
   Pause,
@@ -22,7 +17,6 @@ import {
   ShoppingCart,
   Lock,
   Crown,
-  Heart,
 } from "lucide-react";
 import { TrackWithArtistName } from "@shared/schema";
 import { useTrackAccess } from "@/api/hooks/tracks/useTrackAccess";
@@ -30,14 +24,12 @@ import { useTrackAccess } from "@/api/hooks/tracks/useTrackAccess";
 interface PreviewPlayerProps {
   track: TrackWithArtistName;
   onPurchase?: (trackId: string) => void;
-  autoPlay?: boolean;
   className?: string;
 }
 
 export default function PreviewPlayer({
   track,
   onPurchase,
-  autoPlay = false,
   className = "",
 }: PreviewPlayerProps) {
   const { user } = useAuth();
@@ -46,7 +38,6 @@ export default function PreviewPlayer({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(70);
   const [isMuted, setIsMuted] = useState(false);
   const [showPurchasePrompt, setShowPurchasePrompt] = useState(false);
@@ -98,7 +89,6 @@ export default function PreviewPlayer({
       }
     };
 
-    const updateDuration = () => setDuration(audio.duration);
     const handleEnded = () => {
       setIsPlaying(false);
       if (!hasFullAccess) {
@@ -111,7 +101,6 @@ export default function PreviewPlayer({
     const handleLoadStart = () => setAudioState("loading");
 
     audio.addEventListener("timeupdate", updateTime);
-    audio.addEventListener("loadedmetadata", updateDuration);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("canplay", handleCanPlay);
     audio.addEventListener("error", handleError);
@@ -119,7 +108,6 @@ export default function PreviewPlayer({
 
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
-      audio.removeEventListener("loadedmetadata", updateDuration);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("canplay", handleCanPlay);
       audio.removeEventListener("error", handleError);
@@ -131,7 +119,6 @@ export default function PreviewPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Mark user interaction for autoplay compliance
     setHasUserInteracted(true);
 
     if (isPlaying) {
@@ -147,20 +134,6 @@ export default function PreviewPlayer({
         });
         return;
       }
-
-      // Validate audio URL before attempting playback
-      console.log("About to validate URL for track:", track.id, audioUrl);
-      // const isValidUrl = await validateAudioUrl(audioUrl);
-      // if (!isValidUrl) {
-      //   console.error("URL validation failed for track:", track.id, audioUrl);
-      //   toast({
-      //     title: "Audio not found",
-      //     description: "The audio file could not be accessed",
-      //     variant: "destructive",
-      //   });
-      //   return;
-      // }
-      console.log("URL validation passed for track:", track.id);
 
       // Wait for audio to be ready if it's still loading
       if (audioState === "loading") {

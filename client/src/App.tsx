@@ -12,21 +12,17 @@ import { appRoutes } from "./routes/routes.config";
 import { ProtectedRoute } from "./routes/protected";
 import ScrollToTop from "./components/common/scroll-to-top";
 import { Toaster as SonnerToaster } from "sonner";
+import { useEffect } from "react";
 
 function Router() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
 
-  if (user?.role === "DJ" && location === "/dashboard") {
-    setLocation("/radio");
-  }
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <div className="loading-spinner rounded-full w-8 h-8"></div>
-  //     </div>
-  //   );
-  // }
+  useEffect(() => {
+    if (user?.role === "DJ" && location === "/dashboard") {
+      setLocation("/radio");
+    }
+  }, [user, location, setLocation]);
 
   return (
     <div className="min-h-screen">
@@ -45,7 +41,6 @@ function Router() {
           ))}
         </Switch>
       </div>
-      <GlobalAudioPlayer />
     </div>
   );
 }

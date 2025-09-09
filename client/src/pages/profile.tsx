@@ -18,7 +18,6 @@ import {
   UserCheck,
   MessageCircle,
   Share,
-  MoreHorizontal,
   Music,
   Heart,
   Users,
