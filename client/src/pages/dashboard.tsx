@@ -37,8 +37,6 @@ export default function Dashboard() {
     window.location.href = "/admin";
     return null;
   }
-  const { currentTrack, isPlaying, playTrack, pause } = useMusicPlayer();
-  const queryClient = useQueryClient();
 
   const { data: userTracks = [] } = useUserTracks();
 
@@ -303,70 +301,118 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-4">
                       {recent.slice(0, 3).map((track: any) => (
-                        <div
+                        <TrackCard
                           key={track.id}
-                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
-                        >
-                          <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                            <Music className="w-6 h-6 text-white/70" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {track.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {track.playCount || 0} plays
-                            </p>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={async () => {
-                              if (currentTrack?.id === track.id && isPlaying) {
-                                pause();
-                              } else {
-                                // Increment play count on server
-                                try {
-                                  await fetch(`/api/tracks/${track.id}/play`, {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                  });
-                                  // Invalidate tracks queries to refresh play counts
-                                  queryClient.invalidateQueries({
-                                    queryKey: ["/api/tracks"],
-                                  });
-                                  queryClient.invalidateQueries({
-                                    queryKey: [
-                                      "/api/users",
-                                      user?.id,
-                                      "tracks",
-                                    ],
-                                  });
-                                } catch (error) {
-                                  console.error(
-                                    "Failed to increment play count:",
-                                    error
-                                  );
-                                }
-                                playTrack(track);
-                              }
-                            }}
-                          >
-                            {currentTrack?.id === track.id && isPlaying ? (
-                              <Pause className="w-4 h-4" />
-                            ) : (
-                              <Play className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
+                          track={track}
+                          showArtist={false}
+                          variant="recent"
+                        />
                       ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
 
+          <TabsContent value="music" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Your Music</h2>
+              {user.role === "artist" && (
+                <Link href="/upload">
+                  <Button className="mixxl-gradient text-white">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Track
+                  </Button>
+                </Link>
+              )}
+            </div>
+
+            {tracks.length === 0 ? (
+              <Card className="glass-effect border-white/10">
+                <CardContent className="py-12 text-center">
+                  <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    No tracks uploaded yet
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    {user.role === "artist"
+                      ? "Start sharing your music with the world"
+                      : "Liked tracks will appear here"}
+                  </p>
+                  {user.role === "artist" && (
+                    <Link href="/upload">
+                      <Button className="mixxl-gradient text-white">
+                        Upload Your First Track
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {tracks.map((track: any) => (
+                  <TrackCard
+                    key={track.id}
+                    track={track}
+                    showArtist={false}
+                    // isPlaying={isPlaying}
+                    // onPlay={playTrack}
+                    // toggleMute={toggleMute}
+                    // onPause={pause}
+                    variant="card"
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="playlists" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Your Playlists</h2>
+              <Button
+                className="mixxl-gradient text-white"
+                onClick={() => setModalOpen(true)}
+              >
+                Create Playlist
+              </Button>
+            </div>
+
+            {playlists.length === 0 ? (
+              <Card className="glass-effect border-white/10">
+                <CardContent className="py-12 text-center">
+                  <Heart className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    No playlists yet
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    Create your first playlist to organize your favorite tracks
+                  </p>
+                  <Button
+                    className="mixxl-gradient text-white"
+                    onClick={() => setModalOpen(true)}
+                  >
+                    Create Your First Playlist
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {playlists.map((playlist: any) => (
+                  <PlaylistCard
+                    key={playlist.id}
+                    playlist={playlist}
+                    showCreator={false}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="social" className="space-y-6">
+            <h2 className="text-2xl font-bold">Social</h2>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="glass-effect border-white/10">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -423,111 +469,6 @@ export default function Dashboard() {
                       )}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="music" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Your Music</h2>
-              {user.role === "artist" && (
-                <Link href="/upload">
-                  <Button className="mixxl-gradient text-white">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Track
-                  </Button>
-                </Link>
-              )}
-            </div>
-
-            {tracks.length === 0 ? (
-              <Card className="glass-effect border-white/10">
-                <CardContent className="py-12 text-center">
-                  <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-xl font-semibold mb-2">
-                    No tracks uploaded yet
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    {user.role === "artist"
-                      ? "Start sharing your music with the world"
-                      : "Liked tracks will appear here"}
-                  </p>
-                  {user.role === "artist" && (
-                    <Link href="/upload">
-                      <Button className="mixxl-gradient text-white">
-                        Upload Your First Track
-                      </Button>
-                    </Link>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {tracks.map((track: any) => (
-                  <TrackCard key={track.id} track={track} showArtist={false} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="playlists" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Your Playlists</h2>
-              <Button
-                className="mixxl-gradient text-white"
-                onClick={() => setModalOpen(true)}
-              >
-                Create Playlist
-              </Button>
-            </div>
-
-            {playlists.length === 0 ? (
-              <Card className="glass-effect border-white/10">
-                <CardContent className="py-12 text-center">
-                  <Heart className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-                  <h3 className="text-xl font-semibold mb-2">
-                    No playlists yet
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Create your first playlist to organize your favorite tracks
-                  </p>
-                  <Button
-                    className="mixxl-gradient text-white"
-                    onClick={() => setModalOpen(true)}
-                  >
-                    Create Your First Playlist
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {playlists.map((playlist: any) => (
-                  <PlaylistCard
-                    key={playlist.id}
-                    playlist={playlist}
-                    showCreator={false}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="social" className="space-y-6">
-            <h2 className="text-2xl font-bold">Social</h2>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="glass-effect border-white/10">
-                <CardHeader>
-                  <CardTitle>Following</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                    <p className="text-muted-foreground">
-                      Not following anyone yet
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
 

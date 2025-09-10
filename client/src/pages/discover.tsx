@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
 import UserCard from "@/components/social/user-card";
@@ -24,9 +22,7 @@ import {
   TrendingUp,
   Music,
   Users,
-  Clock,
   Heart,
-  Play,
   Radio,
   Shuffle,
   Compass,
@@ -35,10 +31,11 @@ import {
 import { useFeaturedArtists } from "@/api/hooks/artists/useArtists";
 import { usePublicPlaylists } from "@/api/hooks/playlist/usePlaylist";
 import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
-import { Track } from "@shared/schema";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useTracks } from "@/api/hooks/tracks/useTracks";
 import { GENRES, MOODS } from "@/lib/constants";
+import { Skeleton } from "@/components/ui/skeleton";
+import { buildSearchQuery } from "@/lib/query-builder";
 
 const sortOptions = [
   { value: "newest", label: "Newest First" },
@@ -49,15 +46,16 @@ const sortOptions = [
 ];
 
 export default function Discover() {
+  const [location, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("all");
+  const [selectedMood, setSelectedMood] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+
   const { user } = useAuth();
   const { messages } = useWebSocket();
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchTrigger, setSearchTrigger] = useState(""); // new state
-  const [selectedGenre, setSelectedGenre] = useState("All");
-  const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const { data: tracks = [], isLoading: tracksLoading } = useTracks();
 
@@ -67,27 +65,28 @@ export default function Discover() {
 
   const { data: radioSession } = useRadioSession();
 
-  console.log("radioSession", radioSession);
-  // Listen for new tracks via WebSocket
   useEffect(() => {
-    const newTrackMessages = messages.filter((msg) => msg.type === "new_track");
-    if (newTrackMessages.length > 0) {
-      // Invalidate tracks query to refresh
-      // queryClient.invalidateQueries(["/api/tracks"]);
-    }
-  }, [messages]);
+    const queryObj = buildSearchQuery({
+      search: searchQuery,
+      genre: selectedGenre,
+      mood: selectedMood,
+      sort: sortBy,
+    });
+    const queryString = new URLSearchParams(queryObj).toString();
+    setLocation(`/discover?${queryString}`, { replace: true });
+  }, [searchQuery, selectedGenre, selectedMood, sortBy]);
 
-  const handlePlay = (track: any) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
-  };
+  // Parse URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.split("?")[1]);
+    setSearchQuery(params.get("search") || "");
+    setSelectedGenre(params.get("genre") || "all");
+    setSelectedMood(params.get("mood") || "all");
+    setSortBy(params.get("sort") || "newest");
+  }, []);
 
-  const handlePause = () => {
-    setIsPlaying(false);
-  };
-
-  const filteredTracks = tracks.filter((track: any) => {
-    if (selectedGenre !== "All" && track.genre !== selectedGenre) {
+  const filteredTracks = tracks.filter((track) => {
+    if (selectedGenre !== "all" && track.genre !== selectedGenre) {
       return false;
     }
     return true;
@@ -138,7 +137,7 @@ export default function Discover() {
               </div>
 
               {/* Quick Genre Tags */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div className="flex flex-wrap gap-2">
                   {GENRES.map((genre) => (
                     <Button
@@ -158,6 +157,7 @@ export default function Discover() {
                 </div>
                 <Button
                   size="icon"
+                  className="px-3"
                   onClick={() => setShowFilters(!showFilters)}
                 >
                   <Filter className="h-4 w-4" />
@@ -169,16 +169,19 @@ export default function Discover() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/5 rounded-lg">
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      Genre
+                      Mood
                     </label>
                     <Select
-                      value={selectedGenre}
-                      onValueChange={setSelectedGenre}
+                      value={selectedMood}
+                      onValueChange={setSelectedMood}
                     >
                       <SelectTrigger className="bg-white/5 border-white/10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem key="" value="all">
+                          All Moods
+                        </SelectItem>
                         {MOODS.map((mood) => (
                           <SelectItem key={mood} value={mood}>
                             {mood}
@@ -211,8 +214,9 @@ export default function Discover() {
                       variant="outline"
                       onClick={() => {
                         setSearchQuery("");
-                        setSelectedGenre("All");
+                        setSelectedGenre("all");
                         setSortBy("newest");
+                        setSelectedMood("all");
                       }}
                       className="w-full"
                     >
@@ -242,7 +246,7 @@ export default function Discover() {
                       Radio is Live Now!
                     </h3>
                     <p className="text-muted-foreground">
-                      {radioSession?.title} • {radioSession?.listenerCount}{" "}
+                      {radioSession?.title} • {radioSession?.listenerCount ?? 0}{" "}
                       listeners
                     </p>
                   </div>
@@ -307,14 +311,14 @@ export default function Discover() {
 
             {/* Tracks Grid */}
             {tracksLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {Array.from({ length: 8 }).map((_, i) => (
+              <div className="gap-6">
+                {Array.from({ length: 2 }).map((_, i) => (
                   <Card key={i} className="glass-effect border-white/10">
                     <CardContent className="p-0">
-                      <div className="aspect-square bg-white/5 rounded-t-lg shimmer"></div>
+                      <Skeleton className="aspect-square w-full rounded-t-lg" />
                       <div className="p-4 space-y-2">
-                        <div className="h-4 bg-white/10 rounded shimmer"></div>
-                        <div className="h-3 bg-white/5 rounded shimmer w-2/3"></div>
+                        <Skeleton className="h-4 w-3/4 rounded" />
+                        <Skeleton className="h-3 w-1/2 rounded" />
                       </div>
                     </CardContent>
                   </Card>
@@ -342,7 +346,7 @@ export default function Discover() {
             ) : (
               <>
                 {/* Preview Mode Tracks Section */}
-                {filteredTracks.some((track: any) => track.hasPreviewOnly) && (
+                {filteredTracks.some((track) => track.hasPreviewOnly) && (
                   <div className="mb-8">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold flex items-center">
@@ -355,12 +359,12 @@ export default function Discover() {
                     </div>
                     <div className="space-y-3">
                       {filteredTracks
-                        .filter((track: any) => track.hasPreviewOnly)
-                        .map((track: any) => (
+                        .filter((track) => track.hasPreviewOnly)
+                        .map((track) => (
                           <TrackCard
                             key={`preview-${track.id}`}
                             track={track}
-                            compact={true}
+                            variant="preview"
                             className="mb-3"
                           />
                         ))}
@@ -371,15 +375,9 @@ export default function Discover() {
                 {/* Regular Tracks Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredTracks
-                    .filter((track: any) => !track.hasPreviewOnly)
-                    .map((track: any) => (
-                      <TrackCard
-                        key={track.id}
-                        track={track}
-                        isPlaying={currentTrack?.id === track.id && isPlaying}
-                        onPlay={handlePlay}
-                        onPause={handlePause}
-                      />
+                    .filter((track) => !track.hasPreviewOnly)
+                    .map((track) => (
+                      <TrackCard key={track.id} track={track} variant="card" />
                     ))}
                 </div>
               </>
@@ -438,7 +436,7 @@ export default function Discover() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredArtists.map((artist: any) => (
+                {featuredArtists.map((artist) => (
                   <UserCard key={artist.id} user={artist} variant="detailed" />
                 ))}
               </div>
@@ -459,36 +457,9 @@ export default function Discover() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredTracks
-                      .slice(0, 5)
-                      .map((track: Track, index: number) => (
-                        <div
-                          key={track.id}
-                          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
-                        >
-                          <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-sm font-bold">
-                            #{index + 1}
-                          </div>
-                          <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                            <Music className="w-6 h-6 text-white/70" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {track.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {track.playCount} plays
-                            </p>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handlePlay(track)}
-                          >
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
+                    {filteredTracks.slice(0, 5).map((track) => (
+                      <TrackCard key={track.id} track={track} />
+                    ))}
                   </div>
                 </CardContent>
               </Card>

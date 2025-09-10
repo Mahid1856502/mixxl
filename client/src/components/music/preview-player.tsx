@@ -1,11 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import {
-  classifyPlaybackError,
-  getAudioErrorMessage,
-} from "@/utils/audio-utils";
-import { useAudioPlayer } from "@/hooks/use-audio-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,191 +11,59 @@ import {
   ShoppingCart,
   Lock,
   Crown,
+  ListMusic,
 } from "lucide-react";
-import { TrackWithArtistName } from "@shared/schema";
-import { useTrackAccess } from "@/api/hooks/tracks/useTrackAccess";
+import { TrackExtended } from "@shared/schema";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface PreviewPlayerProps {
-  track: TrackWithArtistName;
+  handleOpen: () => void;
+  track: TrackExtended;
+  currentTrack: TrackExtended | null;
   onPurchase?: (trackId: string) => void;
   className?: string;
+  hasFullAccess: boolean;
+  maxDuration: number;
+  isPlaying: boolean;
+  playTrack: (track: TrackExtended) => void;
+  pause: () => void;
+  seekTo: (time: number) => void;
+  isMuted: boolean;
+  toggleMute: () => void;
 }
 
 export default function PreviewPlayer({
+  handleOpen,
   track,
+  currentTrack,
   onPurchase,
   className = "",
+  hasFullAccess,
+  maxDuration,
+  isPlaying,
+  playTrack,
+  pause,
+  seekTo,
+  isMuted,
+  toggleMute,
 }: PreviewPlayerProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(70);
-  const [isMuted, setIsMuted] = useState(false);
   const [showPurchasePrompt, setShowPurchasePrompt] = useState(false);
-  const [audioState, setAudioState] = useState<"loading" | "ready" | "error">(
-    "loading"
-  );
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-  // Register with audio manager for coordination
-  const playerId = `preview-${track.id}`;
-  const audioPlayer = useAudioPlayer(playerId, isPlaying, () => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      setIsPlaying(false);
-    }
-  });
-
-  // Check if user has access to full track
-  const { data: accessInfo, isLoading: accessLoading } = useTrackAccess(
-    track.id,
-    user,
-    track.hasPreviewOnly ?? undefined
-  );
-
-  const hasFullAccess =
-    !track.hasPreviewOnly ||
-    accessInfo?.hasAccess ||
-    track.artistId === user?.id;
-  const audioUrl = hasFullAccess
-    ? track.fileUrl
-    : track.previewUrl || track.fileUrl;
-  const maxDuration = hasFullAccess
-    ? track.duration || 0
-    : track.previewDuration || 30;
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const updateTime = () => {
-      setCurrentTime(audio.currentTime);
-
-      // Show purchase prompt when preview ends
-      if (!hasFullAccess && audio.currentTime >= maxDuration - 1) {
-        setShowPurchasePrompt(true);
-        setIsPlaying(false);
-        audio.pause();
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      if (!hasFullAccess) {
-        setShowPurchasePrompt(true);
-      }
-    };
-
-    const handleCanPlay = () => setAudioState("ready");
-    const handleError = () => setAudioState("error");
-    const handleLoadStart = () => setAudioState("loading");
-
-    audio.addEventListener("timeupdate", updateTime);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("canplay", handleCanPlay);
-    audio.addEventListener("error", handleError);
-    audio.addEventListener("loadstart", handleLoadStart);
-
-    return () => {
-      audio.removeEventListener("timeupdate", updateTime);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("canplay", handleCanPlay);
-      audio.removeEventListener("error", handleError);
-      audio.removeEventListener("loadstart", handleLoadStart);
-    };
-  }, [hasFullAccess, maxDuration]);
-
-  const togglePlay = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    setHasUserInteracted(true);
-
+  const handlePlay = () => {
     if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
+      pause?.();
     } else {
-      // Request playback permission from audio manager
-      const canPlay = audioPlayer.requestPlayback();
-      if (!canPlay) {
-        toast({
-          title: "Audio busy",
-          description: "Another audio is currently playing",
-        });
-        return;
-      }
-
-      // Wait for audio to be ready if it's still loading
-      if (audioState === "loading") {
-        toast({
-          title: "Loading audio...",
-          description: "Please wait while the audio loads",
-        });
-        return;
-      }
-
-      if (audioState === "error") {
-        toast({
-          title: "Audio error",
-          description: "This audio file cannot be played",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      try {
-        await audio.play();
-        setIsPlaying(true);
-        setShowPurchasePrompt(false);
-      } catch (error) {
-        const errorType = classifyPlaybackError(error);
-        const errorMessage = getAudioErrorMessage(errorType);
-
-        console.error("Playback failed:", {
-          error,
-          errorType,
-          audioUrl,
-          trackId: track.id,
-          hasUserInteracted,
-          audioState,
-        });
-
-        toast({
-          title: errorMessage.title,
-          description: errorMessage.description,
-          variant: "destructive",
-        });
-      }
+      playTrack?.(track);
     }
   };
-
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
     const seekTime = (clickX / width) * maxDuration;
 
-    audio.currentTime = Math.min(seekTime, maxDuration);
-  };
-
-  const toggleMute = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (isMuted) {
-      audio.volume = volume / 100;
-      setIsMuted(false);
-    } else {
-      audio.volume = 0;
-      setIsMuted(true);
-    }
+    seekTo(seekTime);
   };
 
   const formatTime = (seconds: number) => {
@@ -222,17 +84,6 @@ export default function PreviewPlayer({
   return (
     <Card className={`glass-effect border-white/10 ${className}`}>
       <CardContent className="p-4">
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          preload="metadata"
-          onVolumeChange={() =>
-            setVolume(
-              audioRef.current?.volume ? audioRef.current.volume * 100 : 70
-            )
-          }
-        />
-
         <div className="flex items-center space-x-4">
           {/* Album Art */}
           <div className="relative">
@@ -276,14 +127,28 @@ export default function PreviewPlayer({
 
           {/* Controls */}
           <div className="flex items-center space-x-2">
+            {hasFullAccess && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-8 h-8 p-0"
+                    onClick={handleOpen}
+                  >
+                    <ListMusic className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add to playlist</TooltipContent>
+              </Tooltip>
+            )}
             <Button
               size="sm"
               variant="ghost"
-              onClick={togglePlay}
-              disabled={accessLoading}
+              onClick={handlePlay}
               className="w-8 h-8 p-0"
             >
-              {isPlaying ? (
+              {track?.id === currentTrack?.id && isPlaying ? (
                 <Pause className="w-4 h-4" />
               ) : (
                 <Play className="w-4 h-4" />

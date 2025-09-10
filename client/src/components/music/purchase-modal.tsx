@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Crown, CheckCircle, Music } from "lucide-react";
 import { useBuyTrack } from "@/api/hooks/tracks/useBuyTracks";
-import { TrackWithArtistName } from "@shared/schema";
+import { TrackExtended } from "@shared/schema";
 
 interface PurchaseModalProps {
-  track: TrackWithArtistName | null;
+  track: TrackExtended | null;
   isOpen: boolean;
   onClose: () => void;
 }

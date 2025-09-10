@@ -655,13 +655,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Track routes
-  app.get("/api/tracks", async (req, res) => {
+  app.get("/api/tracks", authenticate, async (req, res) => {
     try {
+      const { id: userId } = req.user;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const query = req.query.q as string | undefined;
 
-      const tracks = await storage.getTracks(query, limit, offset);
+      const tracks = await storage.getTracks(userId, query, limit, offset);
 
       res.json(tracks);
     } catch (error) {
@@ -742,52 +743,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Server error" });
     }
   });
-
-  // // Purchase track endpoint
-  // app.post("/api/purchases", authenticate, async (req: any, res) => {
-  //   try {
-  //     const { trackId, playlistId } = req.body;
-
-  //     const track = await storage.getTrack(trackId);
-  //     if (!track) {
-  //       return res.status(404).json({ message: "Track not found" });
-  //     }
-
-  //     // Check if user already owns the track
-  //     const existingPurchase = await storage.getUserTrackPurchase(
-  //       req.user.id,
-  //       trackId
-  //     );
-  //     if (existingPurchase) {
-  //       return res.status(400).json({ message: "Track already purchased" });
-  //     }
-
-  //     // For now, simulate a successful purchase
-  //     // In production, this would integrate with Stripe
-  //     const purchase = await storage.recordTrackPurchase({
-  //       userId: req.user.id,
-  //       trackId: trackId,
-  //       price: track.price || 0,
-  //     });
-
-  //     // If a playlist was selected, add the track to it
-  //     if (playlistId) {
-  //       try {
-  //         console.log(`Adding track ${trackId} to playlist ${playlistId}`);
-  //         await storage.addTrackToPlaylist(playlistId, trackId, req.user.id);
-  //         console.log("Track added to playlist successfully");
-  //       } catch (playlistError) {
-  //         console.error("Error adding track to playlist:", playlistError);
-  //         // Continue with purchase success even if playlist addition fails
-  //       }
-  //     }
-
-  //     res.json({ success: true, purchase });
-  //   } catch (error) {
-  //     console.error("Purchase error:", error);
-  //     res.status(500).json({ message: "Server error" });
-  //   }
-  // });
 
   app.post("/api/buy-track", authenticate, async (req, res) => {
     try {
@@ -1022,31 +977,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // add track to playlist
   app.get("/api/users/:identifier/playlists", async (req, res) => {
     try {
-      let user;
       const identifier = req.params.identifier;
+      const trackId = req.query.trackId as string | undefined;
 
-      // Check if identifier looks like a UUID
+      // check identifier type (uuid vs username)
       const isUUID =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
           identifier
         );
 
-      if (isUUID) {
-        user = await storage.getUser(identifier);
-      } else {
-        user = await storage.getUserByUsername(identifier);
-      }
+      const user = isUUID
+        ? await storage.getUser(identifier)
+        : await storage.getUserByUsername(identifier);
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const playlists = await storage.getPlaylistsByUser(user.id);
+      let playlists;
+
+      if (trackId) {
+        // playlists with hasTrack flag
+        playlists = await storage.getPlaylistsByUserWithTrackFlag(
+          user.id,
+          trackId
+        );
+      } else {
+        // normal playlists
+        playlists = await storage.getPlaylistsByUser(user.id);
+      }
+
       res.json(playlists);
     } catch (error) {
       console.error("Get playlists error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // remove track to playlist
+  app.delete("/api/playlists/:playlistId/tracks/:trackId", async (req, res) => {
+    try {
+      const { playlistId, trackId } = req.params;
+
+      if (!playlistId || !trackId) {
+        return res
+          .status(400)
+          .json({ message: "Playlist ID and Track ID are required" });
+      }
+
+      // remove track
+      await storage.removeTrackFromPlaylist(playlistId, trackId);
+
+      res.json({ success: true, message: "Track removed from playlist" });
+    } catch (error) {
+      console.error("Remove track error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -1386,12 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/artists", async (req, res) => {
     try {
       const allArtists = await storage.getAllArtists();
-      res.json(
-        allArtists.map((artist) => {
-          const { password, ...rest } = artist; // remove password safely
-          return rest;
-        })
-      );
+      res.json(allArtists);
     } catch (error) {
       console.error("All artists error:", error);
       res.status(500).json({ message: "Server error" });

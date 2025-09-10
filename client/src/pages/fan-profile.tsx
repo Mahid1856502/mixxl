@@ -39,7 +39,7 @@ import {
   List,
 } from "lucide-react";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
-import { TrackWithArtistName } from "@shared/schema";
+import { TrackExtended } from "@shared/schema";
 
 interface Mixxlist {
   id: string;
@@ -414,7 +414,7 @@ export default function FanProfile() {
 
               {userTracks.length > 0 ? (
                 <div className="space-y-4">
-                  {userTracks.map((track: TrackWithArtistName) => (
+                  {userTracks.map((track: TrackExtended) => (
                     <TrackCard key={track.id} track={track} />
                   ))}
                 </div>

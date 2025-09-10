@@ -13,6 +13,9 @@ import {
   ilike,
   lt,
   gt,
+  exists,
+  getTableColumns,
+  sum,
 } from "drizzle-orm";
 import {
   users,
@@ -80,7 +83,7 @@ import {
   banners,
   RadioChatMessage,
   RadioChatMessageWithUser,
-  TrackWithArtistName,
+  TrackExtended,
   PasswordResetInsert,
   PasswordReset,
   passwordResets,
@@ -93,12 +96,18 @@ import { db } from "./db";
 import { isTimeSlotAvailable } from "./utils";
 import { log } from "./vite";
 
+interface FeaturedArtistFilters {
+  search?: string;
+  genre?: string;
+  mood?: string;
+  sort?: "newest" | "oldest" | "most_played" | "most_liked" | "alphabetical";
+}
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getFeaturedArtists(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
   updateUserStripeInfo(
@@ -107,7 +116,7 @@ export interface IStorage {
     subscriptionId?: string
   ): Promise<User>;
   deleteUser(id: string): Promise<void>;
-  getFeaturedArtists(): Promise<User[]>;
+  getFeaturedArtists(filters: FeaturedArtistFilters): Promise<User[]>;
   createPasswordReset(data: PasswordResetInsert): Promise<PasswordReset>;
   getPasswordResetByUserId(userId: string): Promise<PasswordReset | null>;
   deletePasswordReset(userId: string): Promise<void>;
@@ -115,7 +124,12 @@ export interface IStorage {
   // Track operations
   getTrack(id: string): Promise<Track | undefined>;
   getTracksByArtist(artistId: string): Promise<Track[]>;
-  getTracks(query?: string, limit?: number, offset?: number): Promise<Track[]>;
+  getTracks(
+    userId: string,
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<Track[]>;
   searchTracks(query: string): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
   updateTrack(id: string, updates: Partial<Track>): Promise<Track>;
@@ -220,7 +234,7 @@ export interface IStorage {
   // Mixxlist/Fan operations
   getUserMixxlists(userId: string): Promise<any[]>;
   getUserPurchasedTracks(userId: string): Promise<any[]>;
-  getPurchasedTracksByUser(userId: string): Promise<TrackWithArtistName[]>;
+  getPurchasedTracksByUser(userId: string): Promise<TrackExtended[]>;
   getUserFavoriteArtists(userId: string): Promise<any[]>;
   getUserTrackPurchase(userId: string, trackId: string): Promise<any | null>;
   recordTrackPurchase(purchaseData: any): Promise<any>;
@@ -438,25 +452,27 @@ export class MySQLStorage implements IStorage {
   }
 
   // inside your function
-  async getFeaturedArtists(search?: string): Promise<User[]> {
-    let whereCondition: ReturnType<typeof eq> | ReturnType<typeof and>;
+  async getFeaturedArtists(filters: FeaturedArtistFilters) {
+    const { search, genre, mood, sort = "alphabetical" } = filters;
 
-    if (typeof search === "string" && search.length > 0) {
-      // case-insensitive contains search
-      whereCondition = and(
-        eq(users.role, "artist"),
-        ilike(users.username, `%${search}%`)
-      );
-    } else {
-      whereCondition = eq(users.role, "artist");
-    }
+    // Build dynamic search conditions
+    const searchCondition = search
+      ? or(
+          ilike(users.username, `%${search}%`),
+          ilike(users.firstName, `%${search}%`),
+          ilike(users.lastName, `%${search}%`)
+        )
+      : undefined;
 
-    const artistsWithFollowerCount = await db
+    const genreCondition = genre ? eq(tracks.genre, genre) : undefined;
+    const moodCondition = mood ? eq(tracks.mood, mood) : undefined;
+
+    // Fetch artists
+    const artistsWithMetrics = await db
       .select({
         id: users.id,
         email: users.email,
         username: users.username,
-        password: users.password,
         firstName: users.firstName,
         lastName: users.lastName,
         bio: users.bio,
@@ -476,17 +492,37 @@ export class MySQLStorage implements IStorage {
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         followerCount: count(follows.followerId),
+        totalPlayCount: sum(tracks.playCount),
+        totalLikesCount: sum(tracks.likesCount),
       })
       .from(users)
       .leftJoin(follows, eq(follows.followingId, users.id))
-      .where(whereCondition)
+      .leftJoin(tracks, eq(tracks.artistId, users.id))
+      .where(eq(users.role, "artist"))
+      .where(searchCondition)
+      .where(genreCondition)
+      .where(moodCondition)
       .groupBy(users.id)
-      .orderBy(users.username);
+      .orderBy(
+        sort === "newest"
+          ? desc(users.createdAt)
+          : sort === "oldest"
+          ? asc(users.createdAt)
+          : sort === "most_played"
+          ? desc(sql`sum(tracks.play_count)`)
+          : sort === "most_liked"
+          ? desc(sql`sum(tracks.likes_count)`)
+          : asc(users.username)
+      );
 
-    return artistsWithFollowerCount.map((artist) => ({
+    // Map results for API consumption
+    return artistsWithMetrics.map((artist) => ({
       ...artist,
+      password: undefined,
       followers: Number(artist.followerCount) || 0,
-    })) as any[];
+      playCount: Number(artist.totalPlayCount) || 0,
+      likesCount: Number(artist.totalLikesCount) || 0,
+    }));
   }
 
   async getAllArtists(): Promise<User[]> {
@@ -495,7 +531,6 @@ export class MySQLStorage implements IStorage {
         id: users.id,
         email: users.email,
         username: users.username,
-        password: users.password,
         firstName: users.firstName,
         lastName: users.lastName,
         role: users.role,
@@ -543,7 +578,12 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(tracks.createdAt));
   }
 
-  async getTracks(query?: string, limit = 50, offset = 0): Promise<Track[]> {
+  async getTracks(
+    userId: string,
+    query?: string,
+    limit = 50,
+    offset = 0
+  ): Promise<any[]> {
     const conditions = [eq(tracks.isPublic, true)] as any[];
 
     if (query) {
@@ -562,6 +602,7 @@ export class MySQLStorage implements IStorage {
         id: tracks.id,
         title: tracks.title,
         artistId: tracks.artistId,
+        artistName: users.username,
         description: tracks.description,
         genre: tracks.genre,
         mood: tracks.mood,
@@ -582,10 +623,26 @@ export class MySQLStorage implements IStorage {
         submitToRadio: tracks.submitToRadio,
         createdAt: tracks.createdAt,
         updatedAt: tracks.updatedAt,
-        artistName: users.username,
+
+        // drizzle CASE expression for hasAccess
+        hasAccess: sql<boolean>`
+        CASE
+          WHEN ${tracks.artistId} = ${userId} THEN TRUE
+          WHEN ${tracks.hasPreviewOnly} = FALSE THEN TRUE
+          WHEN ${purchasedTracks.id} IS NOT NULL THEN TRUE
+          ELSE FALSE
+        END
+      `,
       })
       .from(tracks)
       .leftJoin(users, eq(tracks.artistId, users.id))
+      .leftJoin(
+        purchasedTracks,
+        and(
+          eq(purchasedTracks.trackId, tracks.id),
+          eq(purchasedTracks.userId, userId)
+        )
+      )
       .where(and(...conditions))
       .orderBy(query ? desc(tracks.playCount) : desc(tracks.createdAt))
       .limit(limit)
@@ -684,6 +741,29 @@ export class MySQLStorage implements IStorage {
       .from(playlists)
       .where(eq(playlists.creatorId, userId))
       .orderBy(desc(playlists.createdAt));
+  }
+
+  async getPlaylistsByUserWithTrackFlag(userId: string, trackId: string) {
+    const result = await db
+      .select({
+        ...getTableColumns(playlists),
+        hasTrack: exists(
+          db
+            .select()
+            .from(playlistTracks)
+            .where(
+              and(
+                eq(playlistTracks.playlistId, playlists.id),
+                eq(playlistTracks.trackId, trackId)
+              )
+            )
+        ),
+      })
+      .from(playlists)
+      .where(eq(playlists.creatorId, userId))
+      .orderBy(desc(playlists.createdAt));
+
+    return result;
   }
 
   async getPublicPlaylists(): Promise<Playlist[]> {
@@ -1592,15 +1672,14 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(purchasedTracks.purchasedAt));
   }
 
-  async getPurchasedTracksByUser(
-    userId: string
-  ): Promise<TrackWithArtistName[]> {
+  async getPurchasedTracksByUser(userId: string): Promise<TrackExtended[]> {
     const result = await db
       .select({
         id: tracks.id,
         title: tracks.title,
         description: tracks.description,
         artistId: tracks.artistId,
+        artistName: users.username,
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -1621,10 +1700,7 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-        artistName:
-          sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as(
-            "artistName"
-          ),
+        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // always true if purchased
       })
       .from(purchasedTracks)
       .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))

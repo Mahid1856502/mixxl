@@ -518,15 +518,13 @@ export default function Profile() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                 {userTracks.map((track: any) => (
                   <TrackCard
                     key={track.id}
                     track={track}
-                    isPlaying={currentTrack?.id === track.id && isPlaying}
-                    onPlay={handlePlay}
-                    onPause={handlePause}
                     showArtist={user?.role === "fan"}
+                    variant="card"
                   />
                 ))}
               </div>
@@ -613,6 +611,7 @@ export default function Profile() {
                         <UserCard
                           key={followedUser.id}
                           user={followedUser}
+                          isFollowing
                           variant="compact"
                         />
                       ))}

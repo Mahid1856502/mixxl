@@ -25,7 +25,7 @@ export default function PlaylistPage() {
   const { id } = useParams();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { playPlaylist, playTrack, isPlaying, currentTrack, togglePlayPause } =
+  const { playPlaylist, isPlaying, currentTrack, togglePlayPause } =
     useMusicPlayer();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -91,12 +91,12 @@ export default function PlaylistPage() {
     } else {
       // Otherwise, start playing this track
       playPlaylist(tracks, index);
-      toast({
-        title: "Now playing",
-        description: `${track.title} by ${
-          track.artistName || "Unknown Artist"
-        }`,
-      });
+      // toast({
+      //   title: "Now playing",
+      //   description: `${track.title} by ${
+      //     track.artistName || "Unknown Artist"
+      //   }`,
+      // });
     }
   };
 

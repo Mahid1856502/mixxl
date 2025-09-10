@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { InsertTrack, Track } from "@shared/schema";
+import { InsertTrack, Track, TrackExtended } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
 
 export function useTracks() {
-  return useQuery<Track[], Error>({
+  return useQuery<TrackExtended[], Error>({
     queryKey: ["/api/tracks"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/tracks");

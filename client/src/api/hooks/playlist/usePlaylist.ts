@@ -1,9 +1,22 @@
+import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Playlist } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// Types
+export interface PlaylistWithFlag extends Playlist {
+  hasTrack?: boolean; // present only if trackId is passed
+}
 
-async function fetchPlaylists(identifier: string): Promise<Playlist[]> {
-  const res = await apiRequest("GET", `/api/users/${identifier}/playlists`);
+// API fetcher
+async function fetchPlaylists(
+  identifier: string,
+  trackId?: string
+): Promise<PlaylistWithFlag[]> {
+  const url = trackId
+    ? `/api/users/${identifier}/playlists?trackId=${trackId}`
+    : `/api/users/${identifier}/playlists`;
+
+  const res = await apiRequest("GET", url);
 
   if (!res.ok) {
     const errorData = await res.json();
@@ -13,10 +26,14 @@ async function fetchPlaylists(identifier: string): Promise<Playlist[]> {
   return res.json();
 }
 
-export function useUserPlaylists(identifier: string | undefined) {
+// Hook
+export function useUserPlaylists(
+  identifier: string | undefined,
+  trackId?: string
+) {
   return useQuery({
-    queryKey: ["userPlaylists", identifier],
-    queryFn: () => fetchPlaylists(identifier!),
+    queryKey: ["userPlaylists", identifier, trackId], // include trackId in key
+    queryFn: () => fetchPlaylists(identifier!, trackId),
     enabled: !!identifier, // only fetch if identifier is defined
     staleTime: 5 * 60 * 1000, // 5 minutes cache freshness
     retry: 1,
@@ -61,10 +78,65 @@ export function useAddTrackToPlaylist() {
       return res.json();
     },
     onSuccess: (_, { playlistId }) => {
+      toast({
+        title: "Track added to playlist",
+      });
       // invalidate so playlists update with new track
       queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
       queryClient.invalidateQueries({ queryKey: ["playlists"] });
       queryClient.invalidateQueries({ queryKey: ["playlist", playlistId] });
+    },
+    onError: (_data, variables) => {
+      toast({
+        title: "Track failed to add in playlist",
+      });
+    },
+  });
+}
+
+interface RemoveTrackPayload {
+  playlistId: string;
+  trackId: string;
+}
+
+async function removeTrackFromPlaylist({
+  playlistId,
+  trackId,
+}: RemoveTrackPayload) {
+  const res = await apiRequest(
+    "DELETE",
+    `/api/playlists/${playlistId}/tracks/${trackId}`
+  );
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(
+      errorData.message || "Failed to remove track from playlist"
+    );
+  }
+
+  return res.json();
+}
+
+export function useRemoveTrackFromPlaylist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeTrackFromPlaylist,
+    onSuccess: (_data, variables) => {
+      toast({
+        title: "Track removed to playlist",
+      });
+      // invalidate all playlists and specifically the one updated
+      queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
+      queryClient.invalidateQueries({
+        queryKey: ["playlist", variables.playlistId],
+      });
+    },
+    onError: (_data, variables) => {
+      toast({
+        title: "Track failed to remove from playlist",
+      });
     },
   });
 }

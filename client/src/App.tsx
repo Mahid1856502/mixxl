@@ -28,7 +28,7 @@ function Router() {
     <div className="min-h-screen">
       <Navbar />
       <ScrollToTop />
-      <div className="">
+      <div className="mb-20">
         <Switch>
           {appRoutes.map(({ path, component, roles }) => (
             <Route

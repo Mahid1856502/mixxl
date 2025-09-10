@@ -35,6 +35,8 @@ export default function UserCard({
   variant = "default",
 }: UserCardProps) {
   const { user: currentUser } = useAuth();
+
+  console.log("incoming user", user);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [following, setFollowing] = useState(isFollowing);
@@ -217,7 +219,7 @@ export default function UserCard({
                 {following ? (
                   <>
                     <UserCheck className="w-4 h-4 mr-1" />
-                    Following
+                    Unfollow
                   </>
                 ) : (
                   <>
@@ -300,7 +302,10 @@ export default function UserCard({
 
           {/* Join Date */}
           <p className="text-xs text-muted-foreground">
-            Joined {user.createdAt ? user.createdAt?.toString() : ""}
+            Joined{" "}
+            {user.createdAt
+              ? new Date(user.createdAt)?.toLocaleDateString()
+              : ""}
           </p>
 
           {/* Actions */}

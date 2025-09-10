@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Play, 
-  Music, 
-  Share, 
+import {
+  Play,
+  Music,
+  Share,
   MoreHorizontal,
   Lock,
   Users,
-  Clock
+  Clock,
 } from "lucide-react";
 
 interface Playlist {
@@ -34,11 +34,11 @@ interface PlaylistCardProps {
   showCreator?: boolean;
 }
 
-export default function PlaylistCard({ 
-  playlist, 
+export default function PlaylistCard({
+  playlist,
   onPlay,
   className = "",
-  showCreator = true
+  showCreator = true,
 }: PlaylistCardProps) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -57,7 +57,9 @@ export default function PlaylistCard({
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/playlist/${playlist.id}`);
+    navigator.clipboard.writeText(
+      `${window.location.origin}/playlist/${playlist.id}`
+    );
     toast({
       title: "Link copied!",
       description: "Playlist link has been copied to clipboard",
@@ -67,7 +69,7 @@ export default function PlaylistCard({
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }
@@ -79,13 +81,16 @@ export default function PlaylistCard({
   };
 
   return (
-    <Card className={`track-card group cursor-pointer ${className}`} onClick={handleCardClick}>
+    <Card
+      className={`track-card group cursor-pointer ${className}`}
+      onClick={handleCardClick}
+    >
       <CardContent className="p-0">
         {/* Cover Image */}
         <div className="aspect-square bg-gradient-to-br from-purple-500/20 to-pink-500/20 relative overflow-hidden rounded-t-lg">
           {playlist.coverImage ? (
-            <img 
-              src={playlist.coverImage} 
+            <img
+              src={playlist.coverImage}
               alt={playlist.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -99,11 +104,11 @@ export default function PlaylistCard({
               </div>
             </div>
           )}
-          
+
           {/* Play Button Overlay */}
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <Button 
-              size="icon" 
+            <Button
+              size="icon"
               className="rounded-full w-12 h-12 mixxl-gradient text-white"
               onClick={(e) => {
                 e.stopPropagation();
@@ -117,7 +122,10 @@ export default function PlaylistCard({
           {/* Privacy Badge */}
           <div className="absolute top-2 left-2">
             {!playlist.isPublic && (
-              <Badge variant="secondary" className="text-xs bg-black/50 text-white">
+              <Badge
+                variant="secondary"
+                className="text-xs bg-black/50 text-white"
+              >
                 <Lock className="w-3 h-3 mr-1" />
                 Private
               </Badge>
@@ -132,7 +140,10 @@ export default function PlaylistCard({
 
           {/* Track Count */}
           <div className="absolute bottom-2 right-2">
-            <Badge variant="secondary" className="text-xs bg-black/50 text-white">
+            <Badge
+              variant="secondary"
+              className="text-xs bg-black/50 text-white"
+            >
               {playlist.trackCount} tracks
             </Badge>
           </div>
@@ -146,7 +157,7 @@ export default function PlaylistCard({
                 {playlist.name}
               </h3>
             </Link>
-            
+
             {showCreator && (
               <Link href={`/profile/${playlist.creatorId}`}>
                 <p className="text-sm text-muted-foreground hover:text-foreground transition-colors truncate">
@@ -181,16 +192,16 @@ export default function PlaylistCard({
           {/* Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleShare}
                 className="h-8 w-8 text-muted-foreground"
               >
                 <Share className="w-4 h-4" />
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground"
               >
@@ -199,8 +210,8 @@ export default function PlaylistCard({
             </div>
 
             <div className="flex items-center space-x-2">
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={handlePlay}
                 className="h-8 px-3 text-xs"

@@ -916,7 +916,11 @@ export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
-export type TrackWithArtistName = Track & { artistName: string };
+export type TrackExtended = Track & {
+  artistId: string;
+  artistName: string;
+  hasAccess: boolean;
+};
 export type Playlist = typeof playlists.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
 export type PlaylistTrack = typeof playlistTracks.$inferSelect;
