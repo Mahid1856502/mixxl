@@ -53,7 +53,6 @@ export default function Discover() {
   const [sortBy, setSortBy] = useState("newest");
 
   const { user } = useAuth();
-  const { messages } = useWebSocket();
   const [searchTrigger, setSearchTrigger] = useState(""); // new state
   const [showFilters, setShowFilters] = useState(false);
 
@@ -61,13 +60,17 @@ export default function Discover() {
 
   const { data: playlists = [] } = usePublicPlaylists();
 
-  const { data: featuredArtists = [] } = useFeaturedArtists(searchTrigger);
+  const { data: featuredArtists = [] } = useFeaturedArtists({
+    search: searchTrigger,
+    genre: selectedGenre !== "all" ? selectedGenre : undefined,
+    mood: selectedMood !== "all" ? selectedMood : undefined,
+    sort: sortBy,
+  });
 
   const { data: radioSession } = useRadioSession();
 
   useEffect(() => {
     const queryObj = buildSearchQuery({
-      search: searchQuery,
       genre: selectedGenre,
       mood: selectedMood,
       sort: sortBy,
@@ -93,7 +96,17 @@ export default function Discover() {
   });
 
   const handleSearch = () => {
-    setSearchTrigger(searchQuery); // trigger the query
+    setSearchTrigger(searchQuery); // trigger API call
+
+    const queryObj = buildSearchQuery({
+      search: searchQuery,
+      genre: selectedGenre,
+      mood: selectedMood,
+      sort: sortBy,
+    });
+
+    const queryString = new URLSearchParams(queryObj).toString();
+    setLocation(`/discover?${queryString}`, { replace: true });
   };
 
   return (
@@ -118,8 +131,8 @@ export default function Discover() {
           <CardContent className="p-6">
             <div className="space-y-4">
               {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="relative flex items-center">
+                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,7 +143,7 @@ export default function Discover() {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleSearch()}
-                  className="absolute right-2 top-2"
+                  className="absolute right-1"
                 >
                   <Search className="h-4 w-4" />
                 </Button>

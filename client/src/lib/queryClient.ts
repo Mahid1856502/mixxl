@@ -1,6 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-export const BASE_URL = import.meta.env.VITE_BASE_URL;
+export const BASE_URL =
+  import.meta.env.MODE === "development"
+    ? import.meta.env.VITE_LOCAL_BASE_URL
+    : import.meta.env.VITE_PROD_BASE_URL;
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -8,6 +11,9 @@ async function throwIfResNotOk(res: Response) {
     throw new Error(`${res.status}: ${text}`);
   }
 }
+
+const withCredentials =
+  import.meta.env.MODE !== "development" ? "include" : "omit";
 
 export async function apiRequest(
   method: string,
@@ -30,7 +36,7 @@ export async function apiRequest(
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: withCredentials,
   });
 
   await throwIfResNotOk(res);
@@ -54,7 +60,7 @@ export const getQueryFn: <T>(options: {
     const path = queryKey.join("/") as string;
     const res = await fetch(`${BASE_URL}${path}`, {
       headers,
-      credentials: "include",
+      credentials: withCredentials,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

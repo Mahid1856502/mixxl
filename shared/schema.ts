@@ -911,6 +911,9 @@ export const insertDiscountCodeUsageSchema = createInsertSchema(
 
 // Types
 export type User = typeof users.$inferSelect;
+export type Artist = User & {
+  isFollowed: boolean;
+};
 export type PurchasedTrack = typeof purchasedTracks.$inferSelect;
 export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -980,3 +983,9 @@ export type Banner = typeof banners.$inferSelect;
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
 export type PasswordResetInsert = typeof passwordResets.$inferInsert;
 export type PasswordReset = typeof passwordResets.$inferSelect;
+export type FeaturedArtistFilters = {
+  search?: string;
+  genre?: string;
+  mood?: string;
+  sort?: "newest" | "oldest" | "most_played" | "most_liked" | "alphabetical";
+};

@@ -87,6 +87,7 @@ import {
   PasswordResetInsert,
   PasswordReset,
   passwordResets,
+  Artist,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -97,6 +98,7 @@ import { isTimeSlotAvailable } from "./utils";
 import { log } from "./vite";
 
 interface FeaturedArtistFilters {
+  userId?: string;
   search?: string;
   genre?: string;
   mood?: string;
@@ -116,7 +118,7 @@ export interface IStorage {
     subscriptionId?: string
   ): Promise<User>;
   deleteUser(id: string): Promise<void>;
-  getFeaturedArtists(filters: FeaturedArtistFilters): Promise<User[]>;
+  getFeaturedArtists(filters: FeaturedArtistFilters): Promise<Artist[]>;
   createPasswordReset(data: PasswordResetInsert): Promise<PasswordReset>;
   getPasswordResetByUserId(userId: string): Promise<PasswordReset | null>;
   deletePasswordReset(userId: string): Promise<void>;
@@ -452,77 +454,35 @@ export class MySQLStorage implements IStorage {
   }
 
   // inside your function
-  async getFeaturedArtists(filters: FeaturedArtistFilters) {
-    const { search, genre, mood, sort = "alphabetical" } = filters;
-
-    // Build dynamic search conditions
-    const searchCondition = search
-      ? or(
-          ilike(users.username, `%${search}%`),
-          ilike(users.firstName, `%${search}%`),
-          ilike(users.lastName, `%${search}%`)
-        )
-      : undefined;
-
-    const genreCondition = genre ? eq(tracks.genre, genre) : undefined;
-    const moodCondition = mood ? eq(tracks.mood, mood) : undefined;
-
-    // Fetch artists
-    const artistsWithMetrics = await db
+  async getFeaturedArtists(filters: FeaturedArtistFilters): Promise<Artist[]> {
+    const result = await db
       .select({
-        id: users.id,
-        email: users.email,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        bio: users.bio,
-        profileImage: users.profileImage,
-        backgroundImage: users.backgroundImage,
-        role: users.role,
-        location: users.location,
-        website: users.website,
-        socialMedia: users.socialMedia,
-        isActive: users.isActive,
-        stripeCustomerId: users.stripeCustomerId,
-        stripeSubscriptionId: users.stripeSubscriptionId,
-        subscriptionStatus: users.subscriptionStatus,
-        trialEndsAt: users.trialEndsAt,
-        hasUsedTrial: users.hasUsedTrial,
-        onboardingComplete: users.onboardingComplete,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        followerCount: count(follows.followerId),
-        totalPlayCount: sum(tracks.playCount),
-        totalLikesCount: sum(tracks.likesCount),
+        ...getTableColumns(users), // ✅ expands all user columns safely
+        isFollowed: sql<boolean>`CASE WHEN ${follows.id} IS NOT NULL THEN true ELSE false END`,
       })
       .from(users)
-      .leftJoin(follows, eq(follows.followingId, users.id))
-      .leftJoin(tracks, eq(tracks.artistId, users.id))
-      .where(eq(users.role, "artist"))
-      .where(searchCondition)
-      .where(genreCondition)
-      .where(moodCondition)
-      .groupBy(users.id)
-      .orderBy(
-        sort === "newest"
-          ? desc(users.createdAt)
-          : sort === "oldest"
-          ? asc(users.createdAt)
-          : sort === "most_played"
-          ? desc(sql`sum(tracks.play_count)`)
-          : sort === "most_liked"
-          ? desc(sql`sum(tracks.likes_count)`)
-          : asc(users.username)
-      );
+      .leftJoin(
+        follows,
+        and(
+          eq(follows.followerId, filters.userId ?? sql`NULL`),
+          eq(follows.followingId, users.id)
+        )
+      )
+      .where(
+        and(
+          eq(users.role, "artist"),
+          filters.search
+            ? or(
+                ilike(users.username, `%${filters.search}%`),
+                ilike(users.firstName, `%${filters.search}%`),
+                ilike(users.lastName, `%${filters.search}%`)
+              )
+            : undefined
+        )
+      )
+      .limit(50);
 
-    // Map results for API consumption
-    return artistsWithMetrics.map((artist) => ({
-      ...artist,
-      password: undefined,
-      followers: Number(artist.followerCount) || 0,
-      playCount: Number(artist.totalPlayCount) || 0,
-      likesCount: Number(artist.totalLikesCount) || 0,
-    }));
+    return result;
   }
 
   async getAllArtists(): Promise<User[]> {

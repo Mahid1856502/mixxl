@@ -2,9 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import Stripe from "stripe";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { storage } from "./storage";
 import crypto from "crypto";
 import {
@@ -66,8 +63,6 @@ const authenticate = async (req: any, res: any, next: any) => {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
-
-const otpStore = new Map<string, { otp: string; expires: number }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
@@ -1355,15 +1350,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Featured artists route
   app.get("/api/featured-artists", async (req, res) => {
     try {
-      const search = req.query.search as string | undefined;
-      const featuredArtists = await storage.getFeaturedArtists(search);
+      const filters = {
+        userId: req.query.userId as string,
+        search: req.query.search as string,
+        genre: req.query.genre as string,
+        mood: req.query.mood as string,
+        sort: req.query.sort as any,
+      };
 
-      res.json(
-        featuredArtists.map((artist) => ({
-          ...artist,
-          password: undefined,
-        }))
-      );
+      const featuredArtists = await storage.getFeaturedArtists(filters);
+      res.json(featuredArtists);
     } catch (error) {
       console.error("Featured artists error:", error);
       res.status(500).json({ message: "Server error" });
