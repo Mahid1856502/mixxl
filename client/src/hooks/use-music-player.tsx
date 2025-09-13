@@ -24,6 +24,7 @@ interface MusicPlayerContextType {
   hasFullAccess: boolean;
   audioUrl: string;
   maxDuration: number;
+  audioState: "loading" | "ready" | "error";
 
   // Actions
   playTrack: (track: TrackExtended) => void;
@@ -163,6 +164,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [audioUrl, maxDuration]);
 
+  useEffect(() => {
+    if (audioState === "ready" && isPlaying) {
+      playAudio();
+    }
+  }, [audioState, isPlaying]);
+
   // Track navigation helper
   const changeTrack = (newIndex: number) => {
     const track = currentPlaylist[newIndex];
@@ -180,9 +187,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     setCurrentTrack(track);
     setCurrentPlaylist([track]);
     setCurrentIndex(0);
-
-    setIsPlaying(true);
-    setTimeout(() => audioState === "ready" && playAudio(), 100);
+    setIsPlaying(true); // ✅ playback will start once audio is "ready"
   };
 
   const playPlaylist = (tracks: TrackExtended[], startIndex = 0) => {
@@ -191,9 +196,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     setCurrentPlaylist(tracks);
     setCurrentIndex(startIndex);
     setCurrentTrack(tracks[startIndex]);
-
-    setIsPlaying(true);
-    setTimeout(playAudio, 100);
+    setIsPlaying(true); // ✅ wait for ready event
   };
 
   const togglePlayPause = async () => {
@@ -209,12 +212,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (audioState !== "ready") {
-        console.warn("Audio not ready for playback:", audioState);
-        return;
-      }
-
-      await playAudio();
+      setIsPlaying(true); // ✅ will auto-play once ready
     }
   };
 
@@ -274,6 +272,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       seekTo,
       pause,
       stop,
+      audioState,
     }),
     [
       currentTrack,
@@ -287,6 +286,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       hasFullAccess,
       audioUrl,
       maxDuration,
+      audioState,
     ]
   );
 

@@ -28,7 +28,11 @@ export function PlaylistModal({
   user,
   trackId,
 }: PlaylistModalProps) {
-  const { data: playlists } = useUserPlaylists(user?.id, trackId);
+  const { data: playlists } = useUserPlaylists({
+    identifier: user?.id,
+    enabled: true,
+    trackId: trackId,
+  });
   const { mutate: createPlaylist, isPending: creating } = useCreatePlaylist();
   const { mutate: addTrackToPlaylist, isPending: addingTrack } =
     useAddTrackToPlaylist();

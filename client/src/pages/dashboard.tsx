@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
 import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
-import { useMusicPlayer } from "@/hooks/use-music-player";
 import {
   Upload,
   Music,
@@ -27,8 +26,12 @@ import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useState } from "react";
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
+import { useQueryParams } from "@/hooks/use-query-params";
 
 export default function Dashboard() {
+  const [params, setParams] = useQueryParams({
+    tab: "overview",
+  });
   const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -38,13 +41,18 @@ export default function Dashboard() {
     return null;
   }
 
-  const { data: userTracks = [] } = useUserTracks();
+  const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
+    params.tab === "music"
+  );
 
   console.log("userTracks", userTracks);
 
-  const { data: userPlaylists = [] } = useUserPlaylists(user?.id);
+  const { data: userPlaylists = [] } = useUserPlaylists({
+    identifier: user?.id,
+    enabled: params.tab === "playlists",
+  });
 
-  const { data: recentTracks = [] } = useQuery({
+  const { data: recentTracks = [], isLoading: recentLoading } = useQuery({
     queryKey: ["/api/tracks"],
   });
 
@@ -211,7 +219,12 @@ export default function Dashboard() {
           )}
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs
+          defaultValue="overview"
+          className="space-y-6"
+          value={params.tab}
+          onValueChange={(tab) => setParams({ tab })}
+        >
           <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="music">Music</TabsTrigger>
@@ -306,6 +319,7 @@ export default function Dashboard() {
                           track={track}
                           showArtist={false}
                           variant="recent"
+                          isLoading={recentLoading}
                         />
                       ))}
                     </div>
@@ -356,10 +370,7 @@ export default function Dashboard() {
                     key={track.id}
                     track={track}
                     showArtist={false}
-                    // isPlaying={isPlaying}
-                    // onPlay={playTrack}
-                    // toggleMute={toggleMute}
-                    // onPause={pause}
+                    isLoading={tracksLoading}
                     variant="card"
                   />
                 ))}

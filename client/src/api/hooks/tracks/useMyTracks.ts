@@ -9,9 +9,10 @@ async function fetchUserTracks() {
   return res.json();
 }
 
-export function useUserTracks() {
+export function useUserTracks(enabled: boolean = false) {
   return useQuery({
     queryKey: ["userTracks"],
     queryFn: () => fetchUserTracks(),
+    enabled: !!enabled,
   });
 }

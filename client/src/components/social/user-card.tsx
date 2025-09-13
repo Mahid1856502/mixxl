@@ -18,6 +18,8 @@ import {
   Verified,
 } from "lucide-react";
 import { User } from "@shared/schema";
+import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
+import { DiscoverFilters } from "@/api/hooks/artists/useArtists";
 
 interface UserCardProps {
   user: User;
@@ -25,6 +27,7 @@ interface UserCardProps {
   showFollowButton?: boolean;
   className?: string;
   variant?: "default" | "compact" | "detailed";
+  filters?: DiscoverFilters;
 }
 
 export default function UserCard({
@@ -33,56 +36,15 @@ export default function UserCard({
   showFollowButton = true,
   className = "",
   variant = "default",
+  filters,
 }: UserCardProps) {
   const { user: currentUser } = useAuth();
 
-  console.log("incoming user", user);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [following, setFollowing] = useState(isFollowing);
   const [, setLocation] = useLocation();
 
-  const followMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/users/${user.id}/follow`, {}),
-    onSuccess: () => {
-      setFollowing(true);
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", user.id, "followers"],
-      });
-      toast({
-        title: "Now following",
-        description: `You are now following @${user.username}`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to follow user",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const unfollowMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/users/${user.id}/follow`, {}),
-    onSuccess: () => {
-      setFollowing(false);
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", user.id, "followers"],
-      });
-      toast({
-        title: "Unfollowed",
-        description: `You unfollowed @${user.username}`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to unfollow user",
-        variant: "destructive",
-      });
-    },
-  });
+  const followMutation = useFollowUser(user.id, user.username, filters);
+  const unfollowMutation = useUnfollowUser(user.id, user.username, filters);
 
   const handleFollow = () => {
     if (!currentUser) {
@@ -94,7 +56,7 @@ export default function UserCard({
       return;
     }
 
-    if (following) {
+    if (isFollowing) {
       unfollowMutation.mutate();
     } else {
       followMutation.mutate();
@@ -209,14 +171,14 @@ export default function UserCard({
             {showFollowButton && (
               <Button
                 size="sm"
-                variant={following ? "outline" : "default"}
+                variant={isFollowing ? "outline" : "default"}
                 onClick={handleFollow}
                 disabled={
                   followMutation.isPending || unfollowMutation.isPending
                 }
-                className={following ? "" : "mixxl-gradient text-white"}
+                className={isFollowing ? "" : "mixxl-gradient text-white"}
               >
-                {following ? (
+                {isFollowing ? (
                   <>
                     <UserCheck className="w-4 h-4 mr-1" />
                     Unfollow
@@ -314,16 +276,16 @@ export default function UserCard({
               {showFollowButton && (
                 <Button
                   size="sm"
-                  variant={following ? "outline" : "default"}
+                  variant={isFollowing ? "outline" : "default"}
                   onClick={handleFollow}
                   disabled={
                     followMutation.isPending || unfollowMutation.isPending
                   }
                   className={`flex-1 ${
-                    following ? "" : "mixxl-gradient text-white"
+                    isFollowing ? "" : "mixxl-gradient text-white"
                   }`}
                 >
-                  {following ? (
+                  {isFollowing ? (
                     <>
                       <UserCheck className="w-4 h-4 mr-1" />
                       Following

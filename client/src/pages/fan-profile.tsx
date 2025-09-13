@@ -75,7 +75,7 @@ export default function FanProfile() {
     enabled: !!profileUserId,
   }) as { data: Mixxlist[] };
 
-  const { data: userTracks = [] } = useUserTracks();
+  const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks();
 
   const { data: favoriteArtists = [] } = useQuery({
     queryKey: ["/api/users", profileUserId, "favorite-artists"],
@@ -415,7 +415,11 @@ export default function FanProfile() {
               {userTracks.length > 0 ? (
                 <div className="space-y-4">
                   {userTracks.map((track: TrackExtended) => (
-                    <TrackCard key={track.id} track={track} />
+                    <TrackCard
+                      key={track.id}
+                      track={track}
+                      isLoading={tracksLoading}
+                    />
                   ))}
                 </div>
               ) : (

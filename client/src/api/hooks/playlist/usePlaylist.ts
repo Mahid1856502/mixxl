@@ -2,6 +2,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Playlist } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DiscoverFilters } from "../artists/useArtists";
 // Types
 export interface PlaylistWithFlag extends Playlist {
   hasTrack?: boolean; // present only if trackId is passed
@@ -27,24 +28,31 @@ async function fetchPlaylists(
 }
 
 // Hook
-export function useUserPlaylists(
-  identifier: string | undefined,
-  trackId?: string
-) {
+export function useUserPlaylists({
+  identifier,
+  enabled,
+  trackId,
+}: {
+  identifier: string | undefined;
+  enabled?: boolean;
+  trackId?: string;
+}) {
+  console.log("enabled", enabled, identifier);
   return useQuery({
-    queryKey: ["userPlaylists", identifier, trackId], // include trackId in key
+    queryKey: ["userPlaylists", identifier, trackId, enabled], // include trackId in key
     queryFn: () => fetchPlaylists(identifier!, trackId),
-    enabled: !!identifier, // only fetch if identifier is defined
-    staleTime: 5 * 60 * 1000, // 5 minutes cache freshness
-    retry: 1,
+    enabled: !!identifier && !!enabled, // only fetch if identifier is defined
   });
 }
 
-export function usePublicPlaylists() {
+export function usePublicPlaylists(filters: DiscoverFilters = {}) {
   return useQuery<Playlist[], Error>({
-    queryKey: ["playlists"],
+    queryKey: ["playlists", filters],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/playlists");
+      const query = new URLSearchParams(filters as Record<string, string>);
+      const url = `/api/playlists${query.toString() ? `?${query}` : ""}`;
+      const res = await apiRequest("GET", url);
+      // const res = await apiRequest("GET", "/api/playlists");
       if (!res.ok) throw new Error("Failed to fetch playlists");
       return res.json() as Promise<Playlist[]>;
     },

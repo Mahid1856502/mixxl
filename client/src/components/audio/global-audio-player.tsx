@@ -14,6 +14,7 @@ import {
   Minus,
   X,
   MoveDiagonal,
+  Loader2,
 } from "lucide-react";
 
 export default function GlobalAudioPlayer() {
@@ -32,8 +33,10 @@ export default function GlobalAudioPlayer() {
     seekTo,
     currentPlaylist,
     pause,
+    audioState,
   } = useMusicPlayer();
 
+  console.log("currentTrack", currentTrack);
   const [isClosed, setIsClosed] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -103,7 +106,9 @@ export default function GlobalAudioPlayer() {
               onClick={togglePlayPause}
               className="h-8 w-8 rounded-full mixxl-gradient text-white"
             >
-              {isPlaying ? (
+              {audioState === "loading" ? (
+                <Loader2 className="w-4 h-4 animate-spin" /> // ✅ show loader
+              ) : isPlaying ? (
                 <Pause className="w-4 h-4" />
               ) : (
                 <Play className="w-4 h-4" />
@@ -178,7 +183,9 @@ export default function GlobalAudioPlayer() {
                 onClick={togglePlayPause}
                 className="h-12 w-12 rounded-full mixxl-gradient text-white"
               >
-                {isPlaying ? (
+                {audioState === "loading" ? (
+                  <Loader2 className="w-6 h-6 animate-spin" /> // ✅ show loader
+                ) : isPlaying ? (
                   <Pause className="w-6 h-6" />
                 ) : (
                   <Play className="w-6 h-6" />

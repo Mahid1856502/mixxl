@@ -653,31 +653,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tracks", authenticate, async (req, res) => {
     try {
       const { id: userId } = req.user;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const offset = parseInt(req.query.offset as string) || 0;
-      const query = req.query.q as string | undefined;
 
-      const tracks = await storage.getTracks(userId, query, limit, offset);
+      const filters = {
+        userId,
+        search: req.query.search as string,
+      };
+
+      const tracks = await storage.getTracks(filters);
 
       res.json(tracks);
     } catch (error) {
-      console.error(error);
+      console.error("Tracks error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
 
-  app.get("/api/tracks/search", async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query) {
-        return res.status(400).json({ message: "Search query required" });
-      }
-      const tracks = await storage.searchTracks(query);
-      res.json(tracks);
-    } catch (error) {
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+  // app.get("/api/tracks/search", async (req, res) => {
+  //   try {
+  //     const query = req.query.q as string;
+  //     if (!query) {
+  //       return res.status(400).json({ message: "Search query required" });
+  //     }
+  //     const tracks = await storage.searchTracks(query);
+  //     res.json(tracks);
+  //   } catch (error) {
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // });
 
   app.get("/api/tracks/:id", async (req, res) => {
     try {
@@ -963,11 +965,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Playlist routes
-  app.get("/api/playlists", async (req, res) => {
+  app.get("/api/playlists", authenticate, async (req, res) => {
     try {
-      const playlists = await storage.getPublicPlaylists();
+      const filters = {
+        search: req.query.search as string,
+      };
+
+      const playlists = await storage.getPublicPlaylists(filters);
       res.json(playlists);
     } catch (error) {
+      console.error("Playlists error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -1101,9 +1108,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get playlist tracks
-  app.get("/api/playlists/:id/tracks", async (req, res) => {
+  app.get("/api/playlists/:id/tracks", authenticate, async (req, res) => {
     try {
-      const tracks = await storage.getPlaylistTracks(req.params.id);
+      const { id: userId } = req.user;
+      const tracks = await storage.getPlaylistTracks(req.params.id, userId);
       res.json(tracks);
     } catch (error) {
       console.error("Get playlist tracks error:", error);
@@ -1348,14 +1356,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Featured artists route
-  app.get("/api/featured-artists", async (req, res) => {
+  app.get("/api/featured-artists", authenticate, async (req, res) => {
     try {
       const filters = {
-        userId: req.query.userId as string,
+        userId: req.user.id as string,
         search: req.query.search as string,
-        genre: req.query.genre as string,
-        mood: req.query.mood as string,
-        sort: req.query.sort as any,
+        genre:
+          req.query.genre &&
+          req.query.genre !== "undefined" &&
+          req.query.genre !== "all"
+            ? (req.query.genre as string)
+            : undefined,
+        mood:
+          req.query.mood &&
+          req.query.mood !== "undefined" &&
+          req.query.mood !== "all"
+            ? (req.query.mood as string)
+            : undefined,
       };
 
       const featuredArtists = await storage.getFeaturedArtists(filters);
@@ -1366,15 +1383,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/artists", async (req, res) => {
-    try {
-      const allArtists = await storage.getAllArtists();
-      res.json(allArtists);
-    } catch (error) {
-      console.error("All artists error:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+  // app.get("/api/artists", async (req, res) => {
+  //   try {
+  //     const allArtists = await storage.getAllArtists();
+  //     res.json(allArtists);
+  //   } catch (error) {
+  //     console.error("All artists error:", error);
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // });
 
   // Working user search endpoint
   app.get("/api/search/users", (req, res) => {

@@ -20,6 +20,7 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
 import { useDeletePlaylist } from "@/api/hooks/playlist/useDeletePlaylist";
+import TrackCard from "@/components/music/track-card";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -63,18 +64,8 @@ export default function PlaylistPage() {
 
     if (isCurrentPlaylist && isPlaying) {
       togglePlayPause();
-      toast({
-        title: "Paused playlist",
-        description: playlist?.name || "Playlist",
-      });
     } else {
       playPlaylist(tracks, 0);
-      toast({
-        title: "Playing playlist",
-        description: `${playlist?.name || "Playlist"} - ${
-          tracks.length
-        } tracks`,
-      });
     }
   };
 
@@ -318,49 +309,13 @@ export default function PlaylistPage() {
               ) : (
                 <div className="space-y-2">
                   {tracks.map((track: any, index: number) => (
-                    <div
+                    <TrackCard
                       key={track.id}
-                      className="flex items-center space-x-4 p-3 rounded-lg hover:bg-white/5 transition-colors"
-                    >
-                      <div className="w-8 text-sm text-muted-foreground text-center">
-                        {index + 1}
-                      </div>
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded flex items-center justify-center flex-shrink-0">
-                        {track.coverImage ? (
-                          <img
-                            src={track.coverImage}
-                            alt={track.title}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          <Music className="w-6 h-6 text-white/70" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{track.title}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {track.artistName || "Unknown Artist"}
-                        </p>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {track.duration
-                          ? `${Math.floor(track.duration / 60)}:${String(
-                              track.duration % 60
-                            ).padStart(2, "0")}`
-                          : "--:--"}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePlayTrack(track, index)}
-                      >
-                        {isPlaying && currentTrack?.id === track.id ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
+                      track={track}
+                      showArtist={false}
+                      variant="preview"
+                      isLoading={tracksLoading}
+                    />
                   ))}
                 </div>
               )}

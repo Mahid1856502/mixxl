@@ -24,11 +24,13 @@ import { TrackExtended } from "@shared/schema";
 import { useMusicPlayer } from "@/hooks/use-music-player";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { PlaylistModal } from "../modals/add-to-playlist-modal";
+import { Skeleton } from "../ui/skeleton";
 
 interface TrackCardProps {
   track: TrackExtended;
   className?: string;
   showArtist?: boolean;
+  isLoading?: boolean;
   variant?: "preview" | "card" | "recent";
 }
 
@@ -46,6 +48,7 @@ export default function TrackCard({
     isMuted,
     toggleMute,
     currentTrack,
+    currentTime,
   } = useMusicPlayer();
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
@@ -73,7 +76,7 @@ export default function TrackCard({
   });
 
   const handlePlay = () => {
-    if (isPlaying) {
+    if (currentTrack?.id === track.id && isPlaying) {
       pause?.();
     } else {
       playTrack?.(track);
@@ -88,42 +91,6 @@ export default function TrackCard({
   const handleOpen = () => {
     setOpen(true);
   };
-
-  // If preview variant, just show the preview player
-  if (variant === "preview") {
-    return (
-      <>
-        <PreviewPlayer
-          handleOpen={handleOpen}
-          currentTrack={currentTrack}
-          track={track}
-          onPurchase={handlePurchase}
-          className={className}
-          hasFullAccess={hasFullAccess}
-          maxDuration={maxDuration}
-          isPlaying={isPlaying}
-          playTrack={playTrack}
-          pause={pause}
-          seekTo={seekTo}
-          toggleMute={toggleMute}
-          isMuted={isMuted}
-        />
-        <PurchaseModal
-          track={showPurchaseModal ? track : null}
-          isOpen={showPurchaseModal}
-          onClose={() => setShowPurchaseModal(false)}
-        />
-        {open && (
-          <PlaylistModal
-            onClose={() => setOpen(false)}
-            open={open}
-            user={user}
-            trackId={track?.id}
-          />
-        )}
-      </>
-    );
-  }
 
   const handleLike = () => {
     setIsLiked(!isLiked);
@@ -196,18 +163,7 @@ export default function TrackCard({
         </div>
 
         {/* Play/Pause Button */}
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => {
-            if (currentTrack?.id === track.id && isPlaying) {
-              pause?.();
-            } else {
-              playTrack?.(track);
-              playMutation.mutate();
-            }
-          }}
-        >
+        <Button size="icon" variant="ghost" onClick={handlePlay}>
           {currentTrack?.id === track.id && isPlaying ? (
             <Pause className="w-4 h-4" />
           ) : (
@@ -218,8 +174,49 @@ export default function TrackCard({
     );
   }
 
+  // If preview variant, just show the preview player
+  if (variant === "preview") {
+    return (
+      <>
+        <PreviewPlayer
+          key={`preview-player-${track.id}`}
+          handleOpen={handleOpen}
+          currentTrack={currentTrack}
+          track={track}
+          onPurchase={handlePurchase}
+          className={className}
+          hasFullAccess={hasFullAccess}
+          maxDuration={maxDuration}
+          isPlaying={isPlaying}
+          playTrack={playTrack}
+          pause={pause}
+          seekTo={seekTo}
+          toggleMute={toggleMute}
+          isMuted={isMuted}
+          currentTime={currentTime}
+        />
+        <PurchaseModal
+          track={showPurchaseModal ? track : null}
+          isOpen={showPurchaseModal}
+          onClose={() => setShowPurchaseModal(false)}
+        />
+        {open && (
+          <PlaylistModal
+            onClose={() => setOpen(false)}
+            open={open}
+            user={user}
+            trackId={track?.id}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
-    <Card className={`track-card group cursor-pointer ${className}`}>
+    <Card
+      className={`track-card group cursor-pointer ${className}`}
+      key={`music-card-${track.id}`}
+    >
       <CardContent className="p-0">
         {/* Cover Image */}
         <div className="aspect-square bg-gradient-to-br from-purple-500/20 to-pink-500/20 relative overflow-hidden rounded-t-lg">
@@ -242,7 +239,7 @@ export default function TrackCard({
               className="rounded-full w-12 h-12 mixxl-gradient text-white"
               onClick={handlePlay}
             >
-              {isPlaying ? (
+              {currentTrack?.id === track.id && isPlaying ? (
                 <Pause className="w-6 h-6" />
               ) : (
                 <Play className="w-6 h-6" />

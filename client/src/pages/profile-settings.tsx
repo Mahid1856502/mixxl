@@ -57,8 +57,6 @@ export default function ProfileSettings() {
     },
   });
 
-  console.log("form.formState.errors", form.formState.errors);
-
   const { mutate: cancelSubscription, isPending: isCancelling } =
     useCancelSubscription();
 
@@ -82,7 +80,6 @@ export default function ProfileSettings() {
 
   const handleImageChange = async (file: File) => {
     try {
-      debugger;
       const publicUrl = await uploadFile(file); // uploadFile returns a URL
       console.log("publicUrl", publicUrl);
       form.setValue("profileImage", publicUrl);

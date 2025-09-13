@@ -912,7 +912,7 @@ export const insertDiscountCodeUsageSchema = createInsertSchema(
 // Types
 export type User = typeof users.$inferSelect;
 export type Artist = User & {
-  isFollowed: boolean;
+  isFollowing: boolean;
 };
 export type PurchasedTrack = typeof purchasedTracks.$inferSelect;
 export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
@@ -920,9 +920,10 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
 export type TrackExtended = Track & {
-  artistId: string;
-  artistName: string;
+  artistId?: string;
+  artistName?: string;
   hasAccess: boolean;
+  position?: number;
 };
 export type Playlist = typeof playlists.$inferSelect;
 export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;

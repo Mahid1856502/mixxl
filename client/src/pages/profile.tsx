@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,26 +36,33 @@ import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useUserById } from "@/api/hooks/users/useUserById";
+import { useQueryParams } from "@/hooks/use-query-params";
+import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
 
 export default function Profile() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [currentTrack, setCurrentTrack] = useState<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [params, setParams] = useQueryParams({
+    tab: "music",
+  });
 
-  const profileUserId = id || currentUser?.id;
+  const profileUserId = id || currentUser?.id || "";
   const isOwnProfile = profileUserId === currentUser?.id;
 
   const { data: user } = useUserById(profileUserId ?? "");
 
-  const { data: userTracks = [] } = useUserTracks();
+  const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
+    params.tab === "music"
+  );
 
-  const { data: userPlaylists = [] } = useUserPlaylists(profileUserId);
+  const { data: userPlaylists = [] } = useUserPlaylists({
+    identifier: profileUserId,
+    enabled: params.tab === "playlists",
+  });
   console.log("userPlaylists", userPlaylists);
 
   const { data: followers = [] } = useQuery({
@@ -70,7 +77,11 @@ export default function Profile() {
 
   const { data: isFollowing } = useQuery({
     queryKey: ["/api/users", profileUserId, "is-following"],
-    enabled: !!profileUserId && !!currentUser && !isOwnProfile,
+    enabled:
+      !!profileUserId &&
+      !!currentUser &&
+      !isOwnProfile &&
+      params.tab === "social",
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
@@ -81,39 +92,9 @@ export default function Profile() {
     },
   });
 
-  const followMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", `/api/users/${profileUserId}/follow`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", profileUserId, "followers"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", profileUserId, "is-following"],
-      });
-      toast({
-        title: "Now following",
-        description: `You are now following @${user?.username}`,
-      });
-    },
-  });
+  const followMutation = useFollowUser(profileUserId, user?.username);
 
-  const unfollowMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("DELETE", `/api/users/${profileUserId}/follow`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", profileUserId, "followers"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", profileUserId, "is-following"],
-      });
-      toast({
-        title: "Unfollowed",
-        description: `You unfollowed @${user?.username}`,
-      });
-    },
-  });
+  const unfollowMutation = useUnfollowUser(profileUserId, user?.username);
 
   const handleFollow = () => {
     if (!currentUser) {
@@ -174,15 +155,6 @@ export default function Profile() {
       title: "Profile link copied!",
       description: "Share this link to let others discover this profile",
     });
-  };
-
-  const handlePlay = (track: any) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -432,7 +404,12 @@ export default function Profile() {
         </Card>
 
         {/* Content Tabs */}
-        <Tabs defaultValue="music" className="space-y-6">
+        <Tabs
+          value={params.tab}
+          onValueChange={(tab) => setParams({ tab })}
+          defaultValue="music"
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="music" className="flex items-center space-x-2">
               <Music className="w-4 h-4" />
@@ -471,12 +448,6 @@ export default function Profile() {
                       user?.role === "artist" ? "Tracks" : "Music Library"
                     }`}
               </h2>
-              {userTracks.length > 0 && (
-                <Button variant="outline">
-                  <Play className="w-4 h-4 mr-2" />
-                  Play All
-                </Button>
-              )}
             </div>
 
             {userTracks.length === 0 ? (
@@ -525,6 +496,7 @@ export default function Profile() {
                     track={track}
                     showArtist={user?.role === "fan"}
                     variant="card"
+                    isLoading={tracksLoading}
                   />
                 ))}
               </div>

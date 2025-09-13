@@ -25,6 +25,8 @@ echo "=== Restarting PM2 process ==="
 pm2 delete mixxl-api || true
 pm2 start dist/index.js --name mixxl-api
 
+pm2 startup systemd
+
 echo "=== Saving PM2 process list for startup ==="
 pm2 save
 

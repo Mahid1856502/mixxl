@@ -30,6 +30,7 @@ interface PreviewPlayerProps {
   seekTo: (time: number) => void;
   isMuted: boolean;
   toggleMute: () => void;
+  currentTime: number;
 }
 
 export default function PreviewPlayer({
@@ -46,8 +47,8 @@ export default function PreviewPlayer({
   seekTo,
   isMuted,
   toggleMute,
+  currentTime,
 }: PreviewPlayerProps) {
-  const [currentTime, setCurrentTime] = useState(0);
   const [showPurchasePrompt, setShowPurchasePrompt] = useState(false);
 
   const handlePlay = () => {
@@ -189,7 +190,11 @@ export default function PreviewPlayer({
           >
             <div
               className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-150"
-              style={{ width: `${progressPercent}%` }}
+              style={{
+                width: `${
+                  currentTrack?.id === track.id ? progressPercent : 0
+                }%`,
+              }}
             />
             {!hasFullAccess && (
               <div

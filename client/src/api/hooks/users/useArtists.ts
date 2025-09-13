@@ -6,7 +6,7 @@ export function useAllArtists() {
   return useQuery<User[], Error>({
     queryKey: ["allArtists"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/artists");
+      const res = await apiRequest("GET", "/api/featured-artists");
       if (!res.ok) {
         throw new Error("Failed to fetch artists");
       }

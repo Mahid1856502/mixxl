@@ -13,19 +13,7 @@ import {
   Users,
   Clock,
 } from "lucide-react";
-
-interface Playlist {
-  id: string;
-  name: string;
-  description?: string;
-  creatorId: string;
-  coverImage?: string;
-  isPublic: boolean;
-  isCollaborative: boolean;
-  trackCount: number;
-  totalDuration: number;
-  createdAt: string;
-}
+import { Playlist } from "@shared/schema";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -130,12 +118,12 @@ export default function PlaylistCard({
                 Private
               </Badge>
             )}
-            {playlist.isCollaborative && (
+            {/* {playlist.isCollaborative && (
               <Badge className="text-xs bg-blue-500 hover:bg-blue-600 mt-1">
                 <Users className="w-3 h-3 mr-1" />
                 Collaborative
               </Badge>
-            )}
+            )} */}
           </div>
 
           {/* Track Count */}
@@ -181,12 +169,18 @@ export default function PlaylistCard({
                 <Music className="w-3 h-3" />
                 <span>{playlist.trackCount} tracks</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
-                <span>{formatDuration(playlist.totalDuration)}</span>
-              </div>
+              {/* {playlist.totalDuration && (
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatDuration(playlist.totalDuration)}</span>
+                </div>
+              )} */}
             </div>
-            <span>{formatDate(playlist.createdAt)}</span>
+            {playlist.createdAt && (
+              <span>
+                {formatDate(new Date(playlist.createdAt).toISOString())}
+              </span>
+            )}
           </div>
 
           {/* Actions */}

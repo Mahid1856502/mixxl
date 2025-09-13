@@ -2,18 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { InsertTrack, Track, TrackExtended } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
+import { DiscoverFilters } from "../artists/useArtists";
 
-export function useTracks() {
+export function useTracks(filters: DiscoverFilters = {}) {
   return useQuery<TrackExtended[], Error>({
-    queryKey: ["/api/tracks"],
+    queryKey: ["tracks", filters],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/tracks");
+      console.log("filters", filters);
+      const query = new URLSearchParams(filters as Record<string, string>);
+      const url = `/api/tracks${query.toString() ? `?${query}` : ""}`;
+      const res = await apiRequest("GET", url);
+
       if (!res.ok) {
         throw new Error("Failed to fetch tracks");
       }
       return res.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
+    enabled: !!filters?.enable,
   });
 }
 

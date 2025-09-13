@@ -6,16 +6,13 @@ import {
   asc,
   count,
   like,
-  inArray,
   sql,
   ne,
   isNull,
   ilike,
-  lt,
   gt,
   exists,
   getTableColumns,
-  sum,
 } from "drizzle-orm";
 import {
   users,
@@ -29,8 +26,6 @@ import {
   radioSessions,
   radioChat,
   collaborations,
-  badges,
-  userBadges,
   liveStreams,
   liveStreamViewers,
   liveStreamMessages,
@@ -51,7 +46,6 @@ import {
   type Message,
   type InsertMessage,
   type Conversation,
-  type InsertConversation,
   type Tip,
   type InsertTip,
   type RadioSession,
@@ -64,7 +58,6 @@ import {
   type InsertLiveStreamMessage,
   type Notification,
   type InsertNotification,
-  type PurchasedTrack,
   type InsertPurchasedTrack,
   type EmailVerificationToken,
   type InsertEmailVerificationToken,
@@ -77,11 +70,9 @@ import {
   type DiscountCode,
   type InsertDiscountCode,
   type DiscountCodeUsage,
-  type InsertDiscountCodeUsage,
   Banner,
   InsertBanner,
   banners,
-  RadioChatMessage,
   RadioChatMessageWithUser,
   TrackExtended,
   PasswordResetInsert,
@@ -102,7 +93,6 @@ interface FeaturedArtistFilters {
   search?: string;
   genre?: string;
   mood?: string;
-  sort?: "newest" | "oldest" | "most_played" | "most_liked" | "alphabetical";
 }
 
 export interface IStorage {
@@ -126,13 +116,8 @@ export interface IStorage {
   // Track operations
   getTrack(id: string): Promise<Track | undefined>;
   getTracksByArtist(artistId: string): Promise<Track[]>;
-  getTracks(
-    userId: string,
-    query?: string,
-    limit?: number,
-    offset?: number
-  ): Promise<Track[]>;
-  searchTracks(query: string): Promise<Track[]>;
+  getTracks(filters: FeaturedArtistFilters): Promise<any[]>;
+  // searchTracks(query: string): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
   updateTrack(id: string, updates: Partial<Track>): Promise<Track>;
   deleteTrack(id: string): Promise<void>;
@@ -141,7 +126,7 @@ export interface IStorage {
   // Playlist operations
   getPlaylist(id: string): Promise<Playlist | undefined>;
   getPlaylistsByUser(userId: string): Promise<Playlist[]>;
-  getPublicPlaylists(): Promise<Playlist[]>;
+  getPublicPlaylists(filters?: { search?: string }): Promise<Playlist[]>;
   createPlaylist(playlist: InsertPlaylist): Promise<Playlist>;
   updatePlaylist(id: string, updates: Partial<Playlist>): Promise<Playlist>;
   deletePlaylist(id: string): Promise<void>;
@@ -150,6 +135,7 @@ export interface IStorage {
     trackId: string,
     addedBy: string
   ): Promise<void>;
+  getPlaylistTracks(playlistId: string, userId: string): Promise<any[]>;
   removeTrackFromPlaylist(playlistId: string, trackId: string): Promise<void>;
 
   // Social operations
@@ -457,8 +443,13 @@ export class MySQLStorage implements IStorage {
   async getFeaturedArtists(filters: FeaturedArtistFilters): Promise<Artist[]> {
     const result = await db
       .select({
-        ...getTableColumns(users), // ✅ expands all user columns safely
-        isFollowed: sql<boolean>`CASE WHEN ${follows.id} IS NOT NULL THEN true ELSE false END`,
+        ...getTableColumns(users), // all user fields
+        isFollowing: sql<boolean>`
+        CASE 
+          WHEN ${follows.id} IS NOT NULL THEN true 
+          ELSE false 
+        END
+      `,
       })
       .from(users)
       .leftJoin(
@@ -467,6 +458,10 @@ export class MySQLStorage implements IStorage {
           eq(follows.followerId, filters.userId ?? sql`NULL`),
           eq(follows.followingId, users.id)
         )
+      )
+      .leftJoin(
+        tracks,
+        and(eq(tracks.artistId, users.id), eq(tracks.isPublic, true))
       )
       .where(
         and(
@@ -477,50 +472,62 @@ export class MySQLStorage implements IStorage {
                 ilike(users.firstName, `%${filters.search}%`),
                 ilike(users.lastName, `%${filters.search}%`)
               )
+            : undefined,
+          filters.genre && filters.genre !== "all"
+            ? eq(tracks.genre, filters.genre)
+            : undefined,
+          filters.mood && filters.mood !== "all"
+            ? eq(tracks.mood, filters.mood)
             : undefined
         )
       )
+      // group only by user id (not follows id) so isFollowed stays accurate
+      .groupBy(users.id, follows.id)
       .limit(50);
 
-    return result;
+    return result.map((row) => ({
+      ...row,
+      isFollowing: !!row.isFollowing, // make sure it's always boolean
+    })) as Artist[];
   }
 
-  async getAllArtists(): Promise<User[]> {
-    const artists = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        role: users.role,
-        bio: users.bio,
-        profileImage: users.profileImage,
-        backgroundImage: users.backgroundImage,
-        location: users.location,
-        website: users.website,
-        socialMedia: users.socialMedia,
-        emailVerified: users.emailVerified, // Add this
-        emailVerifiedAt: users.emailVerifiedAt, // Add this
-        isActive: users.isActive,
-        stripeCustomerId: users.stripeCustomerId,
-        stripeSubscriptionId: users.stripeSubscriptionId,
-        subscriptionStatus: users.subscriptionStatus,
-        trialEndsAt: users.trialEndsAt,
-        hasUsedTrial: users.hasUsedTrial,
-        onboardingComplete: users.onboardingComplete,
-        preferredCurrency: users.preferredCurrency, // Add this
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-      .from(users)
-      .where(eq(users.role, "artist"))
-      .orderBy(users.username);
+  // async getAllArtists(): Promise<Artist[]> {
+  //   const artists = await db
+  //     .select({
+  //       id: users.id,
+  //       email: users.email,
+  //       username: users.username,
+  //       firstName: users.firstName,
+  //       lastName: users.lastName,
+  //       role: users.role,
+  //       bio: users.bio,
+  //       profileImage: users.profileImage,
+  //       backgroundImage: users.backgroundImage,
+  //       location: users.location,
+  //       website: users.website,
+  //       socialMedia: users.socialMedia,
+  //       emailVerified: users.emailVerified, // Add this
+  //       emailVerifiedAt: users.emailVerifiedAt, // Add this
+  //       isActive: users.isActive,
+  //       stripeCustomerId: users.stripeCustomerId,
+  //       stripeSubscriptionId: users.stripeSubscriptionId,
+  //       subscriptionStatus: users.subscriptionStatus,
+  //       trialEndsAt: users.trialEndsAt,
+  //       hasUsedTrial: users.hasUsedTrial,
+  //       onboardingComplete: users.onboardingComplete,
+  //       preferredCurrency: users.preferredCurrency, // Add this
+  //       createdAt: users.createdAt,
+  //       updatedAt: users.updatedAt,
+  //     })
+  //     .from(users)
+  //     .where(eq(users.role, "artist"))
+  //     .orderBy(users.username);
 
-    return artists;
-  }
+  //   return artists;
+  // }
 
   // Track operations
+
   async getTrack(id: string): Promise<Track | undefined> {
     const result = await db
       .select()
@@ -531,28 +538,65 @@ export class MySQLStorage implements IStorage {
   }
 
   async getTracksByArtist(artistId: string): Promise<Track[]> {
-    return db
-      .select()
-      .from(tracks)
+    // return db
+    //   .select()
+    //   .from(tracks)
+    //   .where(eq(tracks.artistId, artistId))
+    //   .orderBy(desc(tracks.createdAt));
+
+    const result = await db
+      .select({
+        id: tracks.id,
+        title: tracks.title,
+        description: tracks.description,
+        artistId: tracks.artistId,
+        artistName: sql<string>`
+      CASE
+        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+        THEN ${users.firstName} || ' ' || ${users.lastName}
+        ELSE ${users.username}
+      END
+    `.as("artistName"),
+        genre: tracks.genre,
+        duration: tracks.duration,
+        fileUrl: tracks.fileUrl,
+        previewUrl: tracks.previewUrl,
+        previewDuration: tracks.previewDuration,
+        hasPreviewOnly: tracks.hasPreviewOnly,
+        coverImage: tracks.coverImage,
+        price: tracks.price,
+        isPublic: tracks.isPublic,
+        isExplicit: tracks.isExplicit,
+        submitToRadio: tracks.submitToRadio,
+        playCount: tracks.playCount,
+        likesCount: tracks.likesCount,
+        createdAt: tracks.createdAt,
+        updatedAt: tracks.updatedAt,
+        mood: tracks.mood,
+        tags: tracks.tags,
+        waveformData: tracks.waveformData,
+        stripePriceId: tracks.stripePriceId,
+        downloadCount: tracks.downloadCount,
+        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // always true if purchased
+      })
+      .from(purchasedTracks)
+      .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
+      .innerJoin(users, eq(tracks.artistId, users.id))
       .where(eq(tracks.artistId, artistId))
-      .orderBy(desc(tracks.createdAt));
+      .orderBy(desc(purchasedTracks.purchasedAt));
+
+    return result;
   }
 
-  async getTracks(
-    userId: string,
-    query?: string,
-    limit = 50,
-    offset = 0
-  ): Promise<any[]> {
+  async getTracks(filters: FeaturedArtistFilters): Promise<any[]> {
     const conditions = [eq(tracks.isPublic, true)] as any[];
 
-    if (query) {
+    if (filters.search) {
       conditions.push(
         or(
-          like(tracks.title, `%${query}%`),
-          like(tracks.genre, `%${query}%`),
-          like(tracks.description, `%${query}%`),
-          like(users.username, `%${query}%`)
+          ilike(tracks.title, `%${filters.search}%`),
+          ilike(tracks.description, `%${filters.search}%`),
+          ilike(users.username, `%${filters.search}%`)
         )
       );
     }
@@ -587,7 +631,7 @@ export class MySQLStorage implements IStorage {
         // drizzle CASE expression for hasAccess
         hasAccess: sql<boolean>`
         CASE
-          WHEN ${tracks.artistId} = ${userId} THEN TRUE
+          WHEN ${tracks.artistId} = ${filters.userId} THEN TRUE
           WHEN ${tracks.hasPreviewOnly} = FALSE THEN TRUE
           WHEN ${purchasedTracks.id} IS NOT NULL THEN TRUE
           ELSE FALSE
@@ -600,62 +644,60 @@ export class MySQLStorage implements IStorage {
         purchasedTracks,
         and(
           eq(purchasedTracks.trackId, tracks.id),
-          eq(purchasedTracks.userId, userId)
+          eq(purchasedTracks.userId, filters.userId ?? sql`NULL`)
         )
       )
       .where(and(...conditions))
-      .orderBy(query ? desc(tracks.playCount) : desc(tracks.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(tracks.createdAt));
 
     return result;
   }
 
-  async searchTracks(query: string): Promise<Track[]> {
-    const result = await db
-      .select({
-        id: tracks.id,
-        title: tracks.title,
-        artistId: tracks.artistId,
-        description: tracks.description,
-        genre: tracks.genre,
-        mood: tracks.mood,
-        tags: tracks.tags,
-        duration: tracks.duration,
-        fileUrl: tracks.fileUrl,
-        previewUrl: tracks.previewUrl,
-        previewDuration: tracks.previewDuration,
-        hasPreviewOnly: tracks.hasPreviewOnly,
-        coverImage: tracks.coverImage,
-        waveformData: tracks.waveformData,
-        price: tracks.price,
-        playCount: tracks.playCount,
-        likesCount: tracks.likesCount,
-        downloadCount: tracks.downloadCount,
-        isExplicit: tracks.isExplicit,
-        isPublic: tracks.isPublic,
-        submitToRadio: tracks.submitToRadio,
-        createdAt: tracks.createdAt,
-        updatedAt: tracks.updatedAt,
-        artistName: users.username,
-      })
-      .from(tracks)
-      .leftJoin(users, eq(tracks.artistId, users.id))
-      .where(
-        and(
-          eq(tracks.isPublic, true),
-          or(
-            like(tracks.title, `%${query}%`),
-            like(tracks.genre, `%${query}%`),
-            like(tracks.description, `%${query}%`),
-            like(users.username, `%${query}%`)
-          )
-        )
-      )
-      .orderBy(desc(tracks.playCount));
+  // async searchTracks(query: string): Promise<Track[]> {
+  //   const result = await db
+  //     .select({
+  //       id: tracks.id,
+  //       title: tracks.title,
+  //       artistId: tracks.artistId,
+  //       description: tracks.description,
+  //       genre: tracks.genre,
+  //       mood: tracks.mood,
+  //       tags: tracks.tags,
+  //       duration: tracks.duration,
+  //       fileUrl: tracks.fileUrl,
+  //       previewUrl: tracks.previewUrl,
+  //       previewDuration: tracks.previewDuration,
+  //       hasPreviewOnly: tracks.hasPreviewOnly,
+  //       coverImage: tracks.coverImage,
+  //       waveformData: tracks.waveformData,
+  //       price: tracks.price,
+  //       playCount: tracks.playCount,
+  //       likesCount: tracks.likesCount,
+  //       downloadCount: tracks.downloadCount,
+  //       isExplicit: tracks.isExplicit,
+  //       isPublic: tracks.isPublic,
+  //       submitToRadio: tracks.submitToRadio,
+  //       createdAt: tracks.createdAt,
+  //       updatedAt: tracks.updatedAt,
+  //       artistName: users.username,
+  //     })
+  //     .from(tracks)
+  //     .leftJoin(users, eq(tracks.artistId, users.id))
+  //     .where(
+  //       and(
+  //         eq(tracks.isPublic, true),
+  //         or(
+  //           like(tracks.title, `%${query}%`),
+  //           like(tracks.genre, `%${query}%`),
+  //           like(tracks.description, `%${query}%`),
+  //           like(users.username, `%${query}%`)
+  //         )
+  //       )
+  //     )
+  //     .orderBy(desc(tracks.playCount));
 
-    return result as Track[];
-  }
+  //   return result as Track[];
+  // }
 
   async createTrack(insertTrack: InsertTrack): Promise<Track> {
     const id = randomUUID();
@@ -726,11 +768,22 @@ export class MySQLStorage implements IStorage {
     return result;
   }
 
-  async getPublicPlaylists(): Promise<Playlist[]> {
+  async getPublicPlaylists(filters?: { search?: string }): Promise<Playlist[]> {
+    const conditions = [eq(playlists.isPublic, true)] as any[];
+
+    if (filters?.search) {
+      conditions.push(
+        or(
+          ilike(playlists.name, `%${filters.search}%`),
+          ilike(playlists.description, `%${filters.search}%`)
+        )
+      );
+    }
+
     return db
       .select()
       .from(playlists)
-      .where(eq(playlists.isPublic, true))
+      .where(and(...conditions))
       .orderBy(desc(playlists.createdAt))
       .limit(20);
   }
@@ -811,18 +864,57 @@ export class MySQLStorage implements IStorage {
       .where(eq(playlists.id, playlistId));
   }
 
-  async getPlaylistTracks(playlistId: string): Promise<Track[]> {
+  async getPlaylistTracks(playlistId: string, userId: string): Promise<any[]> {
     const result = await db
       .select({
-        track: tracks,
+        id: tracks.id,
+        title: tracks.title,
+        artistId: tracks.artistId,
+        description: tracks.description,
+        genre: tracks.genre,
+        mood: tracks.mood,
+        tags: tracks.tags,
+        duration: tracks.duration,
+        fileUrl: tracks.fileUrl,
+        previewUrl: tracks.previewUrl,
+        previewDuration: tracks.previewDuration,
+        hasPreviewOnly: tracks.hasPreviewOnly,
+        coverImage: tracks.coverImage,
+        waveformData: tracks.waveformData,
+        price: tracks.price,
+        playCount: tracks.playCount,
+        likesCount: tracks.likesCount,
+        downloadCount: tracks.downloadCount,
+        isExplicit: tracks.isExplicit,
+        isPublic: tracks.isPublic,
+        submitToRadio: tracks.submitToRadio,
+        createdAt: tracks.createdAt,
+        updatedAt: tracks.updatedAt,
+
         position: playlistTracks.position,
+
+        hasAccess: sql<boolean>`
+        CASE
+          WHEN ${tracks.artistId} = ${userId} THEN TRUE
+          WHEN ${tracks.hasPreviewOnly} = FALSE THEN TRUE
+          WHEN ${purchasedTracks.id} IS NOT NULL THEN TRUE
+          ELSE FALSE
+        END
+      `,
       })
       .from(playlistTracks)
       .innerJoin(tracks, eq(playlistTracks.trackId, tracks.id))
+      .leftJoin(
+        purchasedTracks,
+        and(
+          eq(purchasedTracks.trackId, tracks.id),
+          eq(purchasedTracks.userId, userId ?? sql`NULL`)
+        )
+      )
       .where(eq(playlistTracks.playlistId, playlistId))
       .orderBy(asc(playlistTracks.position));
 
-    return result.map((r) => r.track);
+    return result;
   }
 
   // Social operations
