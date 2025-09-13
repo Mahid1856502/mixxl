@@ -56,7 +56,8 @@ export default function Profile() {
   const { data: user } = useUserById(profileUserId ?? "");
 
   const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
-    params.tab === "music"
+    params.tab === "music",
+    profileUserId
   );
 
   const { data: userPlaylists = [] } = useUserPlaylists({

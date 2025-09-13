@@ -596,7 +596,9 @@ export class MySQLStorage implements IStorage {
         or(
           ilike(tracks.title, `%${filters.search}%`),
           ilike(tracks.description, `%${filters.search}%`),
-          ilike(users.username, `%${filters.search}%`)
+          ilike(users.username, `%${filters.search}%`),
+          ilike(users.firstName, `%${filters.search}%`),
+          ilike(users.lastName, `%${filters.search}%`)
         )
       );
     }

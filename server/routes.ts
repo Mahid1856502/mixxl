@@ -942,24 +942,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users/tracks", authenticate, async (req, res) => {
     try {
-      const { id } = req.user;
-      log("tracks buyer id", id);
+      const { id: authUserId } = req.user;
+      const targetUserId = req.query.userId || authUserId; // 👈 allow passing userId
 
-      const user = await storage.getUser(id);
-      if (!user)
-        return res.status(404).json({ message: "User not found again" });
+      const targetUser = await storage.getUser(targetUserId as string);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
       let tracks;
-      if (user.role === "artist") {
-        // For artists, return their uploaded tracks
-        tracks = await storage.getTracksByArtist(user.id);
+      if (req.query.userId) {
+        // If a userId is passed, only allow fetching if that user is an artist
+        if (targetUser.role === "artist") {
+          tracks = await storage.getTracksByArtist(targetUser.id);
+        } else {
+          return res
+            .status(403)
+            .json({ message: "Tracks can only be fetched for artists" });
+        }
       } else {
-        // For fans, return their purchased tracks
-        tracks = await storage.getPurchasedTracksByUser(user.id);
+        // No userId passed → fallback to auth user’s role
+        if (targetUser.role === "artist") {
+          tracks = await storage.getTracksByArtist(authUserId);
+        } else {
+          tracks = await storage.getPurchasedTracksByUser(authUserId);
+        }
       }
 
       res.json(tracks);
     } catch (error) {
+      console.error("User tracks error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
