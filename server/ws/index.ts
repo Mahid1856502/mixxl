@@ -2,17 +2,19 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { log } from "../vite";
 import { handleMessage } from "./handlers";
+import url from "url";
 
 let wss: WebSocketServer;
 
 export function createWSS(server: any) {
   wss = new WebSocketServer({ server, path: "/ws" });
 
-  wss.on("connection", (socket: WebSocket) => {
-    log("🔌 WebSocket client connected");
-    socket.on("message", (data) => handleMessage(wss, socket, data));
+  wss.on("connection", (socket: WebSocket, req) => {
+    const { query } = url.parse(req.url!, true);
+    (socket as any).userId = query.userId; // 👈 attach to socket
 
-    socket.send(JSON.stringify({ type: "welcome", message: "Hello from WS!" }));
+    log(`🔌 WebSocket client connected: ${query.userId}`);
+    socket.on("message", (data) => handleMessage(wss, socket, data));
   });
 
   return wss;

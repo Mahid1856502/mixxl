@@ -87,6 +87,7 @@ import bcrypt from "bcrypt";
 import { db } from "./db";
 import { isTimeSlotAvailable } from "./utils";
 import { log } from "./vite";
+import { getWSS } from "./ws";
 
 interface FeaturedArtistFilters {
   userId?: string;
@@ -1502,21 +1503,32 @@ export class MySQLStorage implements IStorage {
       )
       .orderBy(desc(conversations.lastMessageAt));
 
-    // For each conversation, get the other participant's details
-    const conversationsWithParticipants = await Promise.all(
+    // For each conversation, get participants + lastMessage
+    const conversationsWithExtras = await Promise.all(
       rawConversations.map(async (conversation) => {
         const participant1 = await this.getUser(conversation.participant1Id);
         const participant2 = await this.getUser(conversation.participant2Id);
+
+        let lastMessage = null;
+        if (conversation.lastMessageId) {
+          lastMessage = await db
+            .select()
+            .from(messages)
+            .where(eq(messages.id, conversation.lastMessageId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null);
+        }
 
         return {
           ...conversation,
           participant1,
           participant2,
+          lastMessage, // 👈 now included
         };
       })
     );
 
-    return conversationsWithParticipants;
+    return conversationsWithExtras;
   }
 
   async getConversationMessages(
@@ -1578,7 +1590,25 @@ export class MySQLStorage implements IStorage {
       .from(notifications)
       .where(eq(notifications.id, id))
       .limit(1);
-    if (!result[0]) throw new Error("Failed to create notification");
+    const notification = result[0];
+    if (!notification) throw new Error("Failed to create notification");
+
+    // 🔥 Real-time push via WebSocket
+    const wss = getWSS();
+    wss.clients.forEach((client: any) => {
+      if (
+        client.readyState === WebSocket.OPEN &&
+        client.userId === notification.userId // 👈 send only to recipient
+      ) {
+        client.send(
+          JSON.stringify({
+            type: "new_notification",
+            data: notification,
+          })
+        );
+      }
+    });
+
     return result[0];
   }
 

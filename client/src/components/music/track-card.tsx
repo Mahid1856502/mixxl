@@ -369,20 +369,18 @@ export default function TrackCard({
                   Buy £{track.price}
                 </Button>
               )}
-              {track.price &&
-                user &&
-                user.id !== track.artistId &&
-                !track.hasPreviewOnly && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleTip}
-                    className="h-8 px-3 text-xs"
-                  >
-                    <Coins className="w-3 h-3 mr-1" />
-                    Tip
-                  </Button>
-                )}
+              {user && user.id !== track.artistId && hasFullAccess && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleTip}
+                  className="h-8 px-3 text-xs"
+                >
+                  <Coins className="w-3 h-3 mr-1" />
+                  Tip
+                </Button>
+              )}
+
               <Button
                 size="sm"
                 variant="outline"

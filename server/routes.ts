@@ -1233,17 +1233,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Message routes
-  app.get("/api/messages/:userId", authenticate, async (req: any, res) => {
-    try {
-      const messages = await storage.getMessages(
-        req.user.id,
-        req.params.userId
-      );
-      res.json(messages);
-    } catch (error) {
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+  // app.get("/api/messages/:userId", authenticate, async (req: any, res) => {
+  //   try {
+  //     const messages = await storage.getMessages(
+  //       req.user.id,
+  //       req.params.userId
+  //     );
+  //     res.json(messages);
+  //   } catch (error) {
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // });
 
   // Conversation routes
   app.get("/api/conversations", authenticate, async (req: any, res) => {
@@ -1342,9 +1342,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sender: { ...req.user, password: undefined },
         });
 
-        wsClients.forEach((ws) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(wsMessage);
+        const wss = getWSS();
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(wsMessage);
           }
         });
 
@@ -1695,39 +1696,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Legacy message endpoint (for backwards compatibility)
-  app.post("/api/messages", authenticate, async (req: any, res) => {
-    try {
-      const messageData = {
-        ...req.body,
-        senderId: req.user.id,
-      };
+  // app.post("/api/messages", authenticate, async (req: any, res) => {
+  //   try {
+  //     const messageData = {
+  //       ...req.body,
+  //       senderId: req.user.id,
+  //     };
 
-      const validatedData = insertMessageSchema.parse(messageData);
-      const message = await storage.sendMessage(validatedData);
+  //     const validatedData = insertMessageSchema.parse(messageData);
+  //     const message = await storage.sendMessage(validatedData);
 
-      // Send real-time message via WebSocket
-      const wsMessage = JSON.stringify({
-        type: "new_message",
-        message,
-        sender: { ...req.user, password: undefined },
-      });
+  //     // Send real-time message via WebSocket
+  //     const wsMessage = JSON.stringify({
+  //       type: "new_message",
+  //       message,
+  //       sender: { ...req.user, password: undefined },
+  //     });
 
-      wsClients.forEach((ws) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(wsMessage);
-        }
-      });
+  //     wsClients.forEach((ws) => {
+  //       if (ws.readyState === WebSocket.OPEN) {
+  //         ws.send(wsMessage);
+  //       }
+  //     });
 
-      res.json(message);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        return res
-          .status(400)
-          .json({ message: "Invalid data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Server error" });
-    }
-  });
+  //     res.json(message);
+  //   } catch (error) {
+  //     if (error instanceof ZodError) {
+  //       return res
+  //         .status(400)
+  //         .json({ message: "Invalid data", errors: error.errors });
+  //     }
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // });
 
   // Payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
@@ -2460,64 +2461,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // WebSocket server setup
-  const wss = new WebSocketServer({
-    server: httpServer,
-    path: "/ws",
-  });
+  // const wss = new WebSocketServer({
+  //   server: httpServer,
+  //   path: "/ws",
+  // });
 
-  wss.on("connection", (ws, req) => {
-    const clientId = Math.random().toString(36).substring(7);
-    wsClients.set(clientId, ws);
+  // wss.on("connection", (ws, req) => {
+  //   const clientId = Math.random().toString(36).substring(7);
+  //   wsClients.set(clientId, ws);
 
-    ws.on("message", (data) => {
-      try {
-        const message = JSON.parse(data.toString());
+  //   ws.on("message", (data) => {
+  //     try {
+  //       const message = JSON.parse(data.toString());
 
-        // Handle different message types
-        switch (message.type) {
-          case "join_radio":
-            // Join radio session
-            ws.send(
-              JSON.stringify({
-                type: "radio_joined",
-                sessionId: message.sessionId,
-              })
-            );
-            break;
+  //       // Handle different message types
+  //       switch (message.type) {
+  //         case "join_radio":
+  //           // Join radio session
+  //           ws.send(
+  //             JSON.stringify({
+  //               type: "radio_joined",
+  //               sessionId: message.sessionId,
+  //             })
+  //           );
+  //           break;
 
-          case "radio_chat":
-            // Broadcast radio chat message
+  //         case "radio_chat":
+  //           // Broadcast radio chat message
 
-            const chatMessage = JSON.stringify({
-              type: "radio_chat",
-              message: message.content,
-              user: message.user,
-              sessionId: message.sessionId,
-              timestamp: new Date().toISOString(),
-            });
+  //           const chatMessage = JSON.stringify({
+  //             type: "radio_chat",
+  //             message: message.content,
+  //             user: message.user,
+  //             sessionId: message.sessionId,
+  //             timestamp: new Date().toISOString(),
+  //           });
 
-            log("chatMessage", chatMessage);
-            wsClients.forEach((client) => {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send(chatMessage);
-              }
-            });
-            break;
-        }
-      } catch (error) {
-        console.error("WebSocket message error:", error);
-      }
-    });
+  //           log("chatMessage", chatMessage);
+  //           wsClients.forEach((client) => {
+  //             if (client.readyState === WebSocket.OPEN) {
+  //               client.send(chatMessage);
+  //             }
+  //           });
+  //           break;
+  //       }
+  //     } catch (error) {
+  //       console.error("WebSocket message error:", error);
+  //     }
+  //   });
 
-    ws.on("close", () => {
-      wsClients.delete(clientId);
-    });
+  //   ws.on("close", () => {
+  //     wsClients.delete(clientId);
+  //   });
 
-    ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
-      wsClients.delete(clientId);
-    });
-  });
+  //   ws.on("error", (error) => {
+  //     console.error("WebSocket error:", error);
+  //     wsClients.delete(clientId);
+  //   });
+  // });
 
   // Contact form endpoint
   app.post("/api/contact", async (req, res) => {

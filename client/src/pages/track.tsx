@@ -9,11 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
-import { 
-  Play, 
-  Pause, 
-  Heart, 
-  Share, 
+import {
+  Play,
+  Pause,
+  Heart,
+  Share,
   Download,
   Music,
   Coins,
@@ -21,7 +21,7 @@ import {
   Clock,
   Calendar,
   User,
-  ArrowLeft
+  ArrowLeft,
 } from "lucide-react";
 
 export default function TrackPage() {
@@ -43,14 +43,14 @@ export default function TrackPage() {
       }
       return response.json();
     },
-    enabled: !!id
+    enabled: !!id,
   });
 
   const handlePlay = () => {
     setIsPlaying(!isPlaying);
     toast({
       title: isPlaying ? "Paused" : "Playing",
-      description: track?.title
+      description: track?.title,
     });
   };
 
@@ -89,14 +89,14 @@ export default function TrackPage() {
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
@@ -162,8 +162,8 @@ export default function TrackPage() {
               <CardContent className="p-0">
                 <div className="aspect-square bg-gradient-to-br from-purple-500/20 to-pink-500/20 relative overflow-hidden rounded-lg">
                   {track.coverImage ? (
-                    <img 
-                      src={track.coverImage} 
+                    <img
+                      src={track.coverImage}
                       alt={track.title}
                       className="w-full h-full object-cover"
                     />
@@ -172,15 +172,19 @@ export default function TrackPage() {
                       <Music className="w-24 h-24 text-white/50" />
                     </div>
                   )}
-                  
+
                   {/* Play Button Overlay */}
                   <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <Button 
-                      size="icon" 
+                    <Button
+                      size="icon"
                       className="rounded-full w-16 h-16 mixxl-gradient text-white"
                       onClick={handlePlay}
                     >
-                      {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+                      {isPlaying ? (
+                        <Pause className="w-8 h-8" />
+                      ) : (
+                        <Play className="w-8 h-8" />
+                      )}
                     </Button>
                   </div>
 
@@ -198,7 +202,10 @@ export default function TrackPage() {
 
                   {/* Duration */}
                   <div className="absolute bottom-4 right-4">
-                    <Badge variant="secondary" className="bg-black/50 text-white">
+                    <Badge
+                      variant="secondary"
+                      className="bg-black/50 text-white"
+                    >
                       {formatDuration(track.duration)}
                     </Badge>
                   </div>
@@ -213,7 +220,9 @@ export default function TrackPage() {
               <CardHeader>
                 <div className="space-y-4">
                   <div>
-                    <CardTitle className="text-3xl font-bold mb-2">{track.title}</CardTitle>
+                    <CardTitle className="text-3xl font-bold mb-2">
+                      {track.title}
+                    </CardTitle>
                     <Link href={`/profile/${track.artistId}`}>
                       <p className="text-xl text-muted-foreground hover:text-foreground transition-colors">
                         by {(track as any).artistName || "Unknown Artist"}
@@ -246,7 +255,9 @@ export default function TrackPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Heart className="w-4 h-4" />
-                    <span>{(track.likesCount || 0).toLocaleString()} likes</span>
+                    <span>
+                      {(track.likesCount || 0).toLocaleString()} likes
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -258,21 +269,29 @@ export default function TrackPage() {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-3">
-                  <Button 
+                  <Button
                     onClick={handlePlay}
                     className="mixxl-gradient text-white"
                   >
-                    {isPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                    {isPlaying ? 'Pause' : 'Play'}
+                    {isPlaying ? (
+                      <Pause className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    {isPlaying ? "Pause" : "Play"}
                   </Button>
 
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={handleLike}
                     className={isLiked ? "text-red-500 border-red-500" : ""}
                   >
-                    <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
-                    {isLiked ? 'Liked' : 'Like'}
+                    <Heart
+                      className={`w-4 h-4 mr-2 ${
+                        isLiked ? "fill-current" : ""
+                      }`}
+                    />
+                    {isLiked ? "Liked" : "Like"}
                   </Button>
 
                   <Button variant="outline" onClick={handleShare}>
@@ -280,19 +299,22 @@ export default function TrackPage() {
                     Share
                   </Button>
 
-                  {track.price && user && user.id !== track.artistId && (
+                  {user && user.id !== track.artistId && (
                     <Button variant="outline" onClick={handleTip}>
                       <Coins className="w-4 h-4 mr-2" />
                       Tip Artist
                     </Button>
                   )}
 
-                  {track.hasPreviewOnly && track.price && user && user.id !== track.artistId && (
-                    <Button className="mixxl-gradient text-white">
-                      <Crown className="w-4 h-4 mr-2" />
-                      Purchase £{track.price}
-                    </Button>
-                  )}
+                  {track.hasPreviewOnly &&
+                    track.price &&
+                    user &&
+                    user.id !== track.artistId && (
+                      <Button className="mixxl-gradient text-white">
+                        <Crown className="w-4 h-4 mr-2" />
+                        Purchase £{track.price}
+                      </Button>
+                    )}
                 </div>
               </CardContent>
             </Card>

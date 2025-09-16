@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -15,9 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
-import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   MessageCircle,
   Search,
@@ -32,8 +30,13 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { Message } from "@shared/schema";
+
+type MessageWithOptimistic = Message & { isOptimistic?: boolean };
 
 export default function Messages() {
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,6 +45,46 @@ export default function Messages() {
   const [newConversationUser, setNewConversationUser] = useState("");
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [chatMessages, setChatMessages] = useState<MessageWithOptimistic[]>([]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const { messages: wsMessages, sendMessage: wsSendMessage } = useWebSocket();
+
+  useEffect(() => {
+    const newMessages = wsMessages
+      .filter(
+        (msg) =>
+          msg.type === "new_message" &&
+          msg.message.conversationId === selectedConversation?.id
+      )
+      .map((msg) => msg.message);
+
+    setChatMessages((prev) => {
+      const updated = [...prev];
+
+      newMessages.forEach((m) => {
+        // find optimistic message by sender + content match
+        const index = updated.findIndex(
+          (x) =>
+            x.isOptimistic &&
+            x.senderId === m.senderId &&
+            x.content === m.content
+        );
+
+        if (index !== -1) {
+          // replace optimistic with server version
+          updated[index] = { ...m, isOptimistic: false };
+        } else {
+          // avoid dupes
+          if (!updated.some((x) => x.id === m.id)) {
+            updated.push({ ...m, isOptimistic: false });
+          }
+        }
+      });
+
+      return updated;
+    });
+  }, [wsMessages]);
 
   // Get user's conversations
   const { data: conversations = [] } = useQuery({
@@ -64,10 +107,26 @@ export default function Messages() {
   }, [conversations]);
 
   // Get messages for selected conversation
-  const { data: messages = [] } = useQuery({
+  const { data: initialMessages = [] } = useQuery({
     queryKey: ["/api/conversations", selectedConversation?.id, "messages"],
     enabled: !!selectedConversation,
   }) as { data: any[] };
+
+  useEffect(() => {
+    if (initialMessages.length) {
+      setChatMessages(initialMessages);
+    }
+  }, [initialMessages]);
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current?.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [chatMessages]);
 
   // Get suggested users for starting conversations
   const { data: suggestedUsers = [] } = useQuery({
@@ -131,15 +190,49 @@ export default function Messages() {
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [initialMessages]);
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedConversation) return;
+
+    const tempId = crypto.randomUUID();
+
+    const message = {
+      id: tempId,
+      conversationId: selectedConversation.id,
+      senderId: user?.id!,
+      content: newMessage.trim(),
+      messageType: "text" as const,
+      trackId: null,
+      isRead: false,
+      readAt: null,
+      createdAt: new Date(),
+      isOptimistic: true, // 👈 mark it
+    };
+
+    // Optimistic update
+    setChatMessages((prev) => [...prev, message]);
+
+    // Broadcast + persist
+    wsSendMessage({
+      type: "new_message",
+      message,
+      sender: {
+        id: user?.id,
+        username: user?.username,
+        email: user?.email,
+        profileImage: user?.profileImage,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+      },
+    });
 
     sendMessageMutation.mutate({
       conversationId: selectedConversation.id,
       content: newMessage.trim(),
     });
+
+    setNewMessage("");
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -180,9 +273,9 @@ export default function Messages() {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="h-[calc(100vh-8rem)] p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
           {/* Conversations List */}
           <Card className="glass-effect border-white/10">
             <CardHeader className="pb-3">
@@ -235,6 +328,7 @@ export default function Messages() {
                                 >
                                   <Avatar className="h-10 w-10">
                                     <AvatarImage
+                                      className="object-cover"
                                       src={searchUser.profileImage}
                                       alt={searchUser.username}
                                     />
@@ -283,6 +377,7 @@ export default function Messages() {
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-10 w-10">
                                 <AvatarImage
+                                  className="object-cover"
                                   src={artist.profileImage}
                                   alt={artist.username}
                                 />
@@ -353,7 +448,12 @@ export default function Messages() {
                       return (
                         <div
                           key={conversation.id}
-                          onClick={() => setSelectedConversation(conversation)}
+                          onClick={() => {
+                            setSelectedConversation(conversation);
+                            setLocation(
+                              `/messages?conversation=${conversation.id}`
+                            );
+                          }}
                           className={cn(
                             "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
                             selectedConversation?.id === conversation.id
@@ -363,6 +463,7 @@ export default function Messages() {
                         >
                           <Avatar className="h-12 w-12">
                             <AvatarImage
+                              className="object-cover"
                               src={otherUser?.profileImage}
                               alt={otherUser?.username}
                             />
@@ -404,6 +505,7 @@ export default function Messages() {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
                         <AvatarImage
+                          className="object-cover"
                           src={
                             getOtherParticipant(selectedConversation)
                               ?.profileImage
@@ -431,9 +533,12 @@ export default function Messages() {
                   </div>
 
                   {/* Messages */}
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
-                      {messages.map((message: any) => (
+                  <div className="p-0 flex flex-col h-96">
+                    <div
+                      ref={scrollAreaRef}
+                      className="flex-1 p-4 overflow-y-auto space-y-3"
+                    >
+                      {chatMessages.map((message: any) => (
                         <div
                           key={message.id}
                           className={cn(
@@ -467,7 +572,7 @@ export default function Messages() {
                       ))}
                       <div ref={messagesEndRef} />
                     </div>
-                  </ScrollArea>
+                  </div>
 
                   {/* Message Input */}
                   <div className="p-4 border-t border-white/10">

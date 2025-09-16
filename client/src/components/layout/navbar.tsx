@@ -24,11 +24,16 @@ import {
   Shield,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
+import { useEffect } from "react";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { isConnected } = useWebSocket();
+  const { isConnected, messages } = useWebSocket();
+
+  useEffect(() => {
+    console.log("notification messages", messages);
+  }, [messages]);
 
   const { data: unreadData } = useUnreadNotificationCount();
 

@@ -21,8 +21,8 @@ export function useWebSocket() {
 
     const wsUrl =
       process.env.NODE_ENV === "development"
-        ? "ws://localhost:3000/ws"
-        : "wss://server1.mixxl.fm/ws";
+        ? `ws://localhost:3000/ws?userId=${user.id}`
+        : `wss://server1.mixxl.fm/ws?userId=${user.id}`;
 
     ws.current = new WebSocket(wsUrl);
 

@@ -37,7 +37,6 @@ export default function LiveRadioChat({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAuth();
-  const { toast } = useToast();
   const { isConnected, messages: wsMessages, sendRadioChat } = useWebSocket();
   const [, setLocation] = useLocation();
 
@@ -113,9 +112,8 @@ export default function LiveRadioChat({
   };
 
   const sendReaction = (emoji: string) => {
-    if (!user || !isConnected) return;
-    sendRadioChat("radio-main", emoji);
-    toast({ title: "Reaction sent!", description: emoji });
+    if (!user || !isConnected || !session?.id) return;
+    sendRadioChat(session.id, emoji);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -150,7 +148,7 @@ export default function LiveRadioChat({
       <CardContent className="p-0 flex flex-col h-96">
         <div
           ref={scrollAreaRef}
-          className="flex-1 px-4 overflow-y-auto space-y-3 pb-4"
+          className="flex-1 p-4 overflow-y-auto space-y-3"
         >
           {chatMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
