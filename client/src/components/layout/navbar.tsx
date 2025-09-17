@@ -24,18 +24,29 @@ import {
   Shield,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { isConnected, messages } = useWebSocket();
 
-  useEffect(() => {
-    console.log("notification messages", messages);
-  }, [messages]);
-
   const { data: unreadData } = useUnreadNotificationCount();
+  const [unreadCount, setUnreadCount] = useState(unreadData?.count ?? 0);
+
+  useEffect(() => {
+    setUnreadCount(unreadData?.count ?? 0); // sync with initial fetch
+  }, [unreadData]);
+
+  useEffect(() => {
+    if (!messages?.length) return;
+
+    const latest = messages[messages.length - 1];
+
+    if (latest.type === "new_notification") {
+      setUnreadCount((prev) => prev + 1);
+    }
+  }, [messages]);
 
   let navigation = [
     { name: "Discover", href: "/discover", icon: Compass },
@@ -137,9 +148,9 @@ export default function Navbar() {
                 onClick={() => setLocation("/notifications")}
               >
                 <Bell className="w-4 h-4" />
-                {unreadData && unreadData.count > 0 && (
+                {unreadCount > 0 && (
                   <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 text-xs bg-red-500 hover:bg-red-600 flex items-center justify-center">
-                    {unreadData.count > 99 ? "99+" : unreadData.count}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </Badge>
                 )}
               </Button>

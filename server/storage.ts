@@ -539,12 +539,6 @@ export class MySQLStorage implements IStorage {
   }
 
   async getTracksByArtist(artistId: string): Promise<Track[]> {
-    // return db
-    //   .select()
-    //   .from(tracks)
-    //   .where(eq(tracks.artistId, artistId))
-    //   .orderBy(desc(tracks.createdAt));
-
     const result = await db
       .select({
         id: tracks.id,
@@ -552,12 +546,12 @@ export class MySQLStorage implements IStorage {
         description: tracks.description,
         artistId: tracks.artistId,
         artistName: sql<string>`
-      CASE
-        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-        THEN ${users.firstName} || ' ' || ${users.lastName}
-        ELSE ${users.username}
-      END
-    `.as("artistName"),
+        CASE
+          WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+          THEN ${users.firstName} || ' ' || ${users.lastName}
+          ELSE ${users.username}
+        END
+      `.as("artistName"),
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -578,13 +572,12 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // always true if purchased
+        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // still always true
       })
-      .from(purchasedTracks)
-      .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
+      .from(tracks)
       .innerJoin(users, eq(tracks.artistId, users.id))
       .where(eq(tracks.artistId, artistId))
-      .orderBy(desc(purchasedTracks.purchasedAt));
+      .orderBy(desc(tracks.createdAt));
 
     return result;
   }

@@ -405,20 +405,21 @@ export default function TrackCard({
         onClose={() => setShowPurchaseModal(false)}
       />
 
-      <TipModal
-        isOpen={showTipModal}
-        onClose={() => setShowTipModal(false)}
-        artist={{
-          id: track.artistId,
-          firstName: (track as any).artistName || "Unknown",
-          lastName: "Artist",
-          profileImage: undefined,
-        }}
-        track={{
-          id: track.id,
-          title: track.title,
-        }}
-      />
+      {showTipModal && (
+        <TipModal
+          isOpen={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          artist={{
+            id: track.artistId,
+            artistName: track.artistName || "Unknown",
+            profileImage: undefined,
+          }}
+          track={{
+            id: track.id,
+            title: track.title,
+          }}
+        />
+      )}
       {open && (
         <PlaylistModal
           onClose={() => setOpen(false)}

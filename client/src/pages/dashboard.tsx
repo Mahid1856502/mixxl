@@ -42,7 +42,8 @@ export default function Dashboard() {
   }
 
   const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
-    params.tab === "music"
+    params.tab === "music",
+    user?.id
   );
 
   console.log("userTracks", userTracks);

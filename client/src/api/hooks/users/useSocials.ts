@@ -84,8 +84,6 @@ export const useUnfollowUser = (
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
-  console.log("useUnfollowUser", userId);
-
   return useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/users/${userId}/follow`, {}),
 

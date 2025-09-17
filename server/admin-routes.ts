@@ -17,6 +17,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { log } from "./vite";
+import { stripe } from "./stripe";
 
 declare global {
   namespace Express {
@@ -110,13 +111,6 @@ function generateBroadcastEmail(
   const text = `Hi ${userName}, ${message} Visit Mixxl: https://app.mixxl.fm © 2025 Mixxl. All rights reserved.`;
   return { subject, html, text };
 }
-
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-06-30.basil",
-});
 
 // JWT authentication middleware (copied from routes.ts)
 export const authenticate = async (req: any, res: any, next: any) => {

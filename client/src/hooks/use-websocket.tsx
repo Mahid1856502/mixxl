@@ -15,50 +15,64 @@ export function useWebSocket() {
 
   const ws = useRef<WebSocket | null>(null);
   const { user } = useAuth();
+  const reconnectInterval = useRef(1000); // start with 1 second
 
   useEffect(() => {
     if (!user) return;
 
-    const wsUrl =
-      process.env.NODE_ENV === "development"
-        ? `ws://localhost:3000/ws?userId=${user.id}`
-        : `wss://server1.mixxl.fm/ws?userId=${user.id}`;
+    let shouldReconnect = true;
 
-    ws.current = new WebSocket(wsUrl);
+    const connect = () => {
+      const wsUrl =
+        process.env.NODE_ENV === "development"
+          ? `ws://localhost:3000/ws?userId=${user.id}`
+          : `wss://server1.mixxl.fm/ws?userId=${user.id}`;
 
-    ws.current.onopen = () => {
-      setIsConnected(true);
-      console.log("WebSocket connected");
-    };
+      ws.current = new WebSocket(wsUrl);
 
-    ws.current.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
+      ws.current.onopen = () => {
+        setIsConnected(true);
+        console.log("WebSocket connected");
+        reconnectInterval.current = 1000; // reset interval on successful connection
+      };
 
-        if (message.type === "radio_session_updated") {
-          setSessionUpdates(message);
-        } else {
-          setMessages((prev) => [...prev, message]);
+      ws.current.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+
+          if (message.type === "radio_session_updated") {
+            setSessionUpdates(message);
+          } else {
+            setMessages((prev) => [...prev, message]);
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
         }
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
-      }
+      };
+
+      ws.current.onclose = () => {
+        setIsConnected(false);
+        console.log("WebSocket disconnected");
+        if (shouldReconnect) {
+          setTimeout(connect, reconnectInterval.current);
+          reconnectInterval.current = Math.min(
+            reconnectInterval.current * 2,
+            30000
+          ); // exponential backoff
+        }
+      };
+
+      ws.current.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        ws.current?.close(); // triggers onclose
+      };
     };
 
-    ws.current.onclose = () => {
-      setIsConnected(false);
-      console.log("WebSocket disconnected");
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setIsConnected(false);
-    };
+    connect();
 
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
+      shouldReconnect = false;
+      ws.current?.close();
     };
   }, [user]);
 
@@ -77,7 +91,6 @@ export function useWebSocket() {
   };
 
   const sendRadioChat = (sessionId: string, content: string) => {
-    console.log("1. sendRadioChat", { sessionId, content });
     sendMessage({
       type: "radio_chat",
       sessionId,

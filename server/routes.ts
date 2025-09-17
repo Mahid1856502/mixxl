@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocket } from "ws";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import crypto from "crypto";
@@ -28,14 +28,7 @@ import { sendEmail, generateVerificationEmail } from "./email";
 // } from "./utils";
 import { log } from "./vite";
 import { getWSS } from "./ws";
-
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-06-30.basil",
-});
+import { stripe } from "./stripe";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -942,31 +935,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users/tracks", authenticate, async (req, res) => {
     try {
-      const { id: authUserId } = req.user;
-      const targetUserId = req.query.userId || authUserId; // 👈 allow passing userId
+      const targetUserId = req.query.userId as string;
 
-      const targetUser = await storage.getUser(targetUserId as string);
+      if (!targetUserId) {
+        return res
+          .status(400)
+          .json({ message: "userId query param is required" });
+      }
+
+      const targetUser = await storage.getUser(targetUserId);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
       }
 
       let tracks;
-      if (req.query.userId) {
-        // If a userId is passed, only allow fetching if that user is an artist
-        if (targetUser.role === "artist") {
-          tracks = await storage.getTracksByArtist(targetUser.id);
-        } else {
-          return res
-            .status(403)
-            .json({ message: "Tracks can only be fetched for artists" });
-        }
+      if (targetUser.role === "artist") {
+        tracks = await storage.getTracksByArtist(targetUser.id);
       } else {
-        // No userId passed → fallback to auth user’s role
-        if (targetUser.role === "artist") {
-          tracks = await storage.getTracksByArtist(authUserId);
-        } else {
-          tracks = await storage.getPurchasedTracksByUser(authUserId);
-        }
+        tracks = await storage.getPurchasedTracksByUser(targetUser.id);
       }
 
       res.json(tracks);

@@ -6,6 +6,7 @@ import "dotenv/config";
 import cors from "cors";
 import http from "http";
 import { createWSS } from "./ws"; // 👈 our new module
+import { registerWebhooksRoutes } from "./webhooks";
 
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -16,6 +17,9 @@ const CORS_ORIGIN =
 
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
+
+// 👇 Register webhooks BEFORE JSON body parser
+registerWebhooksRoutes(app);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
