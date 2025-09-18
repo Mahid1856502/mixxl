@@ -133,6 +133,16 @@ export const subscriptionStatusEnum = pgEnum("subscription_status_enum", [
   "paused",
 ]);
 
+export const contactSubmissions = pgTable("contact_submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  category: text("category").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const passwordResets = pgTable("password_resets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -658,6 +668,13 @@ export const insertConversationSchema = createInsertSchema(conversations).omit({
   lastMessageAt: true,
 });
 
+export const insertContactSubmission = createInsertSchema(
+  contactSubmissions
+).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Notifications table
 export const notificationTypeEnum = pgEnum("notification_type", [
   "follow",
@@ -984,6 +1001,8 @@ export type Banner = typeof banners.$inferSelect;
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
 export type PasswordResetInsert = typeof passwordResets.$inferInsert;
 export type PasswordReset = typeof passwordResets.$inferSelect;
+export type Contact = typeof contactSubmissions.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSubmission>;
 export type FeaturedArtistFilters = {
   search?: string;
   genre?: string;

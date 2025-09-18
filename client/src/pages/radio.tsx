@@ -6,7 +6,6 @@ import LiveRadioChat from "@/components/radio/live-radio-chat";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { Radio, Users } from "lucide-react";
 import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
-import ScheduleWidget from "@/components/radio/schedule-widget";
 import RadioSessionManager from "@/components/radio/radio-session-calendar";
 import { useQueryClient } from "@tanstack/react-query";
 

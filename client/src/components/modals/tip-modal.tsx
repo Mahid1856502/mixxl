@@ -237,7 +237,10 @@ export default function TipModal({
               {/* Artist Info */}
               <div className="flex items-center space-x-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={artist.profileImage} />
+                  <AvatarImage
+                    src={artist.profileImage}
+                    className="object-cover"
+                  />
                   <AvatarFallback>{artist?.artistName?.[0]}</AvatarFallback>
                 </Avatar>
                 <div>

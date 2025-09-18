@@ -79,6 +79,9 @@ import {
   PasswordReset,
   passwordResets,
   Artist,
+  Contact,
+  contactSubmissions,
+  InsertContact,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -330,6 +333,9 @@ export interface IStorage {
   getBanners(activeOnly?: boolean): Promise<Banner[]>;
   updateBanner(id: string, updates: Partial<Banner>): Promise<Banner>;
   deleteBanner(id: string): Promise<void>;
+
+  submitContact(data: Contact): Promise<Contact>;
+  getAllSubmissions(): Promise<Contact[]>;
 }
 
 export class MySQLStorage implements IStorage {
@@ -2375,6 +2381,18 @@ export class MySQLStorage implements IStorage {
       .update(banners)
       .set({ deletedAt: new Date() })
       .where(eq(banners.id, id));
+  }
+
+  async submitContact(data: InsertContact) {
+    const [banner] = await db
+      .insert(contactSubmissions)
+      .values(data)
+      .returning();
+    return banner;
+  }
+
+  async getAllSubmissions() {
+    return db.select().from(contactSubmissions);
   }
 }
 

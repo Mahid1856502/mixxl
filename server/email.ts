@@ -117,3 +117,62 @@ export function generateVerificationEmail(
     text,
   };
 }
+
+// lib/emails/contact.ts
+export function generateContactEmail(
+  type: "support" | "user",
+  data: {
+    name: string;
+    email: string;
+    subject: string;
+    category: string;
+    message: string;
+  }
+) {
+  const { name, email, subject, category, message } = data;
+
+  if (type === "support") {
+    return {
+      subject: `New Contact Form Submission: ${subject}`,
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Category:</strong> ${category}</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <h3>Message:</h3>
+        <div>${message.replace(/\n/g, "<br>")}</div>
+      `,
+      text: `New contact form submission from ${name} (${email})
+Category: ${category}
+Subject: ${subject}
+
+Message:
+${message}`,
+    };
+  }
+
+  return {
+    subject: "✅ Thank you for contacting Mixxl",
+    html: `
+      <p>Hi ${name},</p>
+      <p>Thanks for contacting Mixxl! We’ve received your message and will get back to you within 24 hours.</p>
+      <h3>Your Message Summary:</h3>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <p><strong>Category:</strong> ${category}</p>
+      <p>If urgent, email us directly at hello@mixxl.fm</p>
+      <p>— The Mixxl Team</p>
+    `,
+    text: `Hi ${name},
+
+Thanks for contacting Mixxl! We’ll get back to you within 24 hours.
+
+Your Message Summary:
+Subject: ${subject}
+Category: ${category}
+
+If urgent, email us at hello@mixxl.fm
+
+— The Mixxl Team`,
+  };
+}

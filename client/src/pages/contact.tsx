@@ -1,25 +1,53 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { toast, useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Phone, MapPin, MessageCircle, HelpCircle, Bug, Lightbulb } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  MessageCircle,
+  HelpCircle,
+  Bug,
+  Lightbulb,
+} from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const contactSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100, "Name must be less than 100 characters"),
   email: z.string().email("Please enter a valid email address"),
   subject: z.string().min(1, "Subject is required"),
   category: z.string().min(1, "Please select a category"),
-  message: z.string().min(10, "Message must be at least 10 characters").max(1000, "Message must be less than 1000 characters"),
+  message: z
+    .string()
+    .min(10, "Message must be at least 10 characters")
+    .max(1000, "Message must be less than 1000 characters"),
 });
 
 type ContactForm = z.infer<typeof contactSchema>;
@@ -33,7 +61,7 @@ const categories = [
 ];
 
 export default function Contact() {
-  const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const form = useForm<ContactForm>({
@@ -47,6 +75,21 @@ export default function Contact() {
     },
   });
 
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        name:
+          user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : "",
+        email: user.email || "",
+        subject: "",
+        category: "",
+        message: "",
+      });
+    }
+  }, [user, form]);
+
   const contactMutation = useMutation({
     mutationFn: async (data: ContactForm) => {
       const response = await apiRequest("POST", "/api/contact", data);
@@ -57,13 +100,15 @@ export default function Contact() {
       form.reset();
       toast({
         title: "Message Sent!",
-        description: "Thank you for contacting us. We'll get back to you within 24 hours.",
+        description:
+          "Thank you for contacting us. We'll get back to you within 24 hours.",
       });
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again or email us directly.",
+        description:
+          "Failed to send message. Please try again or email us directly.",
         variant: "destructive",
       });
     },
@@ -81,9 +126,12 @@ export default function Contact() {
             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
               <Mail className="w-8 h-8 text-green-500" />
             </div>
-            <h1 className="text-3xl font-bold mixxl-gradient-text">Message Sent!</h1>
+            <h1 className="text-3xl font-bold mixxl-gradient-text">
+              Message Sent!
+            </h1>
             <p className="text-muted-foreground">
-              Thank you for reaching out. We've received your message and will respond within 24 hours.
+              Thank you for reaching out. We've received your message and will
+              respond within 24 hours.
             </p>
             <Button onClick={() => setIsSubmitted(false)} className="mt-6">
               Send Another Message
@@ -101,7 +149,8 @@ export default function Contact() {
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold mixxl-gradient-text">Contact Us</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Get in touch with the Mixxl team. We're here to help you succeed on your musical journey.
+            Get in touch with the Mixxl team. We're here to help you succeed on
+            your musical journey.
           </p>
         </div>
 
@@ -116,7 +165,10 @@ export default function Contact() {
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-6"
+                >
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -138,7 +190,11 @@ export default function Contact() {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="your@email.com" {...field} />
+                            <Input
+                              type="email"
+                              placeholder="your@email.com"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -152,7 +208,10 @@ export default function Contact() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a category" />
@@ -160,7 +219,10 @@ export default function Contact() {
                           </FormControl>
                           <SelectContent>
                             {categories.map((category) => (
-                              <SelectItem key={category.value} value={category.value}>
+                              <SelectItem
+                                key={category.value}
+                                value={category.value}
+                              >
                                 <div className="flex items-center space-x-2">
                                   <category.icon className="w-4 h-4" />
                                   <span>{category.label}</span>
@@ -181,7 +243,10 @@ export default function Contact() {
                       <FormItem>
                         <FormLabel>Subject</FormLabel>
                         <FormControl>
-                          <Input placeholder="Brief description of your inquiry" {...field} />
+                          <Input
+                            placeholder="Brief description of your inquiry"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -195,7 +260,7 @@ export default function Contact() {
                       <FormItem>
                         <FormLabel>Message</FormLabel>
                         <FormControl>
-                          <Textarea 
+                          <Textarea
                             placeholder="Tell us more about your inquiry..."
                             rows={6}
                             className="resize-none"
@@ -230,8 +295,12 @@ export default function Contact() {
                   <Mail className="w-5 h-5 text-pink-500 mt-0.5" />
                   <div>
                     <h4 className="font-medium">Email</h4>
-                    <p className="text-sm text-muted-foreground">hello@mixxl.fm</p>
-                    <p className="text-sm text-muted-foreground">support@mixxl.fm</p>
+                    <p className="text-sm text-muted-foreground">
+                      hello@mixxl.fm
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      support@mixxl.fm
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
@@ -239,7 +308,9 @@ export default function Contact() {
                   <div>
                     <h4 className="font-medium">Phone</h4>
                     <p className="text-sm text-muted-foreground">Coming Soon</p>
-                    <p className="text-xs text-muted-foreground">Mon-Fri, 9:00 AM - 6:00 PM GMT</p>
+                    <p className="text-xs text-muted-foreground">
+                      Mon-Fri, 9:00 AM - 6:00 PM GMT
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
@@ -247,9 +318,12 @@ export default function Contact() {
                   <div>
                     <h4 className="font-medium">Address</h4>
                     <p className="text-sm text-muted-foreground">
-                      The Old Shed Studios<br />
-                      Dyfan Road<br />
-                      Barry<br />
+                      The Old Shed Studios
+                      <br />
+                      Dyfan Road
+                      <br />
+                      Barry
+                      <br />
                       CF63 1DP
                     </p>
                   </div>
@@ -257,7 +331,7 @@ export default function Contact() {
               </CardContent>
             </Card>
 
-            <Card className="glass-effect border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10">
+            {/* <Card className="glass-effect border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10">
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-2 mixxl-gradient-text">Response Times</h3>
                 <div className="space-y-2 text-sm">
@@ -279,24 +353,36 @@ export default function Contact() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             <Card className="glass-effect">
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-3">Quick Links</h3>
                 <div className="space-y-2">
-                  <a href="/faq" className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors">
+                  <a
+                    href="/faq"
+                    className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors"
+                  >
                     Frequently Asked Questions
                   </a>
-                  <a href="/help" className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors">
+                  {/* <a
+                    href="/help"
+                    className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors"
+                  >
                     Help Center
                   </a>
-                  <a href="/status" className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors">
+                  <a
+                    href="/status"
+                    className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors"
+                  >
                     System Status
                   </a>
-                  <a href="/community" className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors">
+                  <a
+                    href="/community"
+                    className="block text-sm text-muted-foreground hover:text-pink-500 transition-colors"
+                  >
                     Community Forum
-                  </a>
+                  </a> */}
                 </div>
               </CardContent>
             </Card>

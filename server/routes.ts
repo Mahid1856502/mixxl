@@ -20,7 +20,11 @@ import {
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
-import { sendEmail, generateVerificationEmail } from "./email";
+import {
+  sendEmail,
+  generateVerificationEmail,
+  generateContactEmail,
+} from "./email";
 // import {
 //   generateVerificationToken,
 //   getTokenExpirationDate,
@@ -2510,103 +2514,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contact", async (req, res) => {
     try {
       const { name, email, subject, category, message } = req.body;
-
-      // Log the submission
-      console.log("Contact form submission:", {
+      const submission = await storage.submitContact({
         name,
         email,
         subject,
         category,
         message,
-        timestamp: new Date().toISOString(),
       });
 
-      // Send email to support team using SendGrid
-      if (process.env.SENDGRID_API_KEY) {
-        const sgMail = require("@sendgrid/mail");
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      console.log("📩 Contact form stored:", submission);
 
-        const supportEmailMsg = {
+      // Generate emails
+      const supportEmail = generateContactEmail("support", {
+        name,
+        email,
+        subject,
+        category,
+        message,
+      });
+
+      const confirmationEmail = generateContactEmail("user", {
+        name,
+        email,
+        subject,
+        category,
+        message,
+      });
+
+      // Send both emails in parallel
+      await Promise.all([
+        sendEmail({
           to: "hello@mixxl.fm",
-          from: "noreply@mixxl.fm", // Must be verified sender in SendGrid
-          subject: `New Contact Form Submission: ${subject}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #ec4899, #8b5cf6); padding: 20px; text-align: center;">
-                <h1 style="color: white; margin: 0;">New Contact Form Submission</h1>
-              </div>
-              <div style="padding: 20px; background: #f9fafb; border: 1px solid #e5e7eb;">
-                <h2 style="color: #374151; margin-top: 0;">Contact Details</h2>
-                <p><strong>Name:</strong> ${name}</p>
-                <p><strong>Email:</strong> ${email}</p>
-                <p><strong>Category:</strong> ${category}</p>
-                <p><strong>Subject:</strong> ${subject}</p>
-                
-                <h3 style="color: #374151;">Message:</h3>
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #d1d5db;">
-                  ${message.replace(/\n/g, "<br>")}
-                </div>
-                
-                <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 14px;">
-                  Submitted on: ${new Date().toLocaleString()}<br>
-                  Reply directly to this email to respond to ${name} at ${email}
-                </p>
-              </div>
-            </div>
-          `,
-        };
-
-        // Send confirmation email to user
-        const userConfirmationMsg = {
+          from: "noreply@mixxl.fm",
+          ...supportEmail,
+        }),
+        sendEmail({
           to: email,
           from: "noreply@mixxl.fm",
-          subject: "Thank you for contacting Mixxl",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #ec4899, #8b5cf6); padding: 20px; text-align: center;">
-                <h1 style="color: white; margin: 0;">Thank You for Contacting Mixxl</h1>
-              </div>
-              <div style="padding: 20px; background: #f9fafb; border: 1px solid #e5e7eb;">
-                <p>Hi ${name},</p>
-                <p>Thank you for reaching out to us! We've received your message and will get back to you within 24 hours.</p>
-                
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #d1d5db; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #374151;">Your Message Summary:</h3>
-                  <p><strong>Subject:</strong> ${subject}</p>
-                  <p><strong>Category:</strong> ${category}</p>
-                </div>
-                
-                <p>If you have any urgent concerns, you can also reach us at hello@mixxl.fm</p>
-                
-                <p>Best regards,<br>The Mixxl Team</p>
-              </div>
-            </div>
-          `,
-        };
-
-        try {
-          await sgMail.send(supportEmailMsg);
-          await sgMail.send(userConfirmationMsg);
-          console.log("Contact form emails sent successfully");
-        } catch (emailError) {
-          console.error("Failed to send contact form emails:", emailError);
-          // Continue with success response even if email fails
-        }
-      }
+          ...confirmationEmail,
+        }),
+      ]);
 
       res.json({
         success: true,
         message: "Contact form submitted successfully",
       });
     } catch (error) {
-      console.error("Contact form error:", error);
+      console.error("❌ Contact form error:", error);
       res.status(500).json({
         success: false,
         message: "Failed to submit contact form",
       });
     }
   });
-
   return httpServer;
 }

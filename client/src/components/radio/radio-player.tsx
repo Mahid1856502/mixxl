@@ -297,6 +297,7 @@ export default function RadioPlayer({ session, onClose }: RadioPlayerProps) {
                         <AvatarImage
                           src={msg.user.profileImage || ""}
                           alt={msg.user.username}
+                          className="object-cover"
                         />
                         <AvatarFallback className="text-xs">
                           {msg.user.username[0]?.toUpperCase()}
