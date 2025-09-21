@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import RadioPlayer from "@/components/radio/radio-player";
 import RadioCoPlayer from "@/components/radio/radio-co-player";
 import LiveRadioChat from "@/components/radio/live-radio-chat";
@@ -8,6 +9,9 @@ import { Radio, Users } from "lucide-react";
 import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
 import RadioSessionManager from "@/components/radio/radio-session-calendar";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTracks } from "@/api/hooks/tracks/useTracks";
+import { useQueryParams } from "@/hooks/use-query-params";
+import { TrackExtended } from "@shared/schema";
 
 interface RadioSession {
   id: string;
@@ -23,6 +27,10 @@ interface RadioSession {
 }
 
 export default function RadioPage() {
+  const [params, setParams] = useQueryParams({
+    tab: "tracks",
+  });
+
   const { isConnected, sessionUpdates } = useWebSocket();
   const [selectedSession, setSelectedSession] = useState<RadioSession | null>(
     null
@@ -30,13 +38,12 @@ export default function RadioPage() {
 
   const queryClient = useQueryClient();
   const { data: activeSession } = useRadioSession();
+  const { data: tracksData } = useTracks({
+    submitToRadio: true,
+    enable: params.tab === "tracks",
+  });
 
   useEffect(() => {
-    console.log("activeSession change", activeSession);
-  }, [activeSession]);
-
-  useEffect(() => {
-    console.log("latestRadioUpdate", sessionUpdates);
     if (sessionUpdates?.type === "radio_session_updated") {
       queryClient.invalidateQueries({ queryKey: ["radioSession"] });
       queryClient.refetchQueries({ queryKey: ["radioSession"] });
@@ -99,7 +106,6 @@ export default function RadioPage() {
           </div>
         </div>
 
-        {/* Live Radio.co Player and Chat */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <RadioCoPlayer session={activeSession} />
@@ -109,9 +115,64 @@ export default function RadioPage() {
           </div>
         </div>
 
-        <RadioSessionManager />
+        {/* Tabs: Sessions + Tracks */}
+        <Tabs
+          defaultValue="sessions"
+          className="w-full"
+          value={params.tab}
+          onValueChange={(tab) => setParams({ tab })}
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="sessions">Sessions</TabsTrigger>
+            <TabsTrigger value="tracks">Tracks</TabsTrigger>
+          </TabsList>
 
-        {/* <ScheduleWidget /> */}
+          {/* Sessions Tab */}
+          <TabsContent value="sessions">
+            <RadioSessionManager />
+          </TabsContent>
+
+          {/* Tracks Tab */}
+          <TabsContent value="tracks">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold">Submitted Tracks</h2>
+              {tracksData?.length ? (
+                <ul className="space-y-2">
+                  {tracksData.map((track: TrackExtended) => (
+                    <li
+                      key={track.id}
+                      className="bg-card p-4 border rounded-lg shadow-sm flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-medium">{track.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {track.artistName ?? "Unknown Artist"}
+                        </p>
+                      </div>
+
+                      {track.fileUrl && (
+                        <Button>
+                          <a
+                            href={track.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm"
+                          >
+                            Open File
+                          </a>
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">
+                  No tracks submitted yet.
+                </p>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -31,16 +31,34 @@ import {
   Calendar,
   Crown,
   Shield,
+  Trash,
+  Plus,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAllUsers } from "@/api/hooks/users/useAllUsers";
 import { User } from "@shared/schema";
+import { ConfirmDialog } from "@/components/common/ConfirmPopup";
+import { useDeleteUser } from "@/api/hooks/admin/useManageUsers";
+import { CreateDJModal } from "@/components/modals/create-dj-modal";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function UsersAdmin() {
-  const [roleFilter, setRoleFilter] = useState("all");
+  const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Partial<User> | null>(null);
+  const [open, setOpen] = useState(false);
+
+  // Column filters
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [emailFilter, setEmailFilter] = useState("all"); // verified / unverified
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all"); // active / inactive
+  const [joinedAfter, setJoinedAfter] = useState("");
+  const [joinedBefore, setJoinedBefore] = useState("");
 
   const { data: usersData, isLoading } = useAllUsers();
+  const { mutate: deleteUser, isPending } = useDeleteUser();
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -87,8 +105,12 @@ export default function UsersAdmin() {
     usersData?.users?.filter((user: User) => {
       let matchesSearch = true;
       let matchesRole = true;
+      let matchesEmail = true;
+      let matchesSubscription = true;
+      let matchesStatus = true;
+      let matchesDate = true;
 
-      // search filter
+      // Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         matchesSearch =
@@ -97,13 +119,65 @@ export default function UsersAdmin() {
           `${user.firstName} ${user.lastName}`.toLowerCase().includes(query);
       }
 
-      // role filter
+      // Role filter
       if (roleFilter !== "all") {
         matchesRole = user.role === roleFilter;
       }
 
-      return matchesSearch && matchesRole;
+      // Email verified filter
+      if (emailFilter === "verified") {
+        matchesEmail = !!user.emailVerified;
+      } else if (emailFilter === "unverified") {
+        matchesEmail = !user.emailVerified;
+      }
+
+      // Subscription filter
+      if (subscriptionFilter !== "all") {
+        matchesSubscription = user.subscriptionStatus === subscriptionFilter;
+      }
+
+      if (statusFilter === "active") {
+        matchesStatus = user.isActive === true;
+      } else if (statusFilter === "inactive") {
+        matchesStatus = user.isActive === false;
+      }
+
+      // Date filter
+      if (joinedAfter) {
+        matchesDate =
+          matchesDate &&
+          !!user.createdAt &&
+          new Date(user.createdAt) >= new Date(`${joinedAfter}T00:00:00`);
+      }
+
+      if (joinedBefore) {
+        matchesDate =
+          matchesDate &&
+          !!user.createdAt &&
+          new Date(user.createdAt) <= new Date(`${joinedBefore}T23:59:59`);
+      }
+
+      return (
+        matchesSearch &&
+        matchesRole &&
+        matchesEmail &&
+        matchesSubscription &&
+        matchesStatus &&
+        matchesDate
+      );
     }) || [];
+
+  async function handleDelete(id: string) {
+    deleteUser(id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        setSelectedUser(null);
+      },
+      onError: () => {
+        alert("Error deleting banner.");
+      },
+    });
+  }
 
   if (isLoading) {
     return (
@@ -116,34 +190,43 @@ export default function UsersAdmin() {
   return (
     <div className="min-h-screen bg-gray-950">
       <div className="border-b border-gray-800 bg-gray-900">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                User Management
-              </h1>
-              <p className="text-gray-400">View and manage platform users</p>
-            </div>
-            <div className="flex gap-3">
-              <Button asChild variant="outline">
-                <Link href="/admin">← Back to Dashboard</Link>
-              </Button>
-            </div>
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              User Management
+            </h1>
+            <p className="text-gray-400">View and manage platform users</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline">
+              <Link href="/admin">← Back to Dashboard</Link>
+            </Button>
+            <Button
+              className="flex items-center gap-2"
+              onClick={() => setOpen(true)}
+            >
+              <Plus /> Add DJ
+            </Button>
           </div>
         </div>
       </div>
 
       <div className="p-6">
+        {/* Filters */}
         <Card className="mb-6 bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle>Filter Users</CardTitle>
             <CardDescription>
-              Search and filter users by role and other criteria
+              Search and filter users by any column
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
-              <div className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Search */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Search
+                </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -154,21 +237,126 @@ export default function UsersAdmin() {
                   />
                 </div>
               </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="artist">Artists</SelectItem>
-                  <SelectItem value="fan">Fans</SelectItem>
-                  <SelectItem value="admin">Admins</SelectItem>
-                </SelectContent>
-              </Select>
+
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Role
+                </label>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="artist">Artist</SelectItem>
+                    <SelectItem value="fan">Fan</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Email Status
+                </label>
+                <Select value={emailFilter} onValueChange={setEmailFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Email" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="unverified">Unverified</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Subscription */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Subscription
+                </label>
+                <Select
+                  value={subscriptionFilter}
+                  onValueChange={setSubscriptionFilter}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Subscription" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="trialing">Trialing</SelectItem>
+                    <SelectItem value="past_due">Past Due</SelectItem>
+                    <SelectItem value="canceled">Canceled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Status
+                </label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date Filters */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Joined After
+                </label>
+                <Input
+                  type="date"
+                  value={joinedAfter}
+                  onChange={(e) => setJoinedAfter(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Joined Before
+                </label>
+                <Input
+                  type="date"
+                  value={joinedBefore}
+                  onChange={(e) => setJoinedBefore(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Reset Filters Button */}
+            <div className="flex justify-end mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setRoleFilter("all");
+                  setEmailFilter("all");
+                  setSubscriptionFilter("all");
+                  setStatusFilter("all");
+                  setJoinedAfter("");
+                  setJoinedBefore("");
+                }}
+              >
+                Reset Filters
+              </Button>
             </div>
           </CardContent>
         </Card>
 
+        {/* Users Table */}
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -268,14 +456,26 @@ export default function UsersAdmin() {
                           {user.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/profile/${user.username}`}>
-                              View Profile
-                            </Link>
+                      <TableCell className="space-x-2 items-center flex">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/profile/${user.username}`}>
+                            View Profile
+                          </Link>
+                        </Button>
+                        {currentUser?.id !== user?.id && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (currentUser?.id !== user?.id) {
+                                setSelectedUser(user);
+                                setDeleteOpen(true);
+                              }
+                            }}
+                          >
+                            <Trash />
                           </Button>
-                        </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -301,6 +501,27 @@ export default function UsersAdmin() {
           </CardContent>
         </Card>
       </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete User"
+        description={
+          <>
+            Are you sure you want to delete the user{" "}
+            <strong>{selectedUser?.username || "Untitled"}</strong>? This action
+            cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => {
+          if (selectedUser?.id) {
+            handleDelete(selectedUser.id);
+          }
+        }}
+        isPending={isPending}
+      />
+      <CreateDJModal open={open} onOpenChange={setOpen} />
     </div>
   );
 }

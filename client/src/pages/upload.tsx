@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -168,7 +168,10 @@ export default function Upload() {
   };
 
   const [, setLocation] = useLocation();
-  if (!user.stripeSubscriptionId || user?.subscriptionStatus === "canceled") {
+  if (
+    user.subscriptionStatus !== "lifetime_free" &&
+    (!user.stripeSubscriptionId || user.subscriptionStatus === "canceled")
+  ) {
     setLocation("/subscribe");
   }
 

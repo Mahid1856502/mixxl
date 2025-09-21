@@ -48,6 +48,7 @@ import PurchasingSuccess from "@/pages/track-purchasing/success";
 import SubscriptionSuccess from "@/pages/subscription/success";
 import SubscriptionCancel from "@/pages/subscription/cancel";
 import ForgetPassword from "@/pages/auth/forget-password";
+import Feedback from "@/pages/admin/feedback";
 
 export interface AppRoute {
   path: string;
@@ -102,11 +103,11 @@ export const appRoutes: AppRoute[] = [
     roles: ["fan", "artist", "admin"],
   },
   { path: "/checkout", component: Checkout, roles: ["fan", "artist", "admin"] },
-  {
-    path: "/live",
-    component: LiveStreamPage,
-    roles: ["fan", "artist", "admin"],
-  },
+  // {
+  //   path: "/live",
+  //   component: LiveStreamPage,
+  //   roles: ["fan", "artist", "admin"],
+  // },
   { path: "/messages", component: Messages, roles: ["fan", "artist", "admin"] },
   {
     path: "/notifications",
@@ -148,6 +149,11 @@ export const appRoutes: AppRoute[] = [
     roles: ["admin"],
   },
   { path: "/admin/users", component: UsersAdmin, roles: ["admin"] },
+  {
+    path: "/admin/feedback",
+    component: Feedback,
+    roles: ["admin"],
+  },
   {
     path: "/admin/discount-codes",
     component: AdminDiscountCodes,

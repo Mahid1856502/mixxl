@@ -16,6 +16,7 @@ import {
   insertLiveStreamMessageSchema,
   insertPurchasedTrackSchema,
   updateRadioSessionSchema,
+  InsertUser,
 } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -78,9 +79,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Create user in DB with emailVerified = false
+      let extraFields: Partial<InsertUser> = {};
+
+      // If role = artist → check free quota
+      if (userData.role === "artist") {
+        const lifetimeFreeCount = await storage.countLifetimeFreeArtists();
+
+        if (lifetimeFreeCount < 30) {
+          extraFields = {
+            subscriptionStatus: "lifetime_free",
+            trialEndsAt: null,
+            hasUsedTrial: true, // mark trial consumed so they don’t get double benefit
+          };
+        }
+      }
+
+      // Create user in DB
       const newUser = await storage.createUser({
         ...userData,
+        ...extraFields,
         emailVerified: false,
       });
 
@@ -104,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         text: emailContent.text,
       });
 
-      // Generate an auth JWT immediately (even if not verified)
+      // Auth token
       const jwtToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
         expiresIn: "7d",
       });
@@ -654,6 +671,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters = {
         userId,
         search: req.query.search as string,
+        submitToRadio:
+          req.query.submitToRadio !== undefined
+            ? req.query.submitToRadio === "true" // query params are strings
+            : undefined,
       };
 
       const tracks = await storage.getTracks(filters);
@@ -2567,5 +2588,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Track routes
+  app.get("/api/feedbacks", authenticate, async (req, res) => {
+    try {
+      const feedbacks = await storage.getAllSubmissions();
+
+      res.json(feedbacks);
+    } catch (error) {
+      console.error("Tracks error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   return httpServer;
 }

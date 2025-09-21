@@ -14,7 +14,6 @@ import {
   Pause,
   Heart,
   Share,
-  Download,
   Music,
   Coins,
   Crown,

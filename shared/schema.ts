@@ -131,6 +131,7 @@ export const subscriptionStatusEnum = pgEnum("subscription_status_enum", [
   "canceled",
   "unpaid",
   "paused",
+  "lifetime_free",
 ]);
 
 export const contactSubmissions = pgTable("contact_submissions", {

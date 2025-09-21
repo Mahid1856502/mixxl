@@ -58,7 +58,7 @@ const signupSchema = z
     email: z.string().email("Please enter a valid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
-    role: z.enum(["fan", "artist", "DJ"], {
+    role: z.enum(["fan", "artist"], {
       required_error: "Please select a role",
     }),
   })
@@ -259,12 +259,6 @@ export default function Signup() {
                             <div className="flex items-center space-x-2">
                               <Music className="w-4 h-4" />
                               <span>Artist - Share and monetize my music</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="DJ">
-                            <div className="flex items-center space-x-2">
-                              <Headphones className="w-4 h-4" />
-                              <span>DJ - Curate and mix tracks</span>
                             </div>
                           </SelectItem>
                         </SelectContent>

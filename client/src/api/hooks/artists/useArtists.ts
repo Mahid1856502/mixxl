@@ -10,6 +10,7 @@ export type DiscoverFilters = {
   genre?: string;
   mood?: string;
   sort?: string;
+  submitToRadio?: boolean;
 };
 
 export function useFeaturedArtists(filters: DiscoverFilters = {}) {

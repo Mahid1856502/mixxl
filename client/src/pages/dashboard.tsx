@@ -171,8 +171,9 @@ export default function Dashboard() {
 
         {/* Subscription Status for Artists */}
         {user.role === "artist" &&
+          user.subscriptionStatus !== "lifetime_free" &&
           (!user.stripeSubscriptionId ||
-            user?.subscriptionStatus === "canceled") && (
+            user.subscriptionStatus === "canceled") && (
             <Card className="glass-effect border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -258,7 +259,7 @@ export default function Dashboard() {
                           <span>Upload Track</span>
                         </Button>
                       </Link>
-                      <Link href="/live">
+                      {/* <Link href="/live">
                         <Button
                           variant="outline"
                           className="w-full h-20 flex flex-col space-y-2 hover:border-red-500/50"
@@ -266,7 +267,7 @@ export default function Dashboard() {
                           <Video className="w-6 h-6 text-red-500" />
                           <span>Go Live</span>
                         </Button>
-                      </Link>
+                      </Link> */}
                     </>
                   )}
                   <Link href="/discover">

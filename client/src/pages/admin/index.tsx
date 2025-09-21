@@ -255,6 +255,26 @@ export default function AdminDashboard() {
               </Button>
             </CardContent>
           </Card>
+          {/* Complaints & Suggestions - NEW */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Mail className="h-5 w-5 text-pink-400" />
+                Complaints & Suggestions
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Review and respond to user feedback submissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Link href="/admin/feedback">View Feedback</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

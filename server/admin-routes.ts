@@ -157,6 +157,66 @@ export function registerAdminRoutes(app: Express) {
   //   }
   // });
 
+  // ========== DELETE USER ==========
+
+  app.delete(
+    "/api/auth/user/:id",
+    authenticate,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!id) {
+          return res.status(400).json({ message: "User ID is required" });
+        }
+
+        await storage.deleteUser(id);
+
+        return res.status(200).json({ message: "User deleted successfully" });
+      } catch (error) {
+        console.error("Delete user error:", error);
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/auth/user/:id/status",
+    authenticate,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { isActive } = req.body; // expects boolean true/false
+
+        if (typeof isActive !== "boolean") {
+          return res
+            .status(400)
+            .json({ message: "isActive (boolean) is required" });
+        }
+
+        const user = await storage.updateUser(id, { isActive });
+
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.status(200).json({
+          message: `User ${
+            isActive ? "activated" : "deactivated"
+          } successfully`,
+          user,
+        });
+      } catch (error) {
+        console.error("User status update error:", error);
+        return res
+          .status(500)
+          .json({ message: "Failed to update user status" });
+      }
+    }
+  );
+
   // ========== FEATURED SPOTS MANAGEMENT ==========
 
   // Get all featured spots (with filtering)
@@ -590,37 +650,28 @@ export function registerAdminRoutes(app: Express) {
       if (role && role !== "all") {
         users = await storage.getUsersByRole(role as string);
       } else {
-        const [fans, artists] = await Promise.all([
-          storage.getUsersByRole("fan"),
-          storage.getUsersByRole("artist"),
-        ]);
-        users = [...fans, ...artists];
+        users = await storage.getAllUsers();
       }
 
       // Apply pagination
-      const paginatedUsers = users
-        .slice(
-          parseInt(offset as string),
-          parseInt(offset as string) + parseInt(limit as string)
-        )
-        .map((user) => ({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          emailVerified: user.emailVerified,
-          subscriptionStatus: user.subscriptionStatus,
-          createdAt: user.createdAt,
-          isActive: user.isActive,
-        }));
+      const paginatedUsers = users.map((user) => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        subscriptionStatus: user.subscriptionStatus,
+        createdAt: user.createdAt,
+        isActive: user.isActive,
+      }));
 
       res.json({
         users: paginatedUsers,
         total: users.length,
-        hasMore:
-          parseInt(offset as string) + parseInt(limit as string) < users.length,
+        // hasMore:
+        //   parseInt(offset as string) + parseInt(limit as string) < users.length,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

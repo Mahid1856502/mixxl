@@ -97,6 +97,7 @@ interface FeaturedArtistFilters {
   search?: string;
   genre?: string;
   mood?: string;
+  submitToRadio?: boolean;
 }
 
 export interface IStorage {
@@ -112,6 +113,7 @@ export interface IStorage {
     subscriptionId?: string
   ): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  countLifetimeFreeArtists(): Promise<number>;
   getFeaturedArtists(filters: FeaturedArtistFilters): Promise<Artist[]>;
   createPasswordReset(data: PasswordResetInsert): Promise<PasswordReset>;
   getPasswordResetByUserId(userId: string): Promise<PasswordReset | null>;
@@ -301,6 +303,7 @@ export interface IStorage {
     updates: Partial<BroadcastRecipient>
   ): Promise<BroadcastRecipient>;
   getUsersByRole(role: string): Promise<User[]>;
+  getAllUsers(role: string): Promise<User[]>;
   getSubscribedUsers(): Promise<User[]>;
 
   // Discount code operations
@@ -410,6 +413,20 @@ export class MySQLStorage implements IStorage {
 
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  async countLifetimeFreeArtists(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(
+        and(
+          eq(users.role, "artist"),
+          eq(users.subscriptionStatus, "lifetime_free")
+        )
+      );
+
+    return Number(result[0]?.count ?? 0);
   }
 
   /**
@@ -601,6 +618,11 @@ export class MySQLStorage implements IStorage {
           ilike(users.lastName, `%${filters.search}%`)
         )
       );
+    }
+
+    // ✅ Only apply submitToRadio filter if it's passed
+    if (typeof filters.submitToRadio === "boolean") {
+      conditions.push(eq(tracks.submitToRadio, filters.submitToRadio));
     }
 
     const result = await db
@@ -2111,6 +2133,10 @@ export class MySQLStorage implements IStorage {
       .select()
       .from(users)
       .where(eq(users.role, role as "fan" | "artist" | "admin"));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async getSubscribedUsers(): Promise<any[]> {
