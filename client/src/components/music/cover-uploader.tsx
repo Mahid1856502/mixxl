@@ -3,15 +3,18 @@ import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { X } from "lucide-react";
+import { Progress } from "../ui/progress"; // 👈 import shadcn/ui progress
 
 interface CoverUploaderProps {
   coverFile?: File | null;
   setCoverFile?: (coverFile: File | null) => void;
+  progress?: number; // Upload progress (0–100)
 }
 
 export default function CoverUploader({
   coverFile,
   setCoverFile,
+  progress,
 }: CoverUploaderProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
@@ -68,6 +71,7 @@ export default function CoverUploader({
         ) : (
           <div className="space-y-4">
             <div className="aspect-square w-32 mx-auto relative">
+              {/* Always show preview */}
               <img
                 src={coverPreview || ""}
                 alt="Cover preview"
@@ -84,7 +88,21 @@ export default function CoverUploader({
               >
                 <X className="w-3 h-3" />
               </Button>
+
+              {/* 👇 Loader overlay only when uploading */}
+              {typeof progress === "number" &&
+                progress > 0 &&
+                progress < 100 && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-lg">
+                    <Progress value={progress} className="w-24" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Uploading… {progress}%
+                    </p>
+                  </div>
+                )}
             </div>
+
+            {/* Show filename always */}
             <p className="text-sm text-center text-muted-foreground">
               {coverFile.name}
             </p>

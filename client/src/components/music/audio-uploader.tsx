@@ -3,15 +3,18 @@ import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Upload as UploadIcon, Music, X } from "lucide-react";
+import { Progress } from "../ui/progress"; // 👈 import progress bar
 
 interface AudioUploaderProps {
   audioFile?: File | null;
   setAudioFile?: (file: File | null) => void;
+  progress?: number; // Optional progress prop (0–100)
 }
 
 export default function AudioUploader({
   audioFile,
   setAudioFile,
+  progress,
 }: AudioUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
@@ -26,19 +29,26 @@ export default function AudioUploader({
 
       if (file) {
         setAudioFile?.(file);
-        setAudioPreview?.(URL.createObjectURL(file));
+        setAudioPreview(URL.createObjectURL(file));
       }
     },
-    [setAudioFile, setAudioPreview]
+    [setAudioFile]
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAudioFile?.(file);
-      setAudioPreview?.(URL.createObjectURL(file));
+      setAudioPreview(URL.createObjectURL(file));
     }
   };
+
+  console.log(
+    "progress",
+    typeof progress === "number",
+    typeof progress === "number" && progress > 0,
+    typeof progress === "number" && progress < 100
+  );
 
   return (
     <Card className="glass-effect border-white/10">
@@ -81,7 +91,7 @@ export default function AudioUploader({
             />
           </div>
         ) : (
-          <div className="border border-white/10 rounded-lg p-4">
+          <div className="border border-white/10 rounded-lg p-4 relative">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
@@ -99,17 +109,28 @@ export default function AudioUploader({
                 size="icon"
                 onClick={() => {
                   setAudioFile?.(null);
-                  setAudioPreview?.(null);
+                  setAudioPreview(null);
                 }}
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
+            {/* Always keep preview */}
             {audioPreview && (
               <audio controls className="w-full">
                 <source src={audioPreview} type={audioFile.type} />
               </audio>
+            )}
+
+            {/* 👇 Overlay loader only when uploading */}
+            {typeof progress === "number" && progress > 0 && progress < 100 && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-lg">
+                <Progress value={progress} className="w-40" />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Uploading… {progress}%
+                </p>
+              </div>
             )}
           </div>
         )}

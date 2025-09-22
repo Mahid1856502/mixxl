@@ -7,10 +7,11 @@ import {
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton"; // 👈 import skeleton
 import { useFeedbacks } from "@/api/hooks/admin/useFeedbacks";
 
 const Feedback = () => {
-  const { data: feedbackData = [] } = useFeedbacks();
+  const { data: feedbackData = [], isLoading } = useFeedbacks();
 
   // Format dates consistently (e.g. "20 Sep 2025")
   const formatDate = (dateString: string) => {
@@ -28,7 +29,23 @@ const Feedback = () => {
           <CardTitle className="text-white">Complaints & Suggestions</CardTitle>
         </CardHeader>
         <CardContent>
-          {feedbackData.length > 0 ? (
+          {isLoading ? (
+            // 🔹 Skeletons while loading
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col md:flex-row md:items-center md:justify-between w-full p-3 border border-gray-800 rounded-lg"
+                >
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-40" />
+                  </div>
+                  <Skeleton className="h-4 w-32 mt-2 md:mt-0" />
+                </div>
+              ))}
+            </div>
+          ) : feedbackData.length > 0 ? (
             <Accordion type="multiple" className="w-full">
               {feedbackData.map((item) => (
                 <AccordionItem key={item.id} value={item.id}>

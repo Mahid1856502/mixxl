@@ -85,10 +85,10 @@ export function CreateDJModal({
   const form = useForm<DJForm>({
     resolver: zodResolver(djSchema),
     defaultValues: {
-      firstName: "Mahid",
-      lastName: "Ali",
-      username: "mahidali",
-      email: "alymahid001@gmail.com",
+      firstName: "",
+      lastName: "",
+      username: "",
+      email: "",
       password: "TEMP_DJ_PASS", // 🔒 Temporary password
     },
   });

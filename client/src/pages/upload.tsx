@@ -59,7 +59,7 @@ type UploadForm = z.infer<typeof uploadSchema>;
 export default function Upload() {
   const { user } = useAuth();
 
-  const { uploadFile, isUploading } = useUploadFile();
+  const { uploadFile, isUploading, progress, fileName } = useUploadFile();
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -193,8 +193,17 @@ export default function Upload() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Audio Upload */}
           <div className="lg:col-span-2 space-y-6">
-            <AudioUploader audioFile={audioFile} setAudioFile={setAudioFile} />
-            <CoverUploader coverFile={coverFile} setCoverFile={setCoverFile} />
+            <AudioUploader
+              audioFile={audioFile}
+              setAudioFile={setAudioFile}
+              progress={fileName === audioFile?.name ? progress : 0}
+            />
+
+            <CoverUploader
+              coverFile={coverFile}
+              setCoverFile={setCoverFile}
+              progress={fileName === coverFile?.name ? progress : 0}
+            />
             <UploadTips />
           </div>
 

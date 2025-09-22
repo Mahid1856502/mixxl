@@ -12,8 +12,10 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const withCredentials =
-  import.meta.env.MODE !== "development" ? "include" : "omit";
+// const withCredentials =
+//   import.meta.env.MODE !== "development" ? "include" : "omit";
+
+const withCredentials = "omit";
 
 export async function apiRequest(
   method: string,

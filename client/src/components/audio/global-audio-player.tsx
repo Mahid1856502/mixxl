@@ -94,7 +94,7 @@ export default function GlobalAudioPlayer() {
                 {currentTrack.title}
               </h4>
               <p className="text-[10px] text-muted-foreground truncate">
-                {currentTrack.artistName || "Unknown Artist"}
+                {currentTrack.artistName || "Artist"}
               </p>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function GlobalAudioPlayer() {
                 {currentTrack.title}
               </h4>
               <p className="text-xs text-muted-foreground truncate">
-                {currentTrack.artistName || "Unknown Artist"}
+                {currentTrack.artistName || "Artist"}
               </p>
             </div>
           </div>

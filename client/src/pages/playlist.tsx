@@ -69,28 +69,6 @@ export default function PlaylistPage() {
     }
   };
 
-  const handlePlayTrack = (track: any, index: number) => {
-    // If clicking on the currently playing track, toggle play/pause
-    if (currentTrack?.id === track.id && isPlaying) {
-      togglePlayPause();
-      toast({
-        title: "Paused",
-        description: `${track.title} by ${
-          track.artistName || "Unknown Artist"
-        }`,
-      });
-    } else {
-      // Otherwise, start playing this track
-      playPlaylist(tracks, index);
-      // toast({
-      //   title: "Now playing",
-      //   description: `${track.title} by ${
-      //     track.artistName || "Unknown Artist"
-      //   }`,
-      // });
-    }
-  };
-
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast({
@@ -312,7 +290,7 @@ export default function PlaylistPage() {
                     <TrackCard
                       key={track.id}
                       track={track}
-                      showArtist={false}
+                      // showArtist={false}
                       variant="preview"
                       isLoading={tracksLoading}
                     />

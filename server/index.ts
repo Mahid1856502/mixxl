@@ -15,8 +15,26 @@ const PORT = parseInt(process.env.PORT || "5000", 10);
 const CORS_ORIGIN =
   NODE_ENV === "development" ? "http://localhost:5173" : "https://mixxl.fm";
 
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
-app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
+// app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+app.use(
+  cors({
+    origin: CORS_ORIGIN,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept"],
+  })
+);
+// app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
+// Make sure OPTIONS preflight always responds with headers
+app.options(
+  "*",
+  cors({
+    origin: CORS_ORIGIN,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept"],
+  })
+);
 
 // 👇 Register webhooks BEFORE JSON body parser
 registerWebhooksRoutes(app);
