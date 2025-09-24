@@ -55,7 +55,9 @@ export default function TrackCard({
 
   const hasFullAccess =
     // track.isPublic ||
-    !track.hasPreviewOnly || track?.hasAccess || track.artistId === user?.id;
+    !track.hasPreviewOnly ||
+    track?.purchaseStatus === "succeeded" ||
+    track.artistId === user?.id;
 
   const maxDuration = hasFullAccess
     ? track.duration || 0

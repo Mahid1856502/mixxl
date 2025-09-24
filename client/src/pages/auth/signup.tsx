@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { useAuth } from "@/hooks/use-auth";
+import { useStripeCountries } from "@/api/hooks/stripe/useStripeCountries";
 
 // Validation schema
 const signupSchema = z
@@ -61,6 +62,7 @@ const signupSchema = z
     role: z.enum(["fan", "artist"], {
       required_error: "Please select a role",
     }),
+    country: z.string().min(1, "Please select your country"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -107,6 +109,9 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const { data: countries, isLoading: isCountriesLoading } =
+    useStripeCountries();
+
   const { user, signup, isLoading } = useAuth();
 
   const form = useForm<SignupForm>({
@@ -119,6 +124,7 @@ export default function Signup() {
       password: "",
       confirmPassword: "",
       role: undefined,
+      country: "",
     },
   });
 
@@ -207,6 +213,43 @@ export default function Signup() {
                           {...field}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger
+                            className="bg-white/5 border-white/10"
+                            disabled={isCountriesLoading}
+                          >
+                            <SelectValue
+                              placeholder={
+                                isCountriesLoading
+                                  ? "Loading countries..."
+                                  : "Select your country"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {countries?.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

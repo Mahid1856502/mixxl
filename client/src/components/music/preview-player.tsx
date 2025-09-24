@@ -224,16 +224,14 @@ export default function PreviewPlayer({
                   Purchase to hear the full track
                 </p>
               </div>
-              {track.price && Number(track.price) > 0 && (
-                <Button
-                  size="sm"
-                  onClick={handlePurchase}
-                  className="mixxl-gradient text-white"
-                >
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  Buy £{track.price}
-                </Button>
-              )}
+              <Button
+                size="sm"
+                onClick={handlePurchase}
+                className="mixxl-gradient text-white"
+              >
+                <ShoppingCart className="w-3 h-3 mr-1" />
+                Buy £{track.price}
+              </Button>
             </div>
           </div>
         )}

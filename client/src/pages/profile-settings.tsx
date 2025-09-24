@@ -24,6 +24,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUploadFile } from "@/api/hooks/s3/useUploadFile";
 import ProfilePreview from "@/components/profile/profile-preview";
+import { useStripeCountries } from "@/api/hooks/stripe/useStripeCountries";
 
 const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -33,16 +34,23 @@ const schema = z.object({
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
   role: z.enum(["fan", "artist"]).nullable().catch(null), // 👈 if not fan/artist → null
   profileImage: z.string().url().nullable().or(z.literal("")), // 👈 empty string is fine
+  country: z.string().min(1, "Please select your country"),
 });
 
 export type userProfileInput = z.infer<typeof schema>;
 
 export default function ProfileSettings() {
   const { user } = useAuth();
+  console.log("user", user);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadFile, isUploading } = useUploadFile();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { data: countries = [], isLoading: isCountriesLoading } =
+    useStripeCountries();
+
+  console.log("countries", countries);
 
   const form = useForm<userProfileInput>({
     resolver: zodResolver(schema),
@@ -54,6 +62,7 @@ export default function ProfileSettings() {
       website: "",
       role: null,
       profileImage: "",
+      country: "",
     },
   });
 
@@ -68,13 +77,14 @@ export default function ProfileSettings() {
         bio: user.bio || "",
         location: user.location || "",
         website: user.website || "",
+        country: user?.country,
         role: ["fan", "artist"].includes(user.role)
           ? (user.role as "fan" | "artist")
           : null, // 👈 force null if invalid
         profileImage: user.profileImage || "",
       });
     }
-  }, [user, form]);
+  }, [user, countries, form]);
 
   const { mutate: updateProfile, isPending } = useUpdateProfile();
 
@@ -101,6 +111,7 @@ export default function ProfileSettings() {
       website: values.website,
       role: values.role ?? null, // 👈 safe null
       profileImage: values?.profileImage || null,
+      country: values?.country,
     });
   };
 
@@ -216,41 +227,75 @@ export default function ProfileSettings() {
                     />
                   </div>
                 </div>
-
-                {user.role !== "admin" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Country dropdown */}
                   <div className="space-y-2">
-                    <Label htmlFor="role">Account Type</Label>
+                    <Label htmlFor="country">Country</Label>
                     <Controller
                       control={form.control}
-                      name="role"
-                      render={({ field }) => {
-                        const isRoleInvalid = field.value === null;
-
-                        return (
-                          <Select
-                            value={field.value ?? undefined}
-                            onValueChange={field.onChange}
-                            disabled={isRoleInvalid} // 👈 disables the dropdown
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  isRoleInvalid
-                                    ? user?.role
-                                    : "Select your account type"
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fan">Fan</SelectItem>
-                              <SelectItem value="artist">Artist</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        );
-                      }}
+                      name="country"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={isCountriesLoading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                isCountriesLoading
+                                  ? "Loading countries..."
+                                  : "Select your country"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((c) => (
+                              <SelectItem key={c.code} value={c.code}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
                   </div>
-                )}
+
+                  {user.role !== "admin" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Account Type</Label>
+                      <Controller
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => {
+                          const isRoleInvalid = field.value === null;
+
+                          return (
+                            <Select
+                              value={field.value ?? undefined}
+                              onValueChange={field.onChange}
+                              disabled={isRoleInvalid} // 👈 disables the dropdown
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={
+                                    isRoleInvalid
+                                      ? user?.role
+                                      : "Select your account type"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="fan">Fan</SelectItem>
+                                <SelectItem value="artist">Artist</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          );
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

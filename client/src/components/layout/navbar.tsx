@@ -39,6 +39,7 @@ export default function Navbar() {
   }, [unreadData]);
 
   useEffect(() => {
+    console.log("notification messages", messages);
     if (!messages?.length) return;
 
     const latest = messages[messages.length - 1];

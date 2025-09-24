@@ -34,6 +34,7 @@ import {
 import { log } from "./vite";
 import { getWSS } from "./ws";
 import { stripe } from "./stripe";
+import { formatCountry } from "./utils";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -267,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create Stripe Connect account for artist
   app.post("/api/artist/stripe-account", authenticate, async (req, res) => {
     try {
-      const { id } = req.user;
+      const { id, country } = req.user;
 
       // Fetch user from DB
       const user = await storage.getUser(id);
@@ -278,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a Stripe Express account
       const account = await stripe.accounts.create({
         type: "express",
-        country: "US",
+        country: country,
         email: user.email,
         metadata: {
           userId: user.id, // 🔑 store your app’s userId
@@ -331,7 +332,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) return res.status(404).json({ message: "User not found" });
 
       if (!user?.stripeAccountId)
-        return res.status(404).json({ message: "User not found" });
+        return res
+          .status(404)
+          .json({ message: "User doesn't have stripe connect account yet!" });
       const account = await stripe.accounts.retrieve(user?.stripeAccountId);
 
       let status: "none" | "pending" | "complete" | "rejected" = "none";
@@ -738,40 +741,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check if user has access to full track
-  app.get("/api/tracks/:id/access", authenticate, async (req: any, res) => {
-    try {
-      const hasAccess = await storage.hasTrackAccess(
-        req.user.id,
-        req.params.id
-      );
-      const track = await storage.getTrack(req.params.id);
-
-      res.json({
-        hasAccess,
-        hasPreviewOnly: track?.hasPreviewOnly || false,
-        previewUrl: track?.previewUrl,
-        previewDuration: track?.previewDuration || 30,
-      });
-    } catch (error) {
-      console.error("Track access error:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-
   app.post("/api/buy-track", authenticate, async (req, res) => {
     try {
       const { trackId } = req.body;
       const { id: buyerId } = req.user;
-
-      // Check if user already owns the track
-      const existingPurchase = await storage.getUserTrackPurchase(
-        buyerId,
-        trackId
-      );
-      if (existingPurchase) {
-        return res.status(400).json({ message: "Track already purchased" });
-      }
 
       // Fetch buyer, track, and artist
       const buyer = await storage.getUser(buyerId);
@@ -779,6 +752,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const track = await storage.getTrack(trackId);
       if (!track) return res.status(404).json({ message: "Track not found" });
+
+      // Check if user already owns the track
+      const existingPurchase = await storage.getUserTrackPurchase(
+        buyerId,
+        trackId
+      );
+      if (existingPurchase && existingPurchase?.paymentStatus === "succeeded") {
+        return res.status(400).json({ message: "Track already purchased" });
+      }
 
       const artist = await storage.getUser(track.artistId);
       if (!artist || !artist.stripeAccountId) {
@@ -805,12 +787,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         ],
         customer: buyer.stripeCustomerId || undefined,
-        success_url: `${process.env.FRONTEND_URL}/purchase/success?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.FRONTEND_URL}/dashboard?tab=music`,
         cancel_url: `${process.env.FRONTEND_URL}/purchase/cancel`,
         metadata: {
           buyerId,
           trackId: track.id,
           artistId: artist.id,
+        },
+        payment_intent_data: {
+          application_fee_amount: Math.round(Number(track.price) * 100 * 0.1), // take 10% fee (optional)
+          transfer_data: {
+            destination: artist.stripeAccountId, // 💰 send money to artist
+          },
+          on_behalf_of: artist.stripeAccountId, // ensures compliance
         },
       });
 
@@ -820,6 +809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trackId: track.id,
         price: String(track?.price || 0),
         currency: buyer.preferredCurrency || "usd",
+        stripeCheckoutSessionId: session.id as string,
         stripePaymentIntentId: session.payment_intent as string,
         stripeTransferId: null, // transfer will happen in webhook
         paymentStatus: "pending",
@@ -873,99 +863,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/stripe/webhook", async (req, res) => {
-    const sig = req.headers["stripe-signature"] as string;
-    let event: Stripe.Event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET!
-      );
-    } catch (err) {
-      console.error("Webhook signature verification failed.", err);
-      return res.sendStatus(400);
-    }
-
-    try {
-      switch (event.type) {
-        case "checkout.session.completed": {
-          const session = event.data.object as any;
-
-          // Mark purchase as succeeded and add timestamp
-          const purchase = await storage.updatePurchasedTrackByIntentId(
-            session.payment_intent,
-            {
-              paymentStatus: "succeeded",
-              purchasedAt: new Date(),
-            }
-          );
-
-          // ✅ Transfer funds to the connected artist account (zero commission for now)
-          if (purchase && session.metadata?.artistId) {
-            const artist = await storage.getUser(session.metadata.artistId);
-            if (artist?.stripeAccountId) {
-              await stripe.transfers.create({
-                amount: Math.round(parseFloat(purchase.price) * 100), // in cents
-                currency: purchase.currency,
-                destination: artist.stripeAccountId,
-                metadata: {
-                  trackId: purchase.trackId,
-                  purchaseId: purchase.id,
-                },
-              });
-            }
-          }
-
-          console.log("✅ Purchase and transfer completed", {
-            purchaseId: purchase?.id,
-          });
-          break;
-        }
-
-        case "payment_intent.payment_failed": {
-          const intent = event.data.object as any;
-          await storage.updatePurchasedTrackByIntentId(intent.id, {
-            paymentStatus: "failed",
-          });
-          console.log("⚠️ Purchase failed", { intentId: intent.id });
-          break;
-        }
-
-        case "charge.refunded": {
-          const charge = event.data.object as any;
-          if (charge.payment_intent) {
-            await storage.updatePurchasedTrackByIntentId(
-              charge.payment_intent,
-              { paymentStatus: "refunded" }
-            );
-            console.log("💸 Purchase refunded", {
-              intent: charge.payment_intent,
-            });
-          }
-          break;
-        }
-
-        default:
-          console.log(`Unhandled event type: ${event.type}`);
-      }
-
-      res.json({ received: true });
-    } catch (err) {
-      console.error("🔥 Webhook handler error:", err);
-      res.status(500).send("Webhook handler error");
-    }
-  });
-
   app.get("/api/users/tracks", authenticate, async (req, res) => {
     try {
       const targetUserId = req.query.userId as string;
+      const authUserId = req.user.id as string;
 
       if (!targetUserId) {
         return res
           .status(400)
           .json({ message: "userId query param is required" });
+      }
+
+      const authUser = await storage.getUser(authUserId);
+      if (!authUser) {
+        return res.status(404).json({ message: "User not authenticated" });
       }
 
       const targetUser = await storage.getUser(targetUserId);
@@ -975,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let tracks;
       if (targetUser.role === "artist") {
-        tracks = await storage.getTracksByArtist(targetUser.id);
+        tracks = await storage.getTracksByArtist(targetUser.id, authUser.id);
       } else {
         tracks = await storage.getPurchasedTracksByUser(targetUser.id);
       }
@@ -2598,6 +2509,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Tracks error:", error);
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/stripe/countries", async (req, res) => {
+    const countryId = req.query.id as string | undefined;
+
+    try {
+      if (countryId) {
+        // Fetch a single country with detailed info
+        const country = await stripe.countrySpecs.retrieve(
+          countryId.toUpperCase()
+        );
+        const formatted = formatCountry(country, true); // detailed = true
+        return res.status(200).json({ country: formatted });
+      }
+
+      // Fetch all countries (no detailed fields)
+      const { data } = await stripe.countrySpecs.list({ limit: 100 });
+      const formatted = data.map((c) => formatCountry(c));
+      res.status(200).json({ countries: formatted });
+    } catch (error) {
+      console.error(
+        `Error fetching country${countryId ? ` ${countryId}` : " list"}:`,
+        error
+      );
+      res.status(countryId ? 404 : 500).json({
+        message: countryId
+          ? `Country ${countryId} not found`
+          : "Failed to fetch Stripe countries",
+      });
     }
   });
 

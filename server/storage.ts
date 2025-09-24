@@ -82,6 +82,7 @@ import {
   Contact,
   contactSubmissions,
   InsertContact,
+  PurchasedTrack,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -121,7 +122,7 @@ export interface IStorage {
 
   // Track operations
   getTrack(id: string): Promise<Track | undefined>;
-  getTracksByArtist(artistId: string): Promise<Track[]>;
+  getTracksByArtist(artistId: string, userId: string): Promise<Track[]>;
   getTracks(filters: FeaturedArtistFilters): Promise<any[]>;
   // searchTracks(query: string): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
@@ -228,18 +229,23 @@ export interface IStorage {
   // Mixxlist/Fan operations
   getUserMixxlists(userId: string): Promise<any[]>;
   getUserPurchasedTracks(userId: string): Promise<any[]>;
-  getPurchasedTracksByUser(userId: string): Promise<TrackExtended[]>;
+  getPurchasedTracksByUser(userId: string): Promise<Track[]>;
   getUserFavoriteArtists(userId: string): Promise<any[]>;
-  getUserTrackPurchase(userId: string, trackId: string): Promise<any | null>;
+  getUserTrackPurchase(
+    userId: string,
+    trackId: string
+  ): Promise<PurchasedTrack | null>;
   recordTrackPurchase(purchaseData: any): Promise<any>;
   hasTrackAccess(userId: string, trackId: string): Promise<boolean>;
-  updatePurchasedTrackByIntentId(
-    intentId: string,
+  updatePurchasedTrackBySessionId(
+    checkoutSessionId: string,
     updates: Partial<{
       paymentStatus: "pending" | "succeeded" | "failed" | "refunded";
       stripeTransferId: string | null;
+      stripePaymentIntentId: string | null;
+      purchasedAt: Date | null;
     }>
-  ): Promise<any | null>;
+  ): Promise<PurchasedTrack | null>;
 
   updateLiveStream(
     id: string,
@@ -561,7 +567,7 @@ export class MySQLStorage implements IStorage {
     return result[0];
   }
 
-  async getTracksByArtist(artistId: string): Promise<Track[]> {
+  async getTracksByArtist(artistId: string, userId: string): Promise<Track[]> {
     const result = await db
       .select({
         id: tracks.id,
@@ -569,12 +575,12 @@ export class MySQLStorage implements IStorage {
         description: tracks.description,
         artistId: tracks.artistId,
         artistName: sql<string>`
-        CASE
-          WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-          THEN ${users.firstName} || ' ' || ${users.lastName}
-          ELSE ${users.username}
-        END
-      `.as("artistName"),
+      CASE
+        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+        THEN ${users.firstName} || ' ' || ${users.lastName}
+        ELSE ${users.username}
+      END
+    `.as("artistName"),
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -595,10 +601,19 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // still always true
+
+        // ✅ expose raw purchase status instead of hasAccess
+        purchaseStatus: purchasedTracks.paymentStatus,
       })
       .from(tracks)
       .innerJoin(users, eq(tracks.artistId, users.id))
+      .leftJoin(
+        purchasedTracks,
+        and(
+          eq(purchasedTracks.trackId, tracks.id),
+          eq(purchasedTracks.userId, userId) // don’t filter by status here
+        )
+      )
       .where(eq(tracks.artistId, artistId))
       .orderBy(desc(tracks.createdAt));
 
@@ -630,7 +645,13 @@ export class MySQLStorage implements IStorage {
         id: tracks.id,
         title: tracks.title,
         artistId: tracks.artistId,
-        artistName: users.username,
+        artistName: sql<string>`
+      CASE
+        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+        THEN ${users.firstName} || ' ' || ${users.lastName}
+        ELSE ${users.username}
+      END
+    `.as("artistName"),
         description: tracks.description,
         genre: tracks.genre,
         mood: tracks.mood,
@@ -652,15 +673,8 @@ export class MySQLStorage implements IStorage {
         createdAt: tracks.createdAt,
         updatedAt: tracks.updatedAt,
 
-        // drizzle CASE expression for hasAccess
-        hasAccess: sql<boolean>`
-        CASE
-          WHEN ${tracks.artistId} = ${filters.userId} THEN TRUE
-          WHEN ${tracks.hasPreviewOnly} = FALSE THEN TRUE
-          WHEN ${purchasedTracks.id} IS NOT NULL THEN TRUE
-          ELSE FALSE
-        END
-      `,
+        // ✅ Expose raw purchase status (null, pending, succeeded, failed, refunded)
+        purchaseStatus: purchasedTracks.paymentStatus,
       })
       .from(tracks)
       .leftJoin(users, eq(tracks.artistId, users.id))
@@ -669,6 +683,7 @@ export class MySQLStorage implements IStorage {
         and(
           eq(purchasedTracks.trackId, tracks.id),
           eq(purchasedTracks.userId, filters.userId ?? sql`NULL`)
+          // no status filter — let service layer decide access
         )
       )
       .where(and(...conditions))
@@ -894,6 +909,13 @@ export class MySQLStorage implements IStorage {
         id: tracks.id,
         title: tracks.title,
         artistId: tracks.artistId,
+        artistName: sql<string>`
+      CASE
+        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+        THEN ${users.firstName} || ' ' || ${users.lastName}
+        ELSE ${users.username}
+      END
+    `.as("artistName"),
         description: tracks.description,
         genre: tracks.genre,
         mood: tracks.mood,
@@ -917,22 +939,18 @@ export class MySQLStorage implements IStorage {
 
         position: playlistTracks.position,
 
-        hasAccess: sql<boolean>`
-        CASE
-          WHEN ${tracks.artistId} = ${userId} THEN TRUE
-          WHEN ${tracks.hasPreviewOnly} = FALSE THEN TRUE
-          WHEN ${purchasedTracks.id} IS NOT NULL THEN TRUE
-          ELSE FALSE
-        END
-      `,
+        // ✅ raw purchase status (null, pending, succeeded, failed, refunded)
+        purchaseStatus: purchasedTracks.paymentStatus,
       })
       .from(playlistTracks)
       .innerJoin(tracks, eq(playlistTracks.trackId, tracks.id))
+      .leftJoin(users, eq(tracks.artistId, users.id))
       .leftJoin(
         purchasedTracks,
         and(
           eq(purchasedTracks.trackId, tracks.id),
           eq(purchasedTracks.userId, userId ?? sql`NULL`)
+          // ⚠️ no status filter here, we return raw status
         )
       )
       .where(eq(playlistTracks.playlistId, playlistId))
@@ -1777,14 +1795,20 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(purchasedTracks.purchasedAt));
   }
 
-  async getPurchasedTracksByUser(userId: string): Promise<TrackExtended[]> {
+  async getPurchasedTracksByUser(userId: string): Promise<Track[]> {
     const result = await db
       .select({
         id: tracks.id,
         title: tracks.title,
         description: tracks.description,
         artistId: tracks.artistId,
-        artistName: users.username,
+        artistName: sql<string>`
+      CASE
+        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+        THEN ${users.firstName} || ' ' || ${users.lastName}
+        ELSE ${users.username}
+      END
+    `.as("artistName"),
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -1805,12 +1829,19 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-        hasAccess: sql<boolean>`TRUE`.as("hasAccess"), // always true if purchased
+
+        // ✅ expose purchase status (only succeeded will come through)
+        purchaseStatus: purchasedTracks.paymentStatus,
       })
       .from(purchasedTracks)
       .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
       .innerJoin(users, eq(tracks.artistId, users.id))
-      .where(eq(purchasedTracks.userId, userId))
+      .where(
+        and(
+          eq(purchasedTracks.userId, userId),
+          eq(purchasedTracks.paymentStatus, "succeeded") // ✅ filter
+        )
+      )
       .orderBy(desc(purchasedTracks.purchasedAt));
 
     return result;
@@ -1847,7 +1878,7 @@ export class MySQLStorage implements IStorage {
   async getUserTrackPurchase(
     userId: string,
     trackId: string
-  ): Promise<any | null> {
+  ): Promise<PurchasedTrack | null> {
     const [purchase] = await db
       .select()
       .from(purchasedTracks)
@@ -1892,14 +1923,15 @@ export class MySQLStorage implements IStorage {
   }
 
   // ✅ Update purchased track by Stripe PaymentIntent ID
-  async updatePurchasedTrackByIntentId(
-    intentId: string,
+  async updatePurchasedTrackBySessionId(
+    checkoutSessionId: string,
     updates: Partial<{
       paymentStatus: "pending" | "succeeded" | "failed" | "refunded";
       stripeTransferId: string | null;
+      stripePaymentIntentId: string | null;
       purchasedAt: Date | null;
     }>
-  ): Promise<any | null> {
+  ): Promise<PurchasedTrack | null> {
     const [purchase] = await db
       .update(purchasedTracks)
       .set({
@@ -1907,9 +1939,12 @@ export class MySQLStorage implements IStorage {
         ...(updates.stripeTransferId !== undefined && {
           stripeTransferId: updates.stripeTransferId,
         }),
+        ...(updates.stripePaymentIntentId && {
+          stripePaymentIntentId: updates.stripePaymentIntentId,
+        }),
         ...(updates.purchasedAt && { purchasedAt: updates.purchasedAt }),
       })
-      .where(eq(purchasedTracks.stripePaymentIntentId, intentId))
+      .where(eq(purchasedTracks.stripeCheckoutSessionId, checkoutSessionId))
       .returning();
 
     return purchase || null;

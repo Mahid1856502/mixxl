@@ -165,6 +165,7 @@ export const users = pgTable(
     lastName: varchar("last_name", { length: 100 }),
     role: roleEnum("role").notNull().default("fan"),
     bio: text("bio"),
+    country: varchar("country", { length: 2 }).notNull().default("GB"),
     profileImage: varchar("profile_image", { length: 500 }),
     backgroundImage: varchar("background_image", { length: 500 }),
     location: varchar("location", { length: 255 }),
@@ -300,6 +301,9 @@ export const purchasedTracks = pgTable(
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
     currency: varchar("currency", { length: 10 }).notNull().default("usd"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+    stripeCheckoutSessionId: varchar("stripe_checkout_session_id", {
+      length: 255,
+    }),
     stripeTransferId: varchar("stripe_transfer_id", { length: 255 }),
     paymentStatus: paymentStatusEnum("payment_status")
       .notNull()
@@ -688,6 +692,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "playlist_follow",
   "collaboration_request",
   "comment",
+  "purchase",
 ]);
 
 export const notifications = pgTable(
@@ -937,10 +942,13 @@ export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
+
+export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
+
 export type TrackExtended = Track & {
   artistId?: string;
   artistName?: string;
-  hasAccess: boolean;
+  purchaseStatus: PaymentStatus;
   position?: number;
 };
 export type Playlist = typeof playlists.$inferSelect;

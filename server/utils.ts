@@ -3,6 +3,7 @@ import { db } from "./db";
 import { radioSessions } from "@shared/schema";
 import { and, gt, lt, ne, sql } from "drizzle-orm";
 import AWS from "aws-sdk";
+import Stripe from "stripe";
 
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
@@ -55,3 +56,27 @@ export function getSignedUrl(key: string) {
     Expires: 3600, // 1 hour
   });
 }
+
+export const formatCountry = (
+  c: Stripe.CountrySpec,
+  detailed: boolean = false // only include detailed fields when true
+) => {
+  const formatter = new Intl.DisplayNames(["en"], { type: "region" });
+
+  const base = {
+    code: c.id,
+    name: formatter.of(c.id) || c.id,
+    supportedPaymentMethods: c.supported_payment_methods,
+    defaultCurrency: c.default_currency,
+  };
+
+  if (detailed) {
+    return {
+      ...base,
+      supportedPaymentCurrencies: c.supported_payment_currencies,
+      supportedTransferCountries: c.supported_transfer_countries,
+    };
+  }
+
+  return base;
+};

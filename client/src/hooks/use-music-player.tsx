@@ -71,7 +71,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const hasFullAccess = useMemo(
     () =>
       !currentTrack?.hasPreviewOnly ||
-      currentTrack?.hasAccess ||
+      currentTrack?.purchaseStatus === "succeeded" ||
       currentTrack?.artistId === user?.id,
     [currentTrack, user]
   );

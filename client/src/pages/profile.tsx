@@ -445,7 +445,7 @@ export default function Profile() {
                   ? user?.role === "artist"
                     ? "Your Tracks"
                     : "Your Music Library"
-                  : `${user?.username}'s ${
+                  : `${user?.firstName}'s ${
                       user?.role === "artist" ? "Tracks" : "Music Library"
                     }`}
               </h2>

@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,8 +19,6 @@ import {
   MessageCircle,
   Euro,
   Play,
-  Pause,
-  Video,
 } from "lucide-react";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useState } from "react";
