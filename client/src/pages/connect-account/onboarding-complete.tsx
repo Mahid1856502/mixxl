@@ -5,8 +5,10 @@ import {
   useStripeAccountStatus,
   useStripeAccount,
 } from "@/api/hooks/stripe/useStripeAccount";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function OnboardingStatus() {
+  const { user } = useAuth();
   const { data, isLoading, error, refetch } = useStripeAccountStatus();
   const { mutate: refreshAccount, isPending } = useStripeAccount(true);
 
@@ -53,7 +55,7 @@ export default function OnboardingStatus() {
         msg: "No Stripe account connected yet.",
         action: (
           <Button disabled={isPending} onClick={() => refreshAccount()}>
-            Connect with Stripe
+            {user?.stripeAccountId ? "Resume Payout Setup" : "Enable Payouts"}
           </Button>
         ),
       };

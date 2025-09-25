@@ -230,6 +230,7 @@ export interface IStorage {
   getUserMixxlists(userId: string): Promise<any[]>;
   getUserPurchasedTracks(userId: string): Promise<any[]>;
   getPurchasedTracksByUser(userId: string): Promise<Track[]>;
+  getSoldTracksByArtist(artistId: string): Promise<Track[]>;
   getUserFavoriteArtists(userId: string): Promise<any[]>;
   getUserTrackPurchase(
     userId: string,
@@ -521,43 +522,7 @@ export class MySQLStorage implements IStorage {
     })) as Artist[];
   }
 
-  // async getAllArtists(): Promise<Artist[]> {
-  //   const artists = await db
-  //     .select({
-  //       id: users.id,
-  //       email: users.email,
-  //       username: users.username,
-  //       firstName: users.firstName,
-  //       lastName: users.lastName,
-  //       role: users.role,
-  //       bio: users.bio,
-  //       profileImage: users.profileImage,
-  //       backgroundImage: users.backgroundImage,
-  //       location: users.location,
-  //       website: users.website,
-  //       socialMedia: users.socialMedia,
-  //       emailVerified: users.emailVerified, // Add this
-  //       emailVerifiedAt: users.emailVerifiedAt, // Add this
-  //       isActive: users.isActive,
-  //       stripeCustomerId: users.stripeCustomerId,
-  //       stripeSubscriptionId: users.stripeSubscriptionId,
-  //       subscriptionStatus: users.subscriptionStatus,
-  //       trialEndsAt: users.trialEndsAt,
-  //       hasUsedTrial: users.hasUsedTrial,
-  //       onboardingComplete: users.onboardingComplete,
-  //       preferredCurrency: users.preferredCurrency, // Add this
-  //       createdAt: users.createdAt,
-  //       updatedAt: users.updatedAt,
-  //     })
-  //     .from(users)
-  //     .where(eq(users.role, "artist"))
-  //     .orderBy(users.username);
-
-  //   return artists;
-  // }
-
   // Track operations
-
   async getTrack(id: string): Promise<Track | undefined> {
     const result = await db
       .select()
@@ -691,52 +656,6 @@ export class MySQLStorage implements IStorage {
 
     return result;
   }
-
-  // async searchTracks(query: string): Promise<Track[]> {
-  //   const result = await db
-  //     .select({
-  //       id: tracks.id,
-  //       title: tracks.title,
-  //       artistId: tracks.artistId,
-  //       description: tracks.description,
-  //       genre: tracks.genre,
-  //       mood: tracks.mood,
-  //       tags: tracks.tags,
-  //       duration: tracks.duration,
-  //       fileUrl: tracks.fileUrl,
-  //       previewUrl: tracks.previewUrl,
-  //       previewDuration: tracks.previewDuration,
-  //       hasPreviewOnly: tracks.hasPreviewOnly,
-  //       coverImage: tracks.coverImage,
-  //       waveformData: tracks.waveformData,
-  //       price: tracks.price,
-  //       playCount: tracks.playCount,
-  //       likesCount: tracks.likesCount,
-  //       downloadCount: tracks.downloadCount,
-  //       isExplicit: tracks.isExplicit,
-  //       isPublic: tracks.isPublic,
-  //       submitToRadio: tracks.submitToRadio,
-  //       createdAt: tracks.createdAt,
-  //       updatedAt: tracks.updatedAt,
-  //       artistName: users.username,
-  //     })
-  //     .from(tracks)
-  //     .leftJoin(users, eq(tracks.artistId, users.id))
-  //     .where(
-  //       and(
-  //         eq(tracks.isPublic, true),
-  //         or(
-  //           like(tracks.title, `%${query}%`),
-  //           like(tracks.genre, `%${query}%`),
-  //           like(tracks.description, `%${query}%`),
-  //           like(users.username, `%${query}%`)
-  //         )
-  //       )
-  //     )
-  //     .orderBy(desc(tracks.playCount));
-
-  //   return result as Track[];
-  // }
 
   async createTrack(insertTrack: InsertTrack): Promise<Track> {
     const id = randomUUID();
@@ -1840,6 +1759,60 @@ export class MySQLStorage implements IStorage {
         and(
           eq(purchasedTracks.userId, userId),
           eq(purchasedTracks.paymentStatus, "succeeded") // ✅ filter
+        )
+      )
+      .orderBy(desc(purchasedTracks.purchasedAt));
+
+    return result;
+  }
+
+  async getSoldTracksByArtist(artistId: string): Promise<Track[]> {
+    const result = await db
+      .select({
+        id: tracks.id,
+        title: tracks.title,
+        description: tracks.description,
+        artistId: tracks.artistId,
+        artistName: sql<string>`
+        CASE
+          WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
+          THEN ${users.firstName} || ' ' || ${users.lastName}
+          ELSE ${users.username}
+        END
+      `.as("artistName"),
+        genre: tracks.genre,
+        duration: tracks.duration,
+        fileUrl: tracks.fileUrl,
+        previewUrl: tracks.previewUrl,
+        previewDuration: tracks.previewDuration,
+        hasPreviewOnly: tracks.hasPreviewOnly,
+        coverImage: tracks.coverImage,
+        price: tracks.price,
+        isPublic: tracks.isPublic,
+        isExplicit: tracks.isExplicit,
+        submitToRadio: tracks.submitToRadio,
+        playCount: tracks.playCount,
+        likesCount: tracks.likesCount,
+        createdAt: tracks.createdAt,
+        updatedAt: tracks.updatedAt,
+        mood: tracks.mood,
+        tags: tracks.tags,
+        waveformData: tracks.waveformData,
+        stripePriceId: tracks.stripePriceId,
+        downloadCount: tracks.downloadCount,
+
+        // Purchase info
+        purchaseStatus: purchasedTracks.paymentStatus,
+        purchasedAt: purchasedTracks.purchasedAt,
+        buyerId: purchasedTracks.userId, // expose buyer
+      })
+      .from(purchasedTracks)
+      .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
+      .innerJoin(users, eq(tracks.artistId, users.id)) // artist info
+      .where(
+        and(
+          eq(tracks.artistId, artistId), // pivot on artistId
+          eq(purchasedTracks.paymentStatus, "succeeded") // only successful
         )
       )
       .orderBy(desc(purchasedTracks.purchasedAt));

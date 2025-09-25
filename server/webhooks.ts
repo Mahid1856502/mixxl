@@ -4,6 +4,9 @@ import { stripe } from "./stripe";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import express from "express";
+import { getWSS } from "./ws";
+import { randomUUID } from "crypto";
+import { getStripeAccountStatus } from "./utils";
 
 declare global {
   namespace Express {
@@ -157,6 +160,123 @@ export function registerWebhooksRoutes(app: Express) {
       } catch (err) {
         console.error("🔥 Webhook handler error:", err);
         res.status(500).send("Webhook handler error");
+      }
+    }
+  );
+
+  app.post(
+    "/api/connect/webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["stripe-signature"] as string;
+      let event: Stripe.Event;
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_UPDATE_CONNECTED_ACCOUNTS_WEBHOOK_SECRET!
+        );
+      } catch (err) {
+        console.error("❌ Webhook signature verification failed.", err);
+        return res.sendStatus(400);
+      }
+
+      try {
+        if (event.type === "account.updated") {
+          const account = event.data.object as Stripe.Account;
+          const userId = account.metadata?.userId;
+
+          if (!userId) {
+            console.error(
+              `⚠️ No userId found in metadata for account ${account.id}`
+            );
+            return res.sendStatus(400);
+          }
+
+          // Load previous state from DB
+          const prevUser = await storage.getUser(userId);
+          if (!prevUser) {
+            console.error(`⚠️ User not found for account ${account.id}`);
+            return res.sendStatus(404);
+          }
+
+          // Derive new status
+          const { status, rejectReason } = getStripeAccountStatus(account);
+
+          // If nothing meaningful changed, exit early (prevents spam)
+          if (
+            prevUser.stripeChargesEnabled === account.charges_enabled &&
+            prevUser.stripePayoutsEnabled === account.payouts_enabled &&
+            prevUser.stripeDisabledReason ===
+              (account.requirements?.disabled_reason || null) &&
+            prevUser.stripeAccountId === account.id
+          ) {
+            console.log(
+              `ℹ️ No status change for account ${account.id} → skipping notification`
+            );
+            return res.sendStatus(200);
+          }
+
+          // Update DB with latest Stripe state
+          await storage.updateUser(userId, {
+            stripeAccountId: account.id,
+            stripeChargesEnabled: account.charges_enabled || false,
+            stripePayoutsEnabled: account.payouts_enabled || false,
+            stripeDisabledReason: account.requirements?.disabled_reason || null,
+            stripeRequirements: account.requirements || {},
+            stripeAccountRaw: { id: account.id, type: account.type },
+            lastStripeSyncAt: new Date(),
+          });
+
+          console.log(`✅ Updated Stripe account ${account.id} → ${status}`);
+
+          // Insert notification only if derived status actually changed
+          const prevStatus = (() => {
+            if (prevUser.stripeDisabledReason) return "rejected";
+            if (prevUser.stripeChargesEnabled && prevUser.stripePayoutsEnabled)
+              return "complete";
+            if (prevUser.stripeAccountId) return "pending";
+            return "none";
+          })();
+
+          if (prevStatus !== status) {
+            const notification = await storage.createNotification({
+              userId,
+              actorId: userId, // system event
+              type: "message",
+              title: "Payout Account Update",
+              message:
+                status === "rejected"
+                  ? `Your payout account was rejected: ${rejectReason}`
+                  : `Your payout account status is now: ${status}`,
+              actionUrl: "/dashboard/payouts",
+              metadata: {
+                stripeAccountId: account.id,
+                status,
+                rejectReason,
+              },
+            });
+
+            // Push via WebSocket
+            const wss = getWSS();
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "notification",
+                    data: notification,
+                  })
+                );
+              }
+            });
+          }
+        }
+
+        res.sendStatus(200);
+      } catch (err) {
+        console.error("❌ Webhook handler failed:", err);
+        res.sendStatus(500);
       }
     }
   );

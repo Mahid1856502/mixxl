@@ -80,3 +80,23 @@ export const formatCountry = (
 
   return base;
 };
+
+export function getStripeAccountStatus(account: Stripe.Account) {
+  let status: "none" | "pending" | "complete" | "rejected" = "pending";
+  let rejectReason: string | null = null;
+
+  if (account.requirements?.disabled_reason) {
+    status = "rejected";
+    rejectReason = account.requirements.disabled_reason;
+  } else if (
+    account.details_submitted &&
+    account.charges_enabled &&
+    account.payouts_enabled
+  ) {
+    status = "complete";
+  } else {
+    status = "pending";
+  }
+
+  return { status, rejectReason };
+}

@@ -49,6 +49,7 @@ import SubscriptionSuccess from "@/pages/subscription/success";
 import SubscriptionCancel from "@/pages/subscription/cancel";
 import ForgetPassword from "@/pages/auth/forget-password";
 import Feedback from "@/pages/admin/feedback";
+import Earnings from "@/pages/earnings";
 
 export interface AppRoute {
   path: string;
@@ -193,6 +194,11 @@ export const appRoutes: AppRoute[] = [
     path: "/artist/onboarding/refresh",
     component: OnboardingComplete,
     roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/artist/earnings",
+    component: Earnings,
+    roles: ["artist"],
   },
 
   ...PUBLIC_ROUTES,

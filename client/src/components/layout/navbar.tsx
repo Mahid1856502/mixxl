@@ -22,6 +22,7 @@ import {
   Compass,
   LayoutDashboard,
   Shield,
+  Wallet,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
 import { useEffect, useState } from "react";
@@ -264,6 +265,17 @@ export default function Navbar() {
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
+                    {user.role === "artist" && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/artist/earnings"
+                          className="flex items-center space-x-2"
+                        >
+                          <Wallet className="w-4 h-4" />
+                          <span>Earnings</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link
                         href="/profile-settings"

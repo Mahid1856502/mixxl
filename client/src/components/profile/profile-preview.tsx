@@ -7,10 +7,7 @@ import { UseFormReturn, useWatch } from "react-hook-form";
 import { User } from "@shared/schema";
 import { userProfileInput } from "@/pages/profile-settings";
 import { Camera, Settings } from "lucide-react";
-import {
-  useStripeAccount,
-  useStripeAccountStatus,
-} from "@/api/hooks/stripe/useStripeAccount";
+import { useStripeAccount } from "@/api/hooks/stripe/useStripeAccount";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -29,9 +26,8 @@ export default function ProfilePreview({
 }) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const { data } = useStripeAccountStatus();
   const { mutate: setupArtistAccount, isPending: settingStripeAccount } =
-    useStripeAccount();
+    useStripeAccount(user?.stripeAccountId ? true : false);
 
   const values = useWatch({
     control: form.control,
@@ -179,9 +175,8 @@ export default function ProfilePreview({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(!user?.stripeAccountId ||
-              data?.status === "none" ||
-              data?.status === "rejected") && (
+            {/* No account yet */}
+            {!user.stripeAccountId && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-sm">
                   To receive direct payments for your songs, you need to connect
@@ -193,24 +188,50 @@ export default function ProfilePreview({
                   onClick={() => setupArtistAccount()}
                   disabled={settingStripeAccount}
                 >
-                  Connect with Stripe
+                  Enable Payouts
                 </Button>
               </div>
             )}
 
-            {data?.status === "pending" && (
+            {/* Existing account but requirements are not met */}
+            {user.stripeAccountId &&
+              !user.stripePayoutsEnabled &&
+              !user.stripeDisabledReason && (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground text-sm">
+                    Your Stripe account setup is incomplete. Please finish the
+                    required steps.
+                  </p>
+                  <Button
+                    type="button"
+                    className="w-full text-white"
+                    onClick={() => setupArtistAccount()} // should call backend to create account_link
+                    disabled={settingStripeAccount}
+                  >
+                    Resume Payout Setup
+                  </Button>
+                </div>
+              )}
+
+            {/* Account disabled */}
+            {user.stripeAccountId && user.stripeDisabledReason && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-sm">
-                  Your Stripe account setup is pending. Please check your email
-                  or contact support to complete the process.
+                  Your Stripe account has issues: {user.stripeDisabledReason}.
                 </p>
-                <Button variant="outline" className="w-full" disabled>
-                  Verification in progress
+                <Button
+                  type="button"
+                  className="w-full text-white"
+                  onClick={() => setupArtistAccount()}
+                  disabled={settingStripeAccount}
+                >
+                  Fix Account Issues
                 </Button>
               </div>
             )}
 
-            {data?.status === "complete" && (
+            {/* Fully enabled */}
+            {user.stripeAccountId && user.stripePayoutsEnabled && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-sm">
                   Your Stripe account is connected. You’re ready to receive

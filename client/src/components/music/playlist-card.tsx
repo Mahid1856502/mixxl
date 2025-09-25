@@ -14,6 +14,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Playlist } from "@shared/schema";
+import { formatDate } from "@/lib/utils";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -62,10 +63,6 @@ export default function PlaylistCard({
       return `${hours}h ${mins}m`;
     }
     return `${mins}m`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
   };
 
   return (

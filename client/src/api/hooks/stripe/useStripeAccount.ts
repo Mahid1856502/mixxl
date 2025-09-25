@@ -1,4 +1,5 @@
 // src/hooks/useStripeAccount.ts
+import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -36,8 +37,21 @@ export function useStripeAccount(refresh = false) {
     mutationFn: () => requestStripeAccount(refresh),
     onSuccess: (data) => {
       if (data.onboardingUrl) {
+        toast({ title: "Redirecting to Stripe onboarding…" });
         window.location.href = data.onboardingUrl;
+      } else {
+        toast({
+          title: refresh
+            ? "Stripe account refreshed"
+            : "Stripe account created",
+        });
       }
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: error.message || "Stripe account request failed",
+      });
     },
   });
 }

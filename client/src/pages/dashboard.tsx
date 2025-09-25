@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [params, setParams] = useQueryParams({
     tab: "overview",
   });
+
   const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -225,7 +226,7 @@ export default function Dashboard() {
           value={params.tab}
           onValueChange={(tab) => setParams({ tab })}
         >
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="music">Music</TabsTrigger>
             <TabsTrigger value="playlists">Playlists</TabsTrigger>
@@ -501,7 +502,7 @@ export default function Dashboard() {
             <TabsContent value="analytics" className="space-y-6">
               <h2 className="text-2xl font-bold">Analytics</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="glass-effect border-white/10">
                   <CardHeader>
                     <CardTitle className="text-lg">Total Plays</CardTitle>
@@ -518,18 +519,6 @@ export default function Dashboard() {
                     </p>
                     <p className="text-sm text-muted-foreground">
                       +12% from last month
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-effect border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Revenue</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold">£0.00</p>
-                    <p className="text-sm text-muted-foreground">
-                      Enable monetization
                     </p>
                   </CardContent>
                 </Card>

@@ -268,27 +268,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create Stripe Connect account for artist
   app.post("/api/artist/stripe-account", authenticate, async (req, res) => {
     try {
-      const { id, country } = req.user;
+      const { id } = req.user;
 
-      // Fetch user from DB
+      // 1. Fetch user
       const user = await storage.getUser(id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Create a Stripe Express account
+      // 2. Ensure user is an artist (not fan, not admin)
+      if (user.role !== "artist") {
+        return res
+          .status(403)
+          .json({ message: "Only artists can create Stripe accounts" });
+      }
+
+      // 3. Prevent duplicate accounts
+      if (user.stripeAccountId) {
+        return res.status(400).json({
+          message: "Stripe account already exists",
+          stripeAccountId: user.stripeAccountId,
+        });
+      }
+
+      // 4. Create a Stripe Express account
       const account = await stripe.accounts.create({
         type: "express",
-        country: country,
+        country: user.country || "GB",
         email: user.email,
         metadata: {
-          userId: user.id, // 🔑 store your app’s userId
+          userId: user.id, // 🔑 useful for webhook reconciliation
         },
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        business_type: "individual",
+        business_type: "individual", // TODO: support company accounts later
         individual: {
           first_name: user.firstName || undefined,
           last_name: user.lastName || undefined,
@@ -301,10 +316,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       } as Stripe.AccountCreateParams);
 
-      // Save stripeAccountId in DB
-      await storage.updateUser(id, { stripeAccountId: account.id });
+      // 5. Update DB with Stripe account state
+      await storage.updateUser(id, {
+        stripeAccountId: account.id,
+        stripeChargesEnabled: account.charges_enabled || false,
+        stripePayoutsEnabled: account.payouts_enabled || false,
+        stripeDisabledReason: account.requirements?.disabled_reason || null,
+        stripeRequirements: account.requirements || {},
+        stripeAccountRaw: { id: account.id, type: account.type }, // lightweight snapshot, not full PII
+        lastStripeSyncAt: new Date(),
+      });
 
-      // Create onboarding link for Stripe Connect
+      // 6. Generate onboarding link
       const accountLink = await stripe.accountLinks.create({
         account: account.id,
         refresh_url: `${process.env.FRONTEND_URL}/artist/onboarding/refresh`,
@@ -312,11 +335,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "account_onboarding",
       });
 
+      // 7. Respond with minimal data
       res.json({
         message: "Stripe account created",
         stripeAccountId: account.id,
         onboardingUrl: accountLink.url,
-        user: { ...user, password: undefined },
       });
     } catch (error) {
       console.error("Stripe account creation error:", error);
@@ -376,13 +399,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { id } = req.user;
 
-        // Fetch user
+        // 1️⃣ Fetch user
         const user = await storage.getUser(id);
-        if (!user || !user.stripeAccountId) {
-          return res.status(404).json({ message: "Stripe account not found" });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
         }
 
-        // Create a fresh onboarding link
+        // 2️⃣ Enforce artist role
+        if (user.role !== "artist") {
+          return res
+            .status(403)
+            .json({ message: "Only artists can refresh onboarding" });
+        }
+
+        // 3️⃣ Check if Stripe Connect account exists
+        if (!user.stripeAccountId) {
+          return res
+            .status(400)
+            .json({ message: "Stripe account not created yet" });
+        }
+
+        // 4️⃣ Create a fresh onboarding link
         const accountLink = await stripe.accountLinks.create({
           account: user.stripeAccountId,
           refresh_url: `${process.env.FRONTEND_URL}/artist/onboarding/refresh`,
@@ -390,8 +427,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: "account_onboarding",
         });
 
-        // Redirect user straight to Stripe onboarding
-        res.redirect(accountLink.url);
+        // 5️⃣ Update last sync timestamp for audit/logging
+        await storage.updateUser(user.id, {
+          lastStripeSyncAt: new Date(),
+        });
+
+        // 6️⃣ Return link to frontend (SPA-friendly)
+        res.json({
+          onboardingUrl: accountLink.url,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // optional: Stripe links expire in 24h
+        });
       } catch (error) {
         console.error("Stripe account refresh error:", error);
         res.status(500).json({ message: "Server error" });
@@ -399,83 +444,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  app.post("/api/connect/webhook", async (req, res) => {
-    const sig = req.headers["stripe-signature"] as string;
-    let event: Stripe.Event;
-
+  app.post("/api/artist/transactions", authenticate, async (req, res) => {
     try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET!
-      );
-    } catch (err) {
-      console.error("Webhook signature verification failed.", err);
-      return res.sendStatus(400);
-    }
+      const { id: userId } = req.user;
 
-    try {
-      if (event.type === "account.updated") {
-        const account = event.data.object as Stripe.Account;
-
-        // Determine account status
-        let status: "none" | "pending" | "complete" | "rejected" = "pending";
-        let rejectReason: string | null = null;
-
-        if (account.requirements?.disabled_reason) {
-          status = "rejected";
-          rejectReason = account.requirements.disabled_reason;
-        } else if (account.details_submitted && account.charges_enabled) {
-          status = "complete";
-        } else {
-          status = "pending";
-        }
-
-        const userId = account.metadata?.userId;
-        if (!userId) {
-          console.error(
-            `No userId found in metadata for account ${account.id}`
-          );
-          return res.sendStatus(400); // or just skip
-        }
-        console.log(`Updated Stripe account ${account.id} → ${status}`);
-
-        // 1️⃣ Insert into notifications table
-        const notification = await storage.createNotification({
-          userId, // assuming you store userId in Stripe account metadata
-          actorId: account.id, // could also be system bot uuid
-          type: "message", // or maybe add a new "payout_status" enum
-          title: "Payout Account Update",
-          message:
-            status === "rejected"
-              ? `Your payout account was rejected: ${rejectReason}`
-              : `Your payout account status is now: ${status}`,
-          actionUrl: "/dashboard/payouts", // where you want user to go
-          metadata: {
-            stripeAccountId: account.id,
-            status,
-            rejectReason,
-          },
-        });
-
-        // 2️⃣ Push via WebSocket
-        const wss = getWSS();
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({
-                type: "notification",
-                data: notification, // send inserted notification
-              })
-            );
-          }
-        });
+      // 1️⃣ Fetch artist from DB
+      const artist = await storage.getUser(userId);
+      if (!artist) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (!artist.stripeAccountId) {
+        return res
+          .status(400)
+          .json({ message: "No Stripe account linked for this user" });
       }
 
-      res.sendStatus(200);
+      // 2️⃣ Get balance from Stripe (available + pending)
+      const balance = await stripe.balance.retrieve({
+        stripeAccount: artist.stripeAccountId,
+      });
+
+      // 3️⃣ Get last 20 balance transactions (charges, fees, payouts, refunds, etc.)
+      const balanceTransactions = await stripe.balanceTransactions.list(
+        { limit: 20 },
+        { stripeAccount: artist.stripeAccountId }
+      );
+
+      const transactions = balanceTransactions.data.map((txn) => ({
+        id: txn.id,
+        amount: txn.amount,
+        currency: txn.currency,
+        type: txn.type,
+        description: txn.description,
+        net: txn.net,
+        fee: txn.fee,
+        status: txn.reporting_category,
+        createdAt: new Date(txn.created * 1000),
+      }));
+
+      // 4️⃣ Get recent payouts
+      const payouts = await stripe.payouts.list(
+        { limit: 10 }, // configurable
+        { stripeAccount: artist.stripeAccountId }
+      );
+
+      const payoutDetails = payouts.data.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        currency: p.currency,
+        status: p.status, // "pending" | "paid" | "in_transit" | "canceled" | "failed"
+        arrivalDate: new Date(p.arrival_date * 1000),
+        description: p.description,
+        method: p.method, // "standard" | "instant"
+        type: p.type, // always "payout"
+        createdAt: new Date(p.created * 1000),
+      }));
+
+      // 5️⃣ Local DB purchases
+      const localPurchases = await storage.getSoldTracksByArtist(userId);
+
+      // 6️⃣ Response
+      res.json({
+        balance: {
+          available: balance.available.map((b) => ({
+            amount: b.amount,
+            currency: b.currency,
+          })),
+          pending: balance.pending.map((b) => ({
+            amount: b.amount,
+            currency: b.currency,
+          })),
+        },
+        transactions,
+        payouts: payoutDetails,
+        localPurchases,
+      });
     } catch (err) {
-      console.error("Webhook handler failed:", err);
-      res.sendStatus(500);
+      console.error("❌ Failed to fetch artist transactions:", err);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -795,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           artistId: artist.id,
         },
         payment_intent_data: {
-          application_fee_amount: Math.round(Number(track.price) * 100 * 0.1), // take 10% fee (optional)
+          // application_fee_amount: Math.round(Number(track.price) * 100 * 0.1), // uncomment this to charge platform fee, take 10% fee (optional)
           transfer_data: {
             destination: artist.stripeAccountId, // 💰 send money to artist
           },
@@ -1318,16 +1364,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // app.get("/api/artists", async (req, res) => {
-  //   try {
-  //     const allArtists = await storage.getAllArtists();
-  //     res.json(allArtists);
-  //   } catch (error) {
-  //     console.error("All artists error:", error);
-  //     res.status(500).json({ message: "Server error" });
-  //   }
-  // });
-
   // Working user search endpoint
   app.get("/api/search/users", (req, res) => {
     const q = req.query.q as string;
@@ -1548,53 +1584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Track purchase error:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
-
-  // Stripe webhook for successful purchases
-  app.post("/api/webhooks/stripe", async (req, res) => {
-    try {
-      const event = req.body;
-
-      if (event.type === "payment_intent.succeeded") {
-        const paymentIntent = event.data.object;
-        const { userId, trackId, mixxlistId } = paymentIntent.metadata;
-
-        // Record the purchase
-        const purchaseData = {
-          userId,
-          trackId,
-          price: (paymentIntent.amount / 100).toString(),
-          stripePaymentIntentId: paymentIntent.id,
-        };
-
-        const validatedData = insertPurchasedTrackSchema.parse(purchaseData);
-        await storage.recordTrackPurchase(validatedData);
-
-        // Add to mixxlist if specified
-        if (mixxlistId) {
-          await storage.addTrackToPlaylist(mixxlistId, trackId);
-        }
-
-        // Create notification for the artist
-        const track = await storage.getTrack(trackId);
-        const buyer = await storage.getUser(userId);
-        if (track && buyer) {
-          await storage.createNotification({
-            userId: track.artistId,
-            actorId: userId,
-            type: "tip",
-            title: "Track Purchased!",
-            message: `${buyer.firstName} ${buyer.lastName} purchased your track "${track.title}"`,
-            actionUrl: `/profile/${track.artistId}`,
-          });
-        }
-      }
-
-      res.json({ received: true });
-    } catch (error) {
-      console.error("Stripe webhook error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

@@ -134,3 +134,9 @@ export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((currency) => ({
   label: `${currency.flag} ${currency.code} - ${currency.name}`,
   symbol: currency.symbol,
 }));
+
+export const getCurrency = (amount: number, currency: string) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount / 100);

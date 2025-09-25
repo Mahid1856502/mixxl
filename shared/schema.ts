@@ -183,8 +183,18 @@ export const users = pgTable(
     hasUsedTrial: boolean("has_used_trial").default(false),
     onboardingComplete: boolean("onboarding_complete").default(false),
     preferredCurrency: currencyEnum("preferred_currency").default("GBP"),
-    // NEW: Stripe Connect Account for payouts
-    stripeAccountId: varchar("stripe_account_id", { length: 100 }),
+
+    // ✅ NEW: Stripe account state (kept in sync via webhook)
+    stripeAccountId: varchar("stripe_account_id", { length: 100 }), // Stripe Connect account ID (express account for payouts)
+    stripeChargesEnabled: boolean("stripe_charges_enabled").default(false), // true if account can accept charges
+    stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false), // true if account can receive payouts
+    stripeDisabledReason: varchar("stripe_disabled_reason", { length: 255 }), // reason why Stripe disabled account (e.g. "requirements.past_due")
+    stripeRequirements: json("stripe_requirements"), // snapshot of Stripe's requirements object (what info is missing/needed)
+    stripeAccountRaw: json("stripe_account_raw"), // optional: redacted raw account object for debugging/auditing (watch PII)
+
+    lastStripeSyncAt: timestamp("last_stripe_sync_at"),
+    // timestamp of last webhook sync with Stripe
+
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
