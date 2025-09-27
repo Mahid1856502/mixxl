@@ -69,9 +69,7 @@ export default function ResetPassword() {
     },
   });
 
-  console.log("form.errors", form.formState.errors);
   const onSubmit = (data: ResetForm) => {
-    console.log("reset password", data);
     resetPassword(
       {
         token: data.token,

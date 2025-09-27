@@ -36,9 +36,7 @@ export default function ForgetPassword() {
     },
   });
 
-  console.log("form.errors", form.formState.errors);
   const onSubmit = (data: EmailForm) => {
-    console.log("reset password", data);
     requestPasswordReset(data);
   };
 

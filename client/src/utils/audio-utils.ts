@@ -71,19 +71,11 @@ export function classifyPlaybackError(error: any): PlaybackErrorType {
 
 export async function validateAudioUrl(url: string): Promise<boolean> {
   try {
-    console.log("Validating audio URL:", url);
     const response = await fetch(url, {
       method: "HEAD",
       headers: {
         Accept: "audio/*",
       },
-    });
-
-    console.log("Audio URL validation response:", {
-      url,
-      status: response.status,
-      ok: response.ok,
-      contentType: response.headers.get("content-type"),
     });
 
     if (!response.ok) {
@@ -103,11 +95,6 @@ export async function validateAudioUrl(url: string): Promise<boolean> {
       contentType?.includes("m4a") ||
       false;
 
-    console.log("Audio URL validation result:", {
-      url,
-      isValidAudio,
-      contentType,
-    });
     return isValidAudio;
   } catch (error) {
     console.error("Audio URL validation error:", error);

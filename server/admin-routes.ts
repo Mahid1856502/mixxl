@@ -129,7 +129,6 @@ export const authenticate = async (req: any, res: any, next: any) => {
     req.user = user;
     next();
   } catch (error) {
-    console.log("Auth error:", error);
     return res.status(401).json({ error: "Authentication required" });
   }
 };

@@ -47,7 +47,6 @@ export default function VerifyEmail() {
   // Save token & user in localStorage / React Query after success
   useEffect(() => {
     if (data) {
-      console.log("verify email data", data);
       // Save JWT token in localStorage
       localStorage.setItem("token", data.token);
 

@@ -1640,14 +1640,10 @@ export class MySQLStorage implements IStorage {
 
     // In a real implementation, this would send push notifications, emails, etc.
     // For now, we'll just log the notification
-    console.log(
-      `Notifying ${followers.length} followers of artist ${artistId}: ${message}`
-    );
   }
 
   async searchUsers(query: string): Promise<any[]> {
     try {
-      console.log("Executing search query for:", query);
       const results = await db
         .select({
           id: users.id,
@@ -1669,7 +1665,6 @@ export class MySQLStorage implements IStorage {
         )
         .limit(10);
 
-      console.log("Search results from DB:", results);
       return results;
     } catch (error) {
       console.error("Search users error:", error);

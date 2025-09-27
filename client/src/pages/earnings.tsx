@@ -66,9 +66,10 @@ const Earnings = () => {
     );
   }
 
-  if (!earnings) return <div>No data found.</div>;
-
-  const { balance, transactions, localPurchases, payouts } = earnings;
+  const balance = earnings?.balance ?? { available: [], pending: [] };
+  const transactions = earnings?.transactions ?? [];
+  const payouts = earnings?.payouts ?? [];
+  const localPurchases = earnings?.localPurchases ?? [];
 
   return (
     <div className="p-6 space-y-8">

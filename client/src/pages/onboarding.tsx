@@ -235,11 +235,6 @@ export default function Onboarding() {
         break;
       case 3:
         isValid = await preferencesForm.trigger();
-        console.log("Preferences form validation:", {
-          isValid,
-          formValues: preferencesForm.getValues(),
-          formErrors: preferencesForm.formState.errors,
-        });
         if (isValid) {
           setFormData((prev) => ({
             ...prev,
@@ -304,7 +299,6 @@ export default function Onboarding() {
   const handleComplete = async () => {
     try {
       // Save all the onboarding data
-      console.log("Onboarding completed with data:", formData);
       // In real app, make API calls to save user preferences
       setLocation("/dashboard");
     } catch (error) {

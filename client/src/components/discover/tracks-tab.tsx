@@ -47,7 +47,6 @@ export default function TracksTab({
   mood,
 }: TracksTabProps) {
   const { user } = useAuth();
-  console.log("tracks", tracks);
   const filteredTracks = tracks.filter((track) => {
     // Check genre
     if (genre !== "all" && track.genre !== genre) {

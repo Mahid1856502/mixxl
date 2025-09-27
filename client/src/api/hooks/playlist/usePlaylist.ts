@@ -37,7 +37,6 @@ export function useUserPlaylists({
   enabled?: boolean;
   trackId?: string;
 }) {
-  console.log("enabled", enabled, identifier);
   return useQuery({
     queryKey: ["userPlaylists", identifier, trackId, enabled], // include trackId in key
     queryFn: () => fetchPlaylists(identifier!, trackId),

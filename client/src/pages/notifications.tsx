@@ -44,10 +44,6 @@ export default function NotificationsPage() {
   const [, setLocation] = useLocation();
   const { messages } = useWebSocket();
 
-  useEffect(() => {
-    console.log("notification messages", messages);
-  }, [messages]);
-
   const { data: notifications = [], isLoading: notificationsLoading } =
     useNotifications();
   const { data: unreadData, isLoading: unreadLoading } =

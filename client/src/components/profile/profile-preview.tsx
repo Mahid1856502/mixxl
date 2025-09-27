@@ -45,7 +45,6 @@ export default function ProfilePreview({
   const [firstName, lastName, bio, role, location, website, profileImage] =
     values;
 
-  console.log("profileImage", profileImage);
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

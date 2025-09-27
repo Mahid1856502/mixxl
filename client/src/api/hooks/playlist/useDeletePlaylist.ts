@@ -27,8 +27,6 @@ export function useDeletePlaylist() {
     },
 
     onSuccess: (data) => {
-      console.log("Delete response from backend:", data);
-
       // If you have a query for the single playlist, invalidate it as well
       queryClient.invalidateQueries({
         queryKey: ["playlist", data.deletedPlaylist?.id],

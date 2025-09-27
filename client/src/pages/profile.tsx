@@ -64,7 +64,6 @@ export default function Profile() {
     identifier: profileUserId,
     enabled: params.tab === "playlists",
   });
-  console.log("userPlaylists", userPlaylists);
 
   const { data: followers = [] } = useQuery({
     queryKey: ["/api/users", profileUserId, "followers"],

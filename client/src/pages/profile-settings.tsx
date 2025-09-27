@@ -41,7 +41,6 @@ export type userProfileInput = z.infer<typeof schema>;
 
 export default function ProfileSettings() {
   const { user } = useAuth();
-  console.log("user", user);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { uploadFile, isUploading } = useUploadFile();
 
@@ -49,8 +48,6 @@ export default function ProfileSettings() {
 
   const { data: countries = [], isLoading: isCountriesLoading } =
     useStripeCountries();
-
-  console.log("countries", countries);
 
   const form = useForm<userProfileInput>({
     resolver: zodResolver(schema),
@@ -91,7 +88,6 @@ export default function ProfileSettings() {
   const handleImageChange = async (file: File) => {
     try {
       const publicUrl = await uploadFile(file); // uploadFile returns a URL
-      console.log("publicUrl", publicUrl);
       form.setValue("profileImage", publicUrl);
     } catch (err: any) {
       toast({
@@ -193,6 +189,11 @@ export default function ProfileSettings() {
                       {...form.register("firstName")}
                       placeholder="Enter your first name"
                     />
+                    {form.formState.errors.firstName && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.firstName.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
@@ -200,6 +201,11 @@ export default function ProfileSettings() {
                       {...form.register("lastName")}
                       placeholder="Enter your last name"
                     />
+                    {form.formState.errors.lastName && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.lastName.message}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -211,6 +217,11 @@ export default function ProfileSettings() {
                     placeholder="Tell us about yourself..."
                     rows={3}
                   />
+                  {form.formState.errors.bio && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.bio.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -225,6 +236,11 @@ export default function ProfileSettings() {
                       {...form.register("website")}
                       placeholder="https://yourwebsite.com"
                     />
+                    {form.formState.errors.website && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.website.message}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -259,6 +275,11 @@ export default function ProfileSettings() {
                         </Select>
                       )}
                     />
+                    {form.formState.errors.country && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.country.message}
+                      </p>
+                    )}
                   </div>
 
                   {user.role !== "admin" && (

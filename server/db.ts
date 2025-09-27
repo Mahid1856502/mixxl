@@ -6,7 +6,6 @@ import "dotenv/config";
 
 neonConfig.webSocketConstructor = ws;
 
-console.log("process.env.DATABASE_URL", process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?"

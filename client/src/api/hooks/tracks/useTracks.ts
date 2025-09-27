@@ -8,7 +8,6 @@ export function useTracks(filters: DiscoverFilters = {}) {
   return useQuery<TrackExtended[], Error>({
     queryKey: ["tracks", filters],
     queryFn: async () => {
-      console.log("filters", filters);
       const query = new URLSearchParams(filters as Record<string, string>);
       const url = `/api/tracks${query.toString() ? `?${query}` : ""}`;
       const res = await apiRequest("GET", url);

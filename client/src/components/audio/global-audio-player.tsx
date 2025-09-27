@@ -36,7 +36,6 @@ export default function GlobalAudioPlayer() {
     audioState,
   } = useMusicPlayer();
 
-  console.log("currentTrack", currentTrack);
   const [isClosed, setIsClosed] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 

@@ -213,16 +213,13 @@ export default function LiveStreamPage() {
   // Send chat message
   const sendChatMessage = async () => {
     if (!chatMessage.trim()) return;
-
     // TODO: Send to active stream when implemented
-    console.log("Sending message:", chatMessage);
     setChatMessage("");
   };
 
   // Handle tip
   const handleTip = (amount: string) => {
-    const numAmount = parseFloat(amount.replace("£", ""));
-    console.log("Tipping:", numAmount);
+    // const numAmount = parseFloat(amount.replace("£", ""));
     // TODO: Implement actual tipping when stream is active
   };
 

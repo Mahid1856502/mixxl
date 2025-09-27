@@ -45,8 +45,6 @@ export default function Dashboard() {
     user?.id
   );
 
-  console.log("userTracks", userTracks);
-
   const { data: userPlaylists = [] } = useUserPlaylists({
     identifier: user?.id,
     enabled: params.tab === "playlists",

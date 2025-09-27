@@ -83,8 +83,6 @@ export default function LiveRadioChat({
         },
       }));
 
-    console.log("newRadioMessages", newRadioMessages);
-
     setChatMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       return [

@@ -38,7 +38,6 @@ export const useBuyTrack = (
       window.location.href = data.checkoutUrl;
     },
     onError: (error: any) => {
-      console.log("error", error);
       toast({
         title: "Purchase Failed",
         description: error?.message || "Unable to complete purchase",

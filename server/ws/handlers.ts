@@ -39,8 +39,6 @@ export async function handleMessage(
         },
       };
 
-      console.log("payload", payload);
-
       // broadcast
       wss.clients.forEach((client) => {
         if (client.readyState === socket.OPEN) {

@@ -125,7 +125,6 @@ export function registerWebhooksRoutes(app: Express) {
               });
             }
 
-            console.log("✅ Purchase recorded", { purchaseId: purchase.id });
             break;
           }
 
@@ -134,7 +133,6 @@ export function registerWebhooksRoutes(app: Express) {
             await storage.updatePurchasedTrackBySessionId(intent.id, {
               paymentStatus: "failed",
             });
-            console.log("⚠️ Purchase failed", { intentId: intent.id });
             break;
           }
 
@@ -145,9 +143,6 @@ export function registerWebhooksRoutes(app: Express) {
                 charge.payment_intent,
                 { paymentStatus: "refunded" }
               );
-              console.log("💸 Purchase refunded", {
-                intent: charge.payment_intent,
-              });
             }
             break;
           }
@@ -228,8 +223,6 @@ export function registerWebhooksRoutes(app: Express) {
             stripeAccountRaw: { id: account.id, type: account.type },
             lastStripeSyncAt: new Date(),
           });
-
-          console.log(`✅ Updated Stripe account ${account.id} → ${status}`);
 
           // Insert notification only if derived status actually changed
           const prevStatus = (() => {

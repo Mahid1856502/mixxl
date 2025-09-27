@@ -43,13 +43,6 @@ export default function AudioUploader({
     }
   };
 
-  console.log(
-    "progress",
-    typeof progress === "number",
-    typeof progress === "number" && progress > 0,
-    typeof progress === "number" && progress < 100
-  );
-
   return (
     <Card className="glass-effect border-white/10">
       <CardHeader>
