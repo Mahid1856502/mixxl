@@ -13,6 +13,7 @@ import {
   gt,
   exists,
   getTableColumns,
+  inArray,
 } from "drizzle-orm";
 import {
   users,
@@ -83,6 +84,11 @@ import {
   contactSubmissions,
   InsertContact,
   PurchasedTrack,
+  InsertAlbum,
+  Album,
+  albums,
+  UpdateAlbum,
+  AlbumExtended,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -120,8 +126,15 @@ export interface IStorage {
   getPasswordResetByUserId(userId: string): Promise<PasswordReset | null>;
   deletePasswordReset(userId: string): Promise<void>;
 
+  // Album operations
+  createAlbum(insertAlbum: InsertAlbum & { artistId: string }): Promise<Album>;
+  getAlbum(id: string): Promise<AlbumExtended | null>;
+  getAlbumsByArtistId(artistId: string): Promise<Album[]>;
+  updateAlbum(id: string, updateData: UpdateAlbum): Promise<Album>;
+  deleteAlbum(id: string): Promise<void>;
+
   // Track operations
-  getTrack(id: string): Promise<Track | undefined>;
+  getTrack(id: string, artistId?: string): Promise<Track | undefined>;
   getTracksByArtist(artistId: string, userId: string): Promise<Track[]>;
   getTracks(filters: FeaturedArtistFilters): Promise<any[]>;
   // searchTracks(query: string): Promise<Track[]>;
@@ -237,7 +250,6 @@ export interface IStorage {
     trackId: string
   ): Promise<PurchasedTrack | null>;
   recordTrackPurchase(purchaseData: any): Promise<any>;
-  hasTrackAccess(userId: string, trackId: string): Promise<boolean>;
   updatePurchasedTrackBySessionId(
     checkoutSessionId: string,
     updates: Partial<{
@@ -470,6 +482,212 @@ export class MySQLStorage implements IStorage {
     await db.delete(passwordResets).where(eq(passwordResets.userId, userId));
   }
 
+  // Album operations
+
+  async createAlbum(
+    insertAlbum: InsertAlbum & { artistId: string }
+  ): Promise<Album> {
+    // Run transaction
+    const inserted = await db.transaction(async (tx) => {
+      console.log("[createAlbum] Start transaction with data:", insertAlbum);
+
+      // Insert album row
+      const [albumRow] = await tx
+        .insert(albums)
+        .values({
+          title: insertAlbum.title,
+          artistId: insertAlbum.artistId,
+          description: insertAlbum.description,
+          coverImage: insertAlbum.coverImage,
+          releaseDate: insertAlbum.releaseDate ?? new Date(),
+          isPublic: insertAlbum.isPublic,
+          price: insertAlbum.price,
+        })
+        .returning({ id: albums.id });
+
+      console.log("[createAlbum] Album insert result:", albumRow);
+
+      if (!albumRow?.id) {
+        throw new Error("Failed to insert album");
+      }
+
+      // Update tracks
+      for (const t of insertAlbum.tracks) {
+        console.log(
+          `[createAlbum] Updating track ${t.trackId} → album ${albumRow.id}, trackNumber ${t.trackNumber}`
+        );
+
+        const updated = await tx
+          .update(tracks)
+          .set({
+            albumId: albumRow.id,
+            trackNumber: t.trackNumber,
+          })
+          .where(
+            and(
+              eq(tracks.id, t.trackId),
+              eq(tracks.artistId, insertAlbum.artistId)
+            )
+          ) // ✅ enforce ownership
+          .returning({ id: tracks.id });
+
+        if (updated.length === 0) {
+          throw new Error(`Track not found: ${t.trackId}`);
+        }
+      }
+
+      // ✅ only return album id, not hydrated data
+      return albumRow;
+    });
+
+    // ✅ fetch after commit
+    const result = await this.getAlbum(inserted.id);
+
+    if (!result) {
+      throw new Error("Failed to load album after commit");
+    }
+
+    console.log("[createAlbum] Completed successfully:", result.id);
+    return result;
+  }
+
+  // storage.ts
+  async getAlbum(id: string): Promise<AlbumExtended | null> {
+    // Fetch album
+    const [album] = await db.select().from(albums).where(eq(albums.id, id));
+
+    if (!album) return null;
+
+    // Fetch tracks associated with album
+    const result = await db
+      .select({
+        id: tracks.id,
+        title: tracks.title,
+        description: tracks.description,
+        genre: tracks.genre,
+        mood: tracks.mood,
+        tags: tracks.tags,
+        duration: tracks.duration,
+        hasPreviewOnly: tracks.hasPreviewOnly,
+        waveformData: tracks.waveformData,
+        coverImage: tracks.coverImage,
+        price: tracks.price,
+        isPublic: tracks.isPublic,
+        isExplicit: tracks.isExplicit,
+        trackNumber: tracks.trackNumber,
+        playCount: tracks.playCount,
+        likesCount: tracks.likesCount,
+        downloadCount: tracks.downloadCount,
+        createdAt: tracks.createdAt,
+      })
+      .from(tracks)
+      .where(eq(tracks.albumId, id))
+      .orderBy(tracks.trackNumber);
+
+    return { ...album, tracks: result };
+  }
+
+  async getAlbumsByArtistId(artistId: string): Promise<Album[]> {
+    return db.select().from(albums).where(eq(albums.artistId, artistId));
+  }
+
+  // ✅ Update Album (partial)
+  async updateAlbum(
+    albumId: string,
+    updateData: UpdateAlbum & { artistId: string }
+  ): Promise<Album> {
+    return await db.transaction(async (tx) => {
+      // 1. Check ownership
+      const album = await tx
+        .select()
+        .from(albums)
+        .where(
+          and(eq(albums.id, albumId), eq(albums.artistId, updateData.artistId))
+        )
+        .limit(1);
+
+      if (!album[0]) {
+        throw new Error(
+          "Album not found or you do not have permission to edit it"
+        );
+      }
+
+      // 2. Update album fields (only provided)
+      const fieldsToUpdate: Record<string, any> = {};
+      if (updateData.title !== undefined)
+        fieldsToUpdate.title = updateData.title;
+      if (updateData.description !== undefined)
+        fieldsToUpdate.description = updateData.description;
+      if (updateData.coverImage !== undefined)
+        fieldsToUpdate.coverImage = updateData.coverImage;
+      if (updateData.releaseDate !== undefined)
+        fieldsToUpdate.releaseDate = updateData.releaseDate;
+      if (updateData.isPublic !== undefined)
+        fieldsToUpdate.isPublic = updateData.isPublic;
+      if (updateData.price !== undefined)
+        fieldsToUpdate.price = updateData.price;
+
+      fieldsToUpdate.updatedAt = new Date();
+
+      await tx.update(albums).set(fieldsToUpdate).where(eq(albums.id, albumId));
+
+      // 3. Update tracks if provided
+      if (updateData.tracks) {
+        const existing = await tx
+          .select({ id: tracks.id })
+          .from(tracks)
+          .where(eq(tracks.albumId, albumId));
+
+        const existingIds = existing.map((t) => t.id);
+        const incomingIds = updateData.tracks.map((t) => t.trackId);
+
+        const toRemove = existingIds.filter((id) => !incomingIds.includes(id));
+        const toUpdate = updateData.tracks;
+
+        // Remove old ones
+        if (toRemove.length > 0) {
+          await tx
+            .update(tracks)
+            .set({ albumId: null, trackNumber: null })
+            .where(inArray(tracks.id, toRemove));
+        }
+
+        // Update order / reassign album
+        for (const t of toUpdate) {
+          const updated = await tx
+            .update(tracks)
+            .set({
+              albumId,
+              trackNumber: t.trackNumber,
+            })
+            .where(
+              and(
+                eq(tracks.id, t.trackId),
+                eq(tracks.artistId, updateData.artistId)
+              )
+            )
+            .returning({ id: tracks.id });
+
+          if (updated.length === 0) {
+            throw new Error(`Track not found or not yours: ${t.trackId}`);
+          }
+        }
+      }
+
+      // 4. Return updated album (just id and updatedAt is fine)
+      return tx
+        .select()
+        .from(albums)
+        .where(eq(albums.id, albumId))
+        .limit(1)
+        .then((rows) => rows[0]);
+    });
+  }
+
+  async deleteAlbum(id: string): Promise<void> {
+    await db.delete(albums).where(eq(albums.id, id));
+  }
+
   // inside your function
   async getFeaturedArtists(filters: FeaturedArtistFilters): Promise<Artist[]> {
     const result = await db
@@ -522,13 +740,19 @@ export class MySQLStorage implements IStorage {
     })) as Artist[];
   }
 
-  // Track operations
-  async getTrack(id: string): Promise<Track | undefined> {
+  async getTrack(id: string, artistId?: string): Promise<Track | undefined> {
+    const conditions = [eq(tracks.id, id)];
+
+    if (artistId) {
+      conditions.push(eq(tracks.artistId, artistId));
+    }
+
     const result = await db
       .select()
       .from(tracks)
-      .where(eq(tracks.id, id))
+      .where(and(...conditions))
       .limit(1);
+
     return result[0];
   }
 
@@ -566,6 +790,8 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
+        albumId: tracks.albumId || null,
+        trackNumber: tracks.trackNumber || null,
 
         // ✅ expose raw purchase status instead of hasAccess
         purchaseStatus: purchasedTracks.paymentStatus,
@@ -1743,7 +1969,8 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-
+        albumId: tracks.albumId || null,
+        trackNumber: tracks.trackNumber || null,
         // ✅ expose purchase status (only succeeded will come through)
         purchaseStatus: purchasedTracks.paymentStatus,
       })
@@ -1795,7 +2022,8 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-
+        albumId: tracks.albumId || null,
+        trackNumber: tracks.trackNumber || null,
         // Purchase info
         purchaseStatus: purchasedTracks.paymentStatus,
         purchasedAt: purchasedTracks.purchasedAt,
@@ -1867,27 +2095,6 @@ export class MySQLStorage implements IStorage {
       .values(data)
       .returning();
     return purchase;
-  }
-
-  async hasTrackAccess(userId: string, trackId: string): Promise<boolean> {
-    try {
-      // Get track info
-      const track = await this.getTrack(trackId);
-      if (!track) return false;
-
-      // Artist always has access to their own tracks
-      if (track.artistId === userId) return true;
-
-      // If track doesn't have preview-only mode, everyone has access
-      if (!track.hasPreviewOnly) return true;
-
-      // Check if user has purchased the track
-      const purchase = await this.getUserTrackPurchase(userId, trackId);
-      return !!purchase;
-    } catch (error) {
-      console.error("Error checking track access:", error);
-      return false;
-    }
   }
 
   // ✅ Update purchased track by Stripe PaymentIntent ID

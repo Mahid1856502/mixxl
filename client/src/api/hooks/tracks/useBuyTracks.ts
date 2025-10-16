@@ -28,8 +28,6 @@ export const useBuyTrack = (
         description: `Redirecting you to Stripe Checkout for "${variables.trackId}"...`,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
-
       // Call optional callbacks
       if (onSuccessCallback) onSuccessCallback();
       if (onClose) onClose();

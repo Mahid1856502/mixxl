@@ -50,6 +50,8 @@ import SubscriptionCancel from "@/pages/subscription/cancel";
 import ForgetPassword from "@/pages/auth/forget-password";
 import Feedback from "@/pages/admin/feedback";
 import Earnings from "@/pages/earnings";
+import ManageAlbum from "@/pages/album/manage-album";
+import { AlbumView } from "@/pages/album/view-album";
 
 export interface AppRoute {
   path: string;
@@ -127,7 +129,14 @@ export const appRoutes: AppRoute[] = [
   },
 
   // Artist-only
-  { path: "/upload", component: Upload, roles: ["artist"] },
+  { path: "/upload/album", component: ManageAlbum, roles: ["artist"] },
+  { path: "/upload/album/:id?", component: ManageAlbum, roles: ["artist"] },
+  { path: "/upload/:id?", component: Upload, roles: ["artist"] },
+  {
+    path: "/view-album/:id",
+    component: AlbumView,
+    roles: ["fan", "artist", "admin"],
+  },
 
   // Admin-only
   { path: "/admin", component: AdminDashboard, roles: ["admin"] },

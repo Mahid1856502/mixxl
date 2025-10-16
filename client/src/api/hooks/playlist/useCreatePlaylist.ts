@@ -34,3 +34,51 @@ export function useCreatePlaylist() {
     },
   });
 }
+
+interface UpdatePlaylistInput {
+  id: string;
+  data: Partial<Playlist>; // since updates are partial
+}
+
+async function updatePlaylist({
+  id,
+  data,
+}: UpdatePlaylistInput): Promise<Playlist> {
+  const response = await apiRequest("PATCH", `/api/playlists/${id}`, data);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Failed to update playlist");
+  }
+
+  return response.json();
+}
+
+export function useUpdatePlaylist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updatePlaylist,
+    onSuccess: (updatedPlaylist) => {
+      toast({ title: "Playlist updated successfully" });
+
+      // Invalidate *all* variants of userPlaylists for this creator
+      queryClient.invalidateQueries({
+        queryKey: ["userPlaylists", updatedPlaylist.creatorId],
+        exact: false, // 👈 ensures we invalidate nested keys
+      });
+
+      // Also nuke single playlist cache if you have it
+      queryClient.invalidateQueries({
+        queryKey: ["playlist", updatedPlaylist.id],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update playlist",
+        variant: "destructive",
+        description: error?.message,
+      });
+    },
+  });
+}

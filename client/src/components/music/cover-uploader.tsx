@@ -1,22 +1,34 @@
-// src/components/CoverUploader.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { X } from "lucide-react";
-import { Progress } from "../ui/progress"; // 👈 import shadcn/ui progress
+import { Progress } from "../ui/progress";
 
 interface CoverUploaderProps {
   coverFile?: File | null;
   setCoverFile?: (coverFile: File | null) => void;
   progress?: number; // Upload progress (0–100)
+  coverUrl?: string | null; // 👈 new prop for existing cover from backend
 }
 
 export default function CoverUploader({
   coverFile,
   setCoverFile,
   progress,
+  coverUrl,
 }: CoverUploaderProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  // 👇 keep preview in sync with file or existing coverUrl
+  useEffect(() => {
+    if (coverFile) {
+      setCoverPreview(URL.createObjectURL(coverFile));
+    } else if (coverUrl) {
+      setCoverPreview(coverUrl);
+    } else {
+      setCoverPreview(null);
+    }
+  }, [coverFile, coverUrl]);
 
   const handleCoverDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -25,7 +37,6 @@ export default function CoverUploader({
       const imageFile = files.find((file) => file.type.startsWith("image/"));
       if (imageFile) {
         setCoverFile?.(imageFile);
-        setCoverPreview(URL.createObjectURL(imageFile));
       }
     },
     [setCoverFile]
@@ -35,7 +46,6 @@ export default function CoverUploader({
     const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
       setCoverFile?.(file);
-      setCoverPreview(URL.createObjectURL(file));
     }
   };
 
@@ -47,7 +57,7 @@ export default function CoverUploader({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!coverFile ? (
+        {!coverPreview ? (
           <div
             className="upload-zone p-6 text-center rounded-lg cursor-pointer border-dashed"
             onDrop={handleCoverDrop}
@@ -71,9 +81,8 @@ export default function CoverUploader({
         ) : (
           <div className="space-y-4">
             <div className="aspect-square w-32 mx-auto relative">
-              {/* Always show preview */}
               <img
-                src={coverPreview || ""}
+                src={coverPreview}
                 alt="Cover preview"
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -102,10 +111,12 @@ export default function CoverUploader({
                 )}
             </div>
 
-            {/* Show filename always */}
-            <p className="text-sm text-center text-muted-foreground">
-              {coverFile.name}
-            </p>
+            {/* Show filename if user picked new file */}
+            {coverFile && (
+              <p className="text-sm text-center text-muted-foreground">
+                {coverFile.name}
+              </p>
+            )}
           </div>
         )}
       </CardContent>

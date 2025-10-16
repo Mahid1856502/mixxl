@@ -12,6 +12,7 @@ import {
   index,
   uuid,
   bigint,
+  check,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -261,13 +262,39 @@ export const follows = pgTable(
   })
 );
 
+export const albums = pgTable(
+  "albums",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: varchar("title", { length: 255 }).notNull(),
+    artistId: uuid("artist_id").notNull(),
+    description: text("description"),
+    coverImage: varchar("cover_image", { length: 500 }),
+    releaseDate: timestamp("release_date").default(sql`CURRENT_TIMESTAMP`),
+    isPublic: boolean("is_public").default(true),
+
+    // Pricing
+    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+    stripePriceId: varchar("stripe_price_id", { length: 255 }),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    artistIdx: index("albums_artist_idx").on(table.artistId),
+    createdIdx: index("albums_created_idx").on(table.createdAt),
+  })
+);
+
 // Tracks table
 export const tracks = pgTable(
   "tracks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     title: varchar("title", { length: 255 }).notNull(),
-    artistId: uuid("artist_id").notNull(),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     description: text("description"),
     genre: varchar("genre", { length: 100 }),
     mood: varchar("mood", { length: 100 }),
@@ -289,6 +316,11 @@ export const tracks = pgTable(
     // NEW: Stripe Price ID for one-time payment
     stripePriceId: varchar("stripe_price_id", { length: 255 }),
 
+    albumId: uuid("album_id").references(() => albums.id, {
+      onDelete: "set null",
+    }),
+    trackNumber: integer("track_number"), // order in album
+
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -307,7 +339,9 @@ export const purchasedTracks = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull(),
-    trackId: uuid("track_id").notNull(),
+    trackId: uuid("track_id").references(() => tracks.id),
+    albumId: uuid("album_id").references(() => albums.id),
+
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
     currency: varchar("currency", { length: 10 }).notNull().default("usd"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
@@ -326,6 +360,11 @@ export const purchasedTracks = pgTable(
     userTrackIdx: index("purchased_tracks_user_track_idx").on(
       table.userId,
       table.trackId
+    ),
+    // Add check constraint
+    oneNonNull: check(
+      "track_or_album_not_null",
+      sql`(track_id IS NOT NULL OR album_id IS NOT NULL)`
     ),
   })
 );
@@ -607,6 +646,31 @@ export const insertTrackSchema = createInsertSchema(tracks).omit({
   likesCount: true,
 });
 
+export const updateTrackSchema = insertTrackSchema.partial();
+
+// Base schema from albums table
+const baseAlbumSchema = createInsertSchema(albums).omit({
+  id: true,
+  artistId: true, // always server-set
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Nested track schema
+export const albumTrackSchema = z.object({
+  trackId: z.string().uuid(),
+  trackNumber: z.number().int().positive(),
+});
+
+// Final insert schema
+export const insertAlbumSchema = baseAlbumSchema.extend({
+  tracks: z
+    .array(albumTrackSchema)
+    .min(1, "Album must have at least one track"),
+});
+
+export const updateAlbumSchema = insertAlbumSchema.partial();
+
 export const insertPlaylistSchema = createInsertSchema(playlists).omit({
   id: true,
   createdAt: true,
@@ -614,6 +678,7 @@ export const insertPlaylistSchema = createInsertSchema(playlists).omit({
   trackCount: true,
   totalDuration: true,
 });
+export const updatePlaylistSchema = insertPlaylistSchema.partial();
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
@@ -952,6 +1017,11 @@ export type InsertPurchasedTrack = z.infer<typeof insertPurchasedTrackSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
+
+export type Album = typeof albums.$inferSelect;
+export type AlbumExtended = Album & { tracks: Partial<Track>[] };
+export type InsertAlbum = z.infer<typeof insertAlbumSchema>;
+export type UpdateAlbum = z.infer<typeof updateAlbumSchema>;
 
 export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
 

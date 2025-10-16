@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,14 +26,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Upload as UploadIcon, Play, Radio } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import UploadTips from "@/components/music/upload-tips";
 import { GENRES, MOODS } from "@/lib/constants";
 import CoverUploader from "@/components/music/cover-uploader";
 import { useUploadFile } from "@/api/hooks/s3/useUploadFile";
-import { useCreateTrack } from "@/api/hooks/tracks/useTracks";
+import { useCreateTrack, useUpdateTrack } from "@/api/hooks/tracks/useTracks";
 import AudioUploader from "@/components/music/audio-uploader";
 import { getAudioDuration, getAudioPreview } from "@/utils/audio-utils";
+import { useTrack } from "@/api/hooks/tracks/useMyTracks";
 
 const uploadSchema = z.object({
   title: z
@@ -58,13 +59,19 @@ type UploadForm = z.infer<typeof uploadSchema>;
 
 export default function Upload() {
   const { user } = useAuth();
+  const { id } = useParams();
+  const [, setLocation] = useLocation();
 
+  const { data: track } = useTrack(id);
+
+  console.log("track", track);
   const { uploadFile, isUploading, progress, fileName } = useUploadFile();
 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
   const { mutate: uploadTrack, isPending } = useCreateTrack();
+  const { mutate: updateTrack, isPending: isUpdating } = useUpdateTrack();
 
   const form = useForm<UploadForm>({
     resolver: zodResolver(uploadSchema),
@@ -82,6 +89,24 @@ export default function Upload() {
     },
   });
 
+  useEffect(() => {
+    if (track) {
+      form.reset({
+        title: track.title ?? "",
+        description: track.description ?? "",
+        genre: track.genre ?? "",
+        mood: track.mood ?? "",
+        price: track.price ? parseFloat(track.price) : undefined, // cast string -> number
+        isPublic: track.isPublic ?? true,
+        isExplicit: track.isExplicit ?? false,
+        submitToRadio: track.submitToRadio ?? false,
+        hasPreviewOnly: track.hasPreviewOnly ?? false,
+        previewDuration: track.previewDuration ?? 30,
+      });
+    }
+  }, [track, form]);
+  console.log("watch", form.watch());
+
   if (!user || user.role !== "artist") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -97,10 +122,8 @@ export default function Upload() {
     );
   }
 
-  let previewFile;
-
   const onSubmit = async (data: UploadForm) => {
-    if (!audioFile) {
+    if (!audioFile && !track?.fileUrl) {
       toast({
         title: "Audio file required",
         description: "Please select an audio file to upload",
@@ -111,28 +134,35 @@ export default function Upload() {
 
     try {
       // 1️⃣ Get audio duration
-      const duration = await getAudioDuration(audioFile);
+      let duration = track?.duration ?? 0;
+      if (audioFile) {
+        duration = await getAudioDuration(audioFile);
+      }
 
-      // 2️⃣ Determine if we need a preview
+      // 2️⃣ Handle preview if requested
       let previewBlob: Blob | null = null;
-      let previewDuration = 0;
-      if (data.hasPreviewOnly) {
+      let previewDuration = track?.previewDuration ?? 0;
+      if (data.hasPreviewOnly && audioFile) {
         previewDuration = Math.min(data.previewDuration || 30, duration);
         previewBlob = await getAudioPreview(audioFile, 0, previewDuration);
       }
 
-      // 3️⃣ Upload audio, preview (if any), and cover (if any)
-      const uploadedAudioKey = await uploadFile(audioFile);
-      let uploadedPreviewKey: string | null = null;
+      // 3️⃣ Upload assets (only if new ones provided)
+      let uploadedAudioKey = track?.fileUrl ?? null;
+      if (audioFile) {
+        uploadedAudioKey = await uploadFile(audioFile);
+      }
+
+      let uploadedPreviewKey = track?.previewUrl ?? null;
       if (previewBlob) {
-        // Convert Blob to File so it matches uploadToS3 signature
-        previewFile = new File([previewBlob], "preview.wav", {
+        const previewFile = new File([previewBlob], "preview.wav", {
           type: previewBlob.type,
           lastModified: Date.now(),
         });
         uploadedPreviewKey = await uploadFile(previewFile);
       }
-      let uploadedCoverKey: string | null = null;
+
+      let uploadedCoverKey = track?.coverImage ?? null;
       if (coverFile) {
         uploadedCoverKey = await uploadFile(coverFile);
       }
@@ -145,19 +175,36 @@ export default function Upload() {
         description: data.description || null,
         price: data.price?.toString() || null,
         artistId: user.id,
-        fileUrl: uploadedAudioKey,
-        coverImage: uploadedCoverKey,
-        previewUrl: uploadedPreviewKey,
+        fileUrl: uploadedAudioKey ?? "",
+        coverImage: uploadedCoverKey ?? null,
+        previewUrl: uploadedPreviewKey ?? null,
         isPublic: data.isPublic,
         isExplicit: data.isExplicit,
         submitToRadio: data.submitToRadio,
         hasPreviewOnly: data.hasPreviewOnly,
         previewDuration: previewDuration || null,
-        duration: Math.floor(duration), // ✅ ensure integer
+        duration: Math.floor(duration),
       };
 
-      // 5️⃣ Call API
-      uploadTrack(payload, { onSuccess: () => form.reset() });
+      // 5️⃣ Call correct API
+      if (track) {
+        updateTrack(
+          { ...track, ...payload },
+          {
+            onSuccess: () => {
+              form.reset();
+              setLocation("/profile");
+            },
+          }
+        );
+      } else {
+        uploadTrack(payload, {
+          onSuccess: () => {
+            form.reset();
+            setLocation("/profile");
+          },
+        });
+      }
     } catch (err) {
       toast({
         title: "Upload failed",
@@ -167,7 +214,6 @@ export default function Upload() {
     }
   };
 
-  const [, setLocation] = useLocation();
   if (
     user.subscriptionStatus !== "lifetime_free" &&
     (!user.stripeSubscriptionId || user.subscriptionStatus === "canceled")
@@ -194,12 +240,14 @@ export default function Upload() {
           {/* Audio Upload */}
           <div className="lg:col-span-2 space-y-6">
             <AudioUploader
+              audioUrl={track?.fileUrl || null}
               audioFile={audioFile}
               setAudioFile={setAudioFile}
               progress={fileName === audioFile?.name ? progress : 0}
             />
 
             <CoverUploader
+              coverUrl={track?.coverImage || null}
               coverFile={coverFile}
               setCoverFile={setCoverFile}
               progress={fileName === coverFile?.name ? progress : 0}
@@ -264,7 +312,7 @@ export default function Upload() {
                           <FormLabel>Genre *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="bg-white/5 border-white/10">
@@ -292,7 +340,7 @@ export default function Upload() {
                           <FormLabel>Mood</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="bg-white/5 border-white/10">
@@ -469,23 +517,25 @@ export default function Upload() {
                       type="submit"
                       className="w-full mixxl-gradient text-white font-semibold"
                       disabled={
-                        !audioFile ||
+                        (!audioFile && !track?.fileUrl) || // ✅ allow if editing and existing fileUrl is available
                         isPending ||
                         form.formState.isSubmitting ||
-                        isUploading
+                        isUploading ||
+                        isUpdating
                       }
                     >
                       {isPending ||
                       isUploading ||
+                      isUpdating ||
                       form.formState.isSubmitting ? (
                         <>
                           <div className="loading-spinner rounded-full w-4 h-4 mr-2"></div>
-                          Uploading...
+                          {track ? "Updating..." : "Uploading..."}
                         </>
                       ) : (
                         <>
                           <UploadIcon className="w-4 h-4 mr-2" />
-                          Upload Track
+                          {track ? "Update Track" : "Upload Track"}
                         </>
                       )}
                     </Button>

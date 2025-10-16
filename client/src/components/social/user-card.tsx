@@ -125,10 +125,10 @@ export default function UserCard({
   if (variant === "compact") {
     return (
       <div
-        className={`flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors ${className}`}
+        className={`flex items-center space-x-3 p-0 sm:p-3 rounded-lg hover:bg-white/5 transition-colors ${className}`}
       >
         <Link href={`/profile/${user.id}`}>
-          <Avatar className="h-10 w-10">
+          <Avatar className="h-7 md:h-10 w-7 md:w-10">
             <AvatarImage
               className="object-cover"
               src={user.profileImage ?? ""}
@@ -143,7 +143,7 @@ export default function UserCard({
 
         <div className="flex-1 min-w-0">
           <Link href={`/profile/${user.id}`}>
-            <p className="font-medium truncate hover:text-primary transition-colors">
+            <p className="font-medium truncate hover:text-primary transition-colors text-sm md:text-base">
               {user.firstName && user.lastName
                 ? `${user.firstName} ${user.lastName}`
                 : user.username}
@@ -152,7 +152,7 @@ export default function UserCard({
               )}
             </p>
           </Link>
-          <p className="text-sm text-muted-foreground truncate">
+          <p className="text-muted-foreground truncate text-xs md:text-sm">
             @{user.username}
           </p>
         </div>
@@ -165,9 +165,12 @@ export default function UserCard({
               onClick={handleMessage}
               className="h-8 text-xs"
             >
-              <MessageCircle className="w-3 h-3 mr-1" />
-              Message
+              {/* Icon always visible */}
+              <MessageCircle className="w-3 h-3" />
+              {/* Text hidden on small, shown on sm+ */}
+              <span className="hidden sm:inline ml-1">Message</span>
             </Button>
+
             {showFollowButton && (
               <Button
                 size="sm"
@@ -176,17 +179,21 @@ export default function UserCard({
                 disabled={
                   followMutation.isPending || unfollowMutation.isPending
                 }
-                className={isFollowing ? "" : "mixxl-gradient text-white"}
+                className={
+                  isFollowing
+                    ? "h-8 text-xs"
+                    : "mixxl-gradient text-white h-8 text-xs"
+                }
               >
                 {isFollowing ? (
                   <>
-                    <UserCheck className="w-4 h-4 mr-1" />
-                    Unfollow
+                    <UserCheck className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Unfollow</span>
                   </>
                 ) : (
                   <>
-                    <UserPlus className="w-4 h-4 mr-1" />
-                    Follow
+                    <UserPlus className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">Follow</span>
                   </>
                 )}
               </Button>

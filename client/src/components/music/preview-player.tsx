@@ -49,8 +49,6 @@ export default function PreviewPlayer({
   toggleMute,
   currentTime,
 }: PreviewPlayerProps) {
-  const [showPurchasePrompt, setShowPurchasePrompt] = useState(false);
-
   const handlePlay = () => {
     if (isPlaying) {
       pause?.();
@@ -213,28 +211,6 @@ export default function PreviewPlayer({
             <span>{formatTime(maxDuration)}</span>
           </div>
         </div>
-
-        {/* Purchase Prompt */}
-        {showPurchasePrompt && !hasFullAccess && (
-          <div className="mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Preview ended</p>
-                <p className="text-xs text-muted-foreground">
-                  Purchase to hear the full track
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={handlePurchase}
-                className="mixxl-gradient text-white"
-              >
-                <ShoppingCart className="w-3 h-3 mr-1" />
-                Buy £{track.price}
-              </Button>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

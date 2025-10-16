@@ -19,6 +19,7 @@ import {
   Coins,
   Crown,
   ListMusic,
+  Edit,
 } from "lucide-react";
 import { TrackExtended } from "@shared/schema";
 import { useMusicPlayer } from "@/hooks/use-music-player";
@@ -32,6 +33,8 @@ interface TrackCardProps {
   showArtist?: boolean;
   isLoading?: boolean;
   variant?: "preview" | "card" | "recent";
+  isOwnProfile?: boolean;
+  playable?: boolean;
 }
 
 export default function TrackCard({
@@ -39,6 +42,9 @@ export default function TrackCard({
   className = "",
   showArtist = true,
   variant = "preview",
+  isOwnProfile = false,
+  isLoading = false,
+  playable = true,
 }: TrackCardProps) {
   const {
     isPlaying,
@@ -68,13 +74,9 @@ export default function TrackCard({
   const [showTipModal, setShowTipModal] = useState(false);
 
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const playMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/tracks/${track.id}/play`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
-    },
   });
 
   const handlePlay = () => {
@@ -135,13 +137,58 @@ export default function TrackCard({
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Skeleton UI
+  if (isLoading) {
+    if (variant === "recent") {
+      return (
+        <div className="flex items-center space-x-3 p-3 rounded-lg">
+          <Skeleton className="w-12 h-12 rounded" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/4" />
+          </div>
+          <Skeleton className="w-8 h-8 rounded-full" />
+        </div>
+      );
+    }
+
+    if (variant === "preview") {
+      return (
+        <div className={className}>
+          <Skeleton className="w-full h-40 rounded-lg" />
+        </div>
+      );
+    }
+
+    // Default (card)
+    return (
+      <Card className={`track-card ${className}`}>
+        <CardContent className="p-0">
+          <div className="aspect-square relative overflow-hidden rounded-t-lg">
+            <Skeleton className="w-full h-full" />
+          </div>
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-full" />
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Inside TrackCard component, before the "card" variant return
 
   if (variant === "recent") {
     return (
       <div
         key={track.id}
-        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
+        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/5 border border-white/5 transition-colors"
       >
         {/* Cover / Placeholder */}
         <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center overflow-hidden">
@@ -165,13 +212,15 @@ export default function TrackCard({
         </div>
 
         {/* Play/Pause Button */}
-        <Button size="icon" variant="ghost" onClick={handlePlay}>
-          {currentTrack?.id === track.id && isPlaying ? (
-            <Pause className="w-4 h-4" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
-        </Button>
+        {playable && (
+          <Button size="icon" variant="ghost" onClick={handlePlay}>
+            {currentTrack?.id === track.id && isPlaying ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+          </Button>
+        )}
       </div>
     );
   }
@@ -396,6 +445,18 @@ export default function TrackCard({
                 )}
                 {track.id === currentTrack?.id && isPlaying ? "Pause" : "Play"}
               </Button>
+              {isOwnProfile && (
+                <Link href={`/upload/${track.id}`}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Edit />
+                    Edit
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

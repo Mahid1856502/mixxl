@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Shield,
   Wallet,
+  Music,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
 import { useEffect, useState } from "react";
@@ -57,7 +58,21 @@ export default function Navbar() {
   let userNavigation = user
     ? [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Upload", href: "/upload", icon: Upload, roles: ["artist"] },
+        // { name: "Upload", href: "/upload", icon: Upload, roles: ["artist"] },
+        {
+          name: "Upload",
+          type: "dropdown",
+          icon: Upload,
+          roles: ["artist"],
+          items: [
+            { name: "Upload Track", href: "/upload", icon: Music },
+            {
+              name: "Release Album",
+              href: "/upload/album",
+              icon: LayoutDashboard,
+            },
+          ],
+        },
         { name: "Profile", href: `/profile/${user.id}`, icon: User },
       ]
     : [];
@@ -169,21 +184,41 @@ export default function Navbar() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      {userNavigation.map((item) => {
-                        const Icon = item.icon;
+                      {userNavigation.flatMap((item) => {
                         if (item.roles && !item.roles.includes(user.role))
-                          return null;
-                        return (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <Link
-                              href={item.href}
-                              className="flex items-center space-x-2"
-                            >
-                              <Icon className="w-4 h-4" />
-                              <span>{item.name}</span>
-                            </Link>
-                          </DropdownMenuItem>
-                        );
+                          return [];
+
+                        // if normal link
+                        if (item.type !== "dropdown") {
+                          const Icon = item.icon;
+                          return [
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link
+                                href={item.href!}
+                                className="flex items-center space-x-2"
+                              >
+                                <Icon className="w-4 h-4" />
+                                <span>{item.name}</span>
+                              </Link>
+                            </DropdownMenuItem>,
+                          ];
+                        }
+
+                        // if dropdown (Upload) → flatten sub-items
+                        return item.items.map((sub) => {
+                          const SubIcon = sub.icon;
+                          return (
+                            <DropdownMenuItem key={sub.name} asChild>
+                              <Link
+                                href={sub.href}
+                                className="flex items-center space-x-2"
+                              >
+                                <SubIcon className="w-4 h-4" />
+                                <span>{sub.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        });
                       })}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -192,15 +227,54 @@ export default function Navbar() {
                 {/* Desktop user navigation */}
                 <div className="hidden md:flex items-center space-x-4">
                   {userNavigation.map((item) => {
-                    const Icon = item.icon;
                     if (item.roles && !item.roles.includes(user.role))
                       return null;
+
+                    // Dropdown case
+                    if (item.type === "dropdown") {
+                      return (
+                        <DropdownMenu key={item.name}>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                location.startsWith("/upload")
+                                  ? "bg-primary/20 text-primary"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                              }`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              <span>{item.name}</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {item.items.map((sub) => {
+                              const SubIcon = sub.icon;
+                              return (
+                                <DropdownMenuItem key={sub.name} asChild>
+                                  <Link
+                                    href={sub.href}
+                                    className="flex items-center space-x-2"
+                                  >
+                                    <SubIcon className="w-4 h-4" />
+                                    <span>{sub.name}</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    }
+
+                    // Default Link case
+                    const Icon = item.icon;
                     return (
                       <Link
                         key={item.name}
-                        href={item.href}
+                        href={item.href!}
                         className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive(item.href)
+                          isActive(item.href!)
                             ? "bg-primary/20 text-primary"
                             : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                         }`}

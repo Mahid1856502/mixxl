@@ -14,6 +14,8 @@ import {
 } from "@/api/hooks/playlist/usePlaylist";
 import { User } from "@shared/schema";
 import { useCreatePlaylist } from "@/api/hooks/playlist/useCreatePlaylist";
+import { Loader2 } from "lucide-react";
+import { Skeleton } from "../ui/skeleton";
 
 interface PlaylistModalProps {
   open: boolean;
@@ -28,7 +30,7 @@ export function PlaylistModal({
   user,
   trackId,
 }: PlaylistModalProps) {
-  const { data: playlists } = useUserPlaylists({
+  const { data: playlists, isLoading } = useUserPlaylists({
     identifier: user?.id,
     enabled: true,
     trackId: trackId,
@@ -78,50 +80,70 @@ export function PlaylistModal({
           <DialogTitle>Select a Playlist</DialogTitle>
         </DialogHeader>
 
-        <Input
-          placeholder="Search or create playlist..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="mb-3"
-        />
+        <div className="relative mb-3 flex justify-center items-center">
+          <Input
+            placeholder="Search or create playlist..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pr-10"
+            disabled={isLoading}
+          />
+          {isLoading && (
+            <Loader2 className="absolute right-3 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
 
         <div className="max-h-60 overflow-y-auto space-y-1">
-          {filtered?.map((playlist) => (
-            <div
-              key={playlist.id}
-              className="flex items-center justify-between"
-            >
-              <span>{playlist.name}</span>
-              {playlist.hasTrack ? (
-                <Button
-                  onClick={() => handleRemove(playlist.id)}
-                  disabled={removingTrack || addingTrack}
-                  className="text-xs h-7 border border-red-500 bg-red-950 hover:bg-red-900"
+          {isLoading ? (
+            // Skeleton state
+            <div className="space-y-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              {filtered?.map((playlist) => (
+                <div
+                  key={playlist.id}
+                  className="flex items-center justify-between"
                 >
-                  Remove
-                </Button>
-              ) : (
+                  <span>{playlist.name}</span>
+                  {playlist.hasTrack ? (
+                    <Button
+                      onClick={() => handleRemove(playlist.id)}
+                      disabled={removingTrack || addingTrack}
+                      className="text-xs h-7 border border-red-500 bg-red-950 hover:bg-red-900"
+                    >
+                      Remove
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleAdd(playlist.id)}
+                      disabled={addingTrack || removingTrack}
+                      className="text-xs h-7"
+                    >
+                      Add
+                    </Button>
+                  )}
+                </div>
+              ))}
+
+              {query && !exists && (
                 <Button
-                  variant="ghost"
-                  onClick={() => handleAdd(playlist.id)}
-                  disabled={addingTrack || removingTrack}
-                  className="text-xs h-7"
+                  variant="default"
+                  className="w-full justify-start mt-2"
+                  onClick={() => handleCreate(query)}
+                  disabled={creating || addingTrack}
                 >
-                  Add
+                  + Create “{query}”
                 </Button>
               )}
-            </div>
-          ))}
-
-          {query && !exists && (
-            <Button
-              variant="default"
-              className="w-full justify-start mt-2"
-              onClick={() => handleCreate(query)}
-              disabled={creating || addingTrack}
-            >
-              + Create “{query}”
-            </Button>
+            </>
           )}
         </div>
       </DialogContent>

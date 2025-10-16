@@ -17,6 +17,10 @@ import {
   insertPurchasedTrackSchema,
   updateRadioSessionSchema,
   InsertUser,
+  updateTrackSchema,
+  updatePlaylistSchema,
+  insertAlbumSchema,
+  updateAlbumSchema,
 } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -712,6 +716,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Album routes
+  // -------------------- CREATE --------------------
+  app.post("/api/albums", authenticate, async (req: any, res) => {
+    try {
+      const albumData = req.body;
+
+      const validatedData = insertAlbumSchema.parse(albumData);
+      const album = await storage.createAlbum({
+        ...validatedData,
+        artistId: req.user.id,
+      });
+
+      res.json(album);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Invalid data",
+          errors: error.errors,
+        });
+      }
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- GET BY ARTIST ID --------------------
+  app.get("/api/albums/artist/:artistId", async (req, res) => {
+    try {
+      const { artistId } = req.params;
+
+      if (!artistId) {
+        return res.status(400).json({ message: "artistId is required" });
+      }
+
+      const result = await storage.getAlbumsByArtistId(artistId);
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- GET BY ID --------------------
+  app.get("/api/albums/:id", async (req, res) => {
+    try {
+      const album = await storage.getAlbum(req.params.id);
+      if (!album) return res.status(404).json({ message: "Album not found" });
+      res.json(album);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- UPDATE --------------------
+  app.patch("/api/albums/:id", authenticate, async (req: any, res) => {
+    const albumId = req.params.id;
+
+    try {
+      // Validate payload
+      const validatedData = updateAlbumSchema.parse(req.body);
+
+      // Update album in transaction
+      const updatedAlbum = await storage.updateAlbum(albumId, {
+        ...validatedData,
+        artistId: req.user.id, // enforce ownership
+      });
+
+      res.json(updatedAlbum);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Invalid data",
+          errors: error.errors,
+        });
+      }
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- DELETE --------------------
+  // Optional: good to have, even if you don’t need immediately
+  app.delete("/api/albums/:id", authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const existing = await storage.getAlbum(id);
+      if (!existing)
+        return res.status(404).json({ message: "Album not found" });
+      if (existing.artistId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      await storage.deleteAlbum(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Track routes
   app.get("/api/tracks", authenticate, async (req, res) => {
     try {
@@ -748,14 +860,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  app.get("/api/tracks/:id", async (req, res) => {
+  // route
+  app.get("/api/tracks/:id", authenticate, async (req, res) => {
     try {
-      const track = await storage.getTrack(req.params.id);
+      const track = await storage.getTrack(req.params.id, req.user.id);
       if (!track) {
-        return res.status(404).json({ message: "Track not found" });
+        return res
+          .status(404)
+          .json({ message: "Track not found or access denied" });
       }
       res.json(track);
     } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -774,6 +890,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Update track
+  app.put("/api/tracks/:id", authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      // Merge user payload with schema
+      const validatedUpdates = updateTrackSchema.parse(req.body);
+
+      // ⛔️ Ownership check (artist can only update their own track)
+      const existingTrack = await storage.getTrack(id, req.user.id);
+      if (!existingTrack) {
+        return res
+          .status(404)
+          .json({ message: "Track not found or access denied" });
+      }
+
+      const updatedTrack = await storage.updateTrack(id, validatedUpdates);
+      res.json(updatedTrack);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -825,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               currency: buyer.preferredCurrency || "usd",
               product_data: {
                 name: track.title,
-                images: track.coverImage ? [track.coverImage] : [],
+                // images: track.coverImage ? [track.coverImage] : [],
               },
               unit_amount: Math.round(Number(track.price) * 100),
             },
@@ -1036,6 +1181,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .status(400)
           .json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.patch("/api/playlists/:id", authenticate, async (req: any, res) => {
+    try {
+      const playlistId = req.params.id;
+
+      // Validate body (partial updates allowed)
+      const validatedData = updatePlaylistSchema.parse(req.body);
+
+      // Fetch existing playlist
+      const existing = await storage.getPlaylist(playlistId);
+      if (!existing) {
+        return res.status(404).json({ message: "Playlist not found" });
+      }
+
+      // ✅ Ownership check
+      if (existing.creatorId !== req.user.id) {
+        return res
+          .status(403)
+          .json({ message: "Not authorized to update this playlist" });
+      }
+
+      // Update playlist in storage
+      const updated = await storage.updatePlaylist(playlistId, validatedData);
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   });

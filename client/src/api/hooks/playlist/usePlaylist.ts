@@ -147,3 +147,16 @@ export function useRemoveTrackFromPlaylist() {
     },
   });
 }
+
+export function useGetPlaylistById(id: string) {
+  return useQuery<Playlist, Error>({
+    queryKey: ["playlist", id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/playlists/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch playlist");
+      return res.json();
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // cache for 5 minutes
+  });
+}

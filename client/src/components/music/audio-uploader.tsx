@@ -1,23 +1,35 @@
-// src/components/music/AudioUploader.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Upload as UploadIcon, Music, X } from "lucide-react";
-import { Progress } from "../ui/progress"; // 👈 import progress bar
+import { Progress } from "../ui/progress";
 
 interface AudioUploaderProps {
   audioFile?: File | null;
   setAudioFile?: (file: File | null) => void;
   progress?: number; // Optional progress prop (0–100)
+  audioUrl?: string | null; // 👈 new prop for existing audio from backend
 }
 
 export default function AudioUploader({
   audioFile,
   setAudioFile,
   progress,
+  audioUrl,
 }: AudioUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
+
+  // 👇 Sync preview whenever file or url changes
+  useEffect(() => {
+    if (audioFile) {
+      setAudioPreview(URL.createObjectURL(audioFile));
+    } else if (audioUrl) {
+      setAudioPreview(audioUrl);
+    } else {
+      setAudioPreview(null);
+    }
+  }, [audioFile, audioUrl]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -29,7 +41,6 @@ export default function AudioUploader({
 
       if (file) {
         setAudioFile?.(file);
-        setAudioPreview(URL.createObjectURL(file));
       }
     },
     [setAudioFile]
@@ -39,7 +50,6 @@ export default function AudioUploader({
     const file = e.target.files?.[0];
     if (file) {
       setAudioFile?.(file);
-      setAudioPreview(URL.createObjectURL(file));
     }
   };
 
@@ -52,7 +62,7 @@ export default function AudioUploader({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!audioFile ? (
+        {!audioPreview ? (
           <div
             className={`upload-zone p-8 text-center rounded-lg cursor-pointer transition-all ${
               isDragOver ? "dragover" : ""
@@ -91,10 +101,14 @@ export default function AudioUploader({
                   <Music className="w-6 h-6 text-white/70" />
                 </div>
                 <div>
-                  <p className="font-medium">{audioFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(audioFile.size / (1024 * 1024)).toFixed(2)} MB
+                  <p className="font-medium">
+                    {audioFile ? audioFile.name : "Existing audio"}
                   </p>
+                  {audioFile && (
+                    <p className="text-sm text-muted-foreground">
+                      {(audioFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  )}
                 </div>
               </div>
               <Button
@@ -112,7 +126,10 @@ export default function AudioUploader({
             {/* Always keep preview */}
             {audioPreview && (
               <audio controls className="w-full">
-                <source src={audioPreview} type={audioFile.type} />
+                <source
+                  src={audioPreview}
+                  type={audioFile?.type || "audio/mpeg"}
+                />
               </audio>
             )}
 

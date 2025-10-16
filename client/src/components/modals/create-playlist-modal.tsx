@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { InsertPlaylist, insertPlaylistSchema } from "@shared/schema";
@@ -24,20 +23,28 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Button } from "../ui/button";
-import { useCreatePlaylist } from "@/api/hooks/playlist/useCreatePlaylist";
+import {
+  useCreatePlaylist,
+  useUpdatePlaylist,
+} from "@/api/hooks/playlist/useCreatePlaylist";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { useGetPlaylistById } from "@/api/hooks/playlist/usePlaylist";
+import { useEffect } from "react";
 
 interface CreatePlaylistModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  playlistId?: string;
 }
 
 export function CreatePlaylistModal({
+  playlistId,
   open,
   onOpenChange,
 }: CreatePlaylistModalProps) {
   const { user: currentUser } = useAuth();
+  const isEditMode = Boolean(playlistId);
 
   const {
     register,
@@ -58,37 +65,69 @@ export function CreatePlaylistModal({
     },
   });
 
-  React.useEffect(() => {
+  // ✅ fetch playlist data if editing
+  const { data: existingPlaylist } = useGetPlaylistById(playlistId!);
+
+  useEffect(() => {
     if (currentUser) setValue("creatorId", currentUser.id);
   }, [currentUser, setValue]);
 
+  useEffect(() => {
+    if (existingPlaylist && isEditMode) {
+      reset(existingPlaylist); // prefill form with existing values
+    }
+  }, [existingPlaylist, isEditMode, reset]);
+
   const type = watch("type");
 
-  const { mutate: createPlaylist, isPending } = useCreatePlaylist();
+  const { mutate: createPlaylist, isPending: isCreating } = useCreatePlaylist();
+  const { mutate: updatePlaylist, isPending: isUpdating } = useUpdatePlaylist();
+
+  const isPending = isCreating || isUpdating;
 
   const onSubmit = (data: InsertPlaylist) => {
     if (!currentUser?.id) {
       toast({
-        title: "You must be logged in to create a playlist",
+        title: "You must be logged in",
         variant: "destructive",
       });
       return;
     }
 
-    createPlaylist(data, {
-      onSuccess: () => {
-        toast({ title: "Playlist created successfully" });
-        reset();
-        onOpenChange(false);
-      },
-      onError: (err: any) => {
-        toast({
-          title: "Failed to create playlist",
-          description: err?.message || "Something went wrong",
-          variant: "destructive",
-        });
-      },
-    });
+    if (isEditMode) {
+      updatePlaylist(
+        { id: playlistId!, data },
+        {
+          onSuccess: () => {
+            toast({ title: "Playlist updated successfully" });
+            reset();
+            onOpenChange(false);
+          },
+          onError: (err: any) => {
+            toast({
+              title: "Failed to update playlist",
+              description: err?.message || "Something went wrong",
+              variant: "destructive",
+            });
+          },
+        }
+      );
+    } else {
+      createPlaylist(data, {
+        onSuccess: () => {
+          toast({ title: "Playlist created successfully" });
+          reset();
+          onOpenChange(false);
+        },
+        onError: (err: any) => {
+          toast({
+            title: "Failed to create playlist",
+            description: err?.message || "Something went wrong",
+            variant: "destructive",
+          });
+        },
+      });
+    }
   };
 
   return (
@@ -96,10 +135,12 @@ export function CreatePlaylistModal({
       <DialogContent className="sm:max-w-lg sm:mx-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Create New Playlist
+            {isEditMode ? "Edit Playlist" : "Create New Playlist"}
           </DialogTitle>
           <DialogDescription>
-            Fill out the form below to create a new playlist.
+            {isEditMode
+              ? "Update the details of your playlist."
+              : "Fill out the form below to create a new playlist."}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,7 +224,13 @@ export function CreatePlaylistModal({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create Playlist"}
+              {isPending
+                ? isEditMode
+                  ? "Updating..."
+                  : "Creating..."
+                : isEditMode
+                ? "Update Playlist"
+                : "Create Playlist"}
             </Button>
           </DialogFooter>
         </form>

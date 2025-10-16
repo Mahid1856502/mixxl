@@ -31,6 +31,7 @@ import {
   Play,
   TrendingUp,
   Euro,
+  Album,
 } from "lucide-react";
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
@@ -38,6 +39,8 @@ import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useUserById } from "@/api/hooks/users/useUserById";
 import { useQueryParams } from "@/hooks/use-query-params";
 import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
+import { useAlbums } from "@/api/hooks/tracks/useAlbums";
+import { AlbumsList } from "@/components/music/album-list";
 
 export default function Profile() {
   const { id } = useParams();
@@ -52,13 +55,15 @@ export default function Profile() {
 
   const profileUserId = id || currentUser?.id || "";
   const isOwnProfile = profileUserId === currentUser?.id;
-
   const { data: user } = useUserById(profileUserId ?? "");
 
   const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
     params.tab === "music",
     profileUserId
   );
+
+  const { data: albums } = useAlbums(profileUserId);
+  console.log("albums", albums);
 
   const { data: userPlaylists = [] } = useUserPlaylists({
     identifier: profileUserId,
@@ -293,11 +298,10 @@ export default function Profile() {
 
                 {/* Bio */}
                 {user?.bio && (
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-none">
                     {user?.bio}
                   </p>
                 )}
-
                 {/* Location & Website */}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   {user?.location && (
@@ -322,7 +326,7 @@ export default function Profile() {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center space-x-6 text-sm">
+                <div className="flex items-center space-x-6 text-sm flex-wrap">
                   <div className="text-center">
                     <div className="font-bold text-lg">{userTracks.length}</div>
                     <div className="text-muted-foreground">Tracks</div>
@@ -410,30 +414,45 @@ export default function Profile() {
           defaultValue="music"
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="music" className="flex items-center space-x-2">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger
+              value="music"
+              className="flex items-center space-x-2 text-xs md:text-sm"
+            >
               <Music className="w-4 h-4" />
               <span>Music</span>
             </TabsTrigger>
             <TabsTrigger
               value="playlists"
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 text-xs md:text-sm"
             >
               <Heart className="w-4 h-4" />
               <span>Playlists</span>
             </TabsTrigger>
-            <TabsTrigger value="social" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="social"
+              className="flex items-center space-x-2 text-xs md:text-sm"
+            >
               <Users className="w-4 h-4" />
               <span>Social</span>
             </TabsTrigger>
             {user?.role === "artist" && (
-              <TabsTrigger
-                value="analytics"
-                className="flex items-center space-x-2"
-              >
-                <TrendingUp className="w-4 h-4" />
-                <span>Analytics</span>
-              </TabsTrigger>
+              <>
+                <TabsTrigger
+                  value="albums"
+                  className="flex items-center space-x-2 text-xs md:text-sm"
+                >
+                  <Album className="w-4 h-4" />
+                  <span>Albums</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="analytics"
+                  className="flex items-center space-x-2 text-xs md:text-sm"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Analytics</span>
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -450,7 +469,7 @@ export default function Profile() {
               </h2>
             </div>
 
-            {userTracks.length === 0 ? (
+            {!tracksLoading && userTracks.length === 0 ? (
               <Card className="glass-effect border-white/10">
                 <CardContent className="py-12 text-center">
                   <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
@@ -489,7 +508,7 @@ export default function Profile() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userTracks.map((track: any) => (
                   <TrackCard
                     key={track.id}
@@ -497,6 +516,7 @@ export default function Profile() {
                     showArtist={user?.role === "fan"}
                     variant="card"
                     isLoading={tracksLoading}
+                    isOwnProfile={isOwnProfile}
                   />
                 ))}
               </div>
@@ -551,6 +571,7 @@ export default function Profile() {
                     key={playlist.id}
                     playlist={playlist}
                     showCreator={false}
+                    isOwnProfile={isOwnProfile}
                   />
                 ))}
               </div>
@@ -562,7 +583,7 @@ export default function Profile() {
               {/* Following */}
               <Card className="glass-effect border-white/10">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+                  <CardTitle className="flex items-center space-x-2 text-xs md:text-sm">
                     <Users className="w-5 h-5" />
                     <span>Following ({following.length})</span>
                   </CardTitle>
@@ -600,7 +621,7 @@ export default function Profile() {
               {/* Followers */}
               <Card className="glass-effect border-white/10">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
+                  <CardTitle className="flex items-center space-x-2 text-xs md:text-sm">
                     <Users className="w-5 h-5" />
                     <span>Followers ({followers.length})</span>
                   </CardTitle>
@@ -635,117 +656,126 @@ export default function Profile() {
           </TabsContent>
 
           {user?.role === "artist" && (
-            <TabsContent value="analytics" className="space-y-6">
-              <h2 className="text-2xl font-bold">Analytics Overview</h2>
+            <>
+              <TabsContent value="albums" className="space-y-6">
+                <AlbumsList albums={albums || []} isOwnProfile={isOwnProfile} />
+              </TabsContent>
+              <TabsContent value="analytics" className="space-y-6">
+                <h2 className="text-2xl font-bold">Analytics Overview</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card className="glass-effect border-white/10">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Total Plays
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {getTotalPlays().toLocaleString()}
+                          </p>
+                        </div>
+                        <Play className="w-8 h-8 text-blue-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="glass-effect border-white/10">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Total Likes
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {getTotalLikes().toLocaleString()}
+                          </p>
+                        </div>
+                        <Heart className="w-8 h-8 text-red-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="glass-effect border-white/10">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Followers
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {followers.length}
+                          </p>
+                        </div>
+                        <Users className="w-8 h-8 text-green-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="glass-effect border-white/10">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Revenue
+                          </p>
+                          <p className="text-2xl font-bold">£0.00</p>
+                        </div>
+                        <Euro className="w-8 h-8 text-amber-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Top Tracks */}
                 <Card className="glass-effect border-white/10">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Total Plays
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {getTotalPlays().toLocaleString()}
+                  <CardHeader>
+                    <CardTitle>Top Performing Tracks</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {userTracks.length === 0 ? (
+                      <div className="text-center py-8">
+                        <TrendingUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                        <p className="text-muted-foreground">
+                          Upload tracks to see performance analytics
                         </p>
                       </div>
-                      <Play className="w-8 h-8 text-blue-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-effect border-white/10">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Total Likes
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {getTotalLikes().toLocaleString()}
-                        </p>
-                      </div>
-                      <Heart className="w-8 h-8 text-red-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-effect border-white/10">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Followers
-                        </p>
-                        <p className="text-2xl font-bold">{followers.length}</p>
-                      </div>
-                      <Users className="w-8 h-8 text-green-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-effect border-white/10">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Revenue</p>
-                        <p className="text-2xl font-bold">£0.00</p>
-                      </div>
-                      <Euro className="w-8 h-8 text-amber-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Top Tracks */}
-              <Card className="glass-effect border-white/10">
-                <CardHeader>
-                  <CardTitle>Top Performing Tracks</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {userTracks.length === 0 ? (
-                    <div className="text-center py-8">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">
-                        Upload tracks to see performance analytics
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {userTracks
-                        .sort(
-                          (a: any, b: any) =>
-                            (b.playCount || 0) - (a.playCount || 0)
-                        )
-                        .slice(0, 5)
-                        .map((track: any, index: number) => (
-                          <div
-                            key={track.id}
-                            className="flex items-center space-x-4 p-3 rounded-lg hover:bg-white/5 transition-colors"
-                          >
-                            <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-sm font-bold">
-                              #{index + 1}
-                            </div>
-                            <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                              <Music className="w-6 h-6 text-white/70" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">
-                                {track.title}
-                              </p>
-                              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                                <span>{track.playCount || 0} plays</span>
-                                <span>{track.likesCount || 0} likes</span>
+                    ) : (
+                      <div className="space-y-4">
+                        {userTracks
+                          .sort(
+                            (a: any, b: any) =>
+                              (b.playCount || 0) - (a.playCount || 0)
+                          )
+                          .slice(0, 5)
+                          .map((track: any, index: number) => (
+                            <div
+                              key={track.id}
+                              className="flex items-center space-x-4 p-3 rounded-lg hover:bg-white/5 transition-colors"
+                            >
+                              <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-sm font-bold">
+                                #{index + 1}
+                              </div>
+                              <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                                <Music className="w-6 h-6 text-white/70" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">
+                                  {track.title}
+                                </p>
+                                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                  <span>{track.playCount || 0} plays</span>
+                                  <span>{track.likesCount || 0} likes</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                          ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
           )}
         </Tabs>
       </div>

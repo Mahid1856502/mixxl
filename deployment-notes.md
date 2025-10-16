@@ -17,7 +17,7 @@ pm2 save
 
 sudo systemctl stop httpd || true
 sudo systemctl disable httpd || true
-    sudo systemctl restart nginx
+sudo systemctl restart nginx
 sudo systemctl status nginx --no-pager
 
 # to verify deployment
