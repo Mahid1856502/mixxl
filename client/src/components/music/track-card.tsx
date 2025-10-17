@@ -42,7 +42,6 @@ export default function TrackCard({
   className = "",
   showArtist = true,
   variant = "preview",
-  isOwnProfile = false,
   isLoading = false,
   playable = true,
 }: TrackCardProps) {
@@ -445,7 +444,7 @@ export default function TrackCard({
                 )}
                 {track.id === currentTrack?.id && isPlaying ? "Pause" : "Play"}
               </Button>
-              {isOwnProfile && (
+              {track.artistId === user?.id && (
                 <Link href={`/upload/${track.id}`}>
                   <Button
                     size="sm"

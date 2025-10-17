@@ -814,14 +814,17 @@ export class MySQLStorage implements IStorage {
   async getTracks(filters: FeaturedArtistFilters): Promise<any[]> {
     const conditions = [eq(tracks.isPublic, true)] as any[];
 
+    // sanitizes % and _ to avoid injection vector
+    const safeSearch = (filters?.search ?? "").replace(/[%_]/g, "\\$&");
+
     if (filters.search) {
       conditions.push(
         or(
-          ilike(tracks.title, `%${filters.search}%`),
-          ilike(tracks.description, `%${filters.search}%`),
-          ilike(users.username, `%${filters.search}%`),
-          ilike(users.firstName, `%${filters.search}%`),
-          ilike(users.lastName, `%${filters.search}%`)
+          ilike(tracks.title, `%${safeSearch}%`),
+          ilike(tracks.description, `%${safeSearch}%`),
+          ilike(users.username, `%${safeSearch}%`),
+          ilike(users.firstName, `%${safeSearch}%`),
+          ilike(users.lastName, `%${safeSearch}%`)
         )
       );
     }
@@ -829,6 +832,18 @@ export class MySQLStorage implements IStorage {
     // ✅ Only apply submitToRadio filter if it's passed
     if (typeof filters.submitToRadio === "boolean") {
       conditions.push(eq(tracks.submitToRadio, filters.submitToRadio));
+    }
+
+    // This ensures purchased private tracks are visible to their owners.
+    if (filters.userId) {
+      conditions.push(
+        or(
+          eq(tracks.isPublic, true),
+          eq(purchasedTracks.userId, filters.userId)
+        )
+      );
+    } else {
+      conditions.push(eq(tracks.isPublic, true));
     }
 
     const result = await db
@@ -853,14 +868,14 @@ export class MySQLStorage implements IStorage {
         previewDuration: tracks.previewDuration,
         hasPreviewOnly: tracks.hasPreviewOnly,
         coverImage: tracks.coverImage,
-        waveformData: tracks.waveformData,
+        // waveformData: tracks.waveformData,
         price: tracks.price,
         playCount: tracks.playCount,
         likesCount: tracks.likesCount,
         downloadCount: tracks.downloadCount,
         isExplicit: tracks.isExplicit,
         isPublic: tracks.isPublic,
-        submitToRadio: tracks.submitToRadio,
+        // submitToRadio: tracks.submitToRadio,
         createdAt: tracks.createdAt,
         updatedAt: tracks.updatedAt,
 

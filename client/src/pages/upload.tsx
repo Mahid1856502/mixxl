@@ -214,12 +214,14 @@ export default function Upload() {
     }
   };
 
-  if (
-    user.subscriptionStatus !== "lifetime_free" &&
-    (!user.stripeSubscriptionId || user.subscriptionStatus === "canceled")
-  ) {
-    setLocation("/subscribe");
-  }
+  useEffect(() => {
+    if (
+      user?.subscriptionStatus !== "lifetime_free" &&
+      (!user?.stripeSubscriptionId || user?.subscriptionStatus === "canceled")
+    ) {
+      setLocation("/subscribe");
+    }
+  }, [user, setLocation]);
 
   return (
     <div className="min-h-screen p-6 relative">
