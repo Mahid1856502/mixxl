@@ -61,7 +61,7 @@ export default function Login() {
           user={{
             emailVerified: user.emailVerified || false,
             email: user.email,
-            firstName: user.firstName || undefined,
+            fullName: user.fullName || undefined,
           }}
         />
       )}

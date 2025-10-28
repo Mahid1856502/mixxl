@@ -13,6 +13,8 @@ export const AlbumView = () => {
 
   const { data: album, isLoading } = useAlbum(id);
 
+  console.log("album.tracks", album?.title, album?.tracks);
+
   const fmtPrice = (p?: string | number | null) => {
     if (p == null || p === "" || Number.isNaN(Number(p))) return "Free";
     const value = typeof p === "string" ? Number(p) : p;
@@ -105,7 +107,7 @@ export const AlbumView = () => {
                 track={track}
                 key={track.id}
                 variant="recent"
-                playable={false}
+                // playable={false}
               />
             ))}
           </ul>

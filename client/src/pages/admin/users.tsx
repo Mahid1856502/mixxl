@@ -116,7 +116,7 @@ export default function UsersAdmin() {
         matchesSearch =
           user.username.toLowerCase().includes(query) ||
           user.email.toLowerCase().includes(query) ||
-          `${user.firstName} ${user.lastName}`.toLowerCase().includes(query);
+          `${user.fullName}`.toLowerCase().includes(query);
       }
 
       // Role filter
@@ -398,7 +398,7 @@ export default function UsersAdmin() {
                               )}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {user.firstName} {user.lastName}
+                              {user.fullName}
                             </div>
                             <div className="text-xs text-gray-400">
                               {user.email}

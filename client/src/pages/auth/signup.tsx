@@ -47,8 +47,7 @@ import { useStripeCountries } from "@/api/hooks/stripe/useStripeCountries";
 // Validation schema
 const signupSchema = z
   .object({
-    firstName: z.string().min(2, "First name must be at least 2 characters"),
-    lastName: z.string().min(2, "Last name must be at least 2 characters"),
+    fullName: z.string().min(2, "Full name must be at least 2 characters"),
     username: z
       .string()
       .min(3, "Username must be at least 3 characters")
@@ -117,8 +116,7 @@ export default function Signup() {
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       username: "",
       email: "",
       password: "",
@@ -145,7 +143,7 @@ export default function Signup() {
           user={{
             emailVerified: user.emailVerified || false,
             email: user.email,
-            firstName: user.firstName || undefined,
+            fullName: user.fullName || undefined,
           }}
         />
       )}
@@ -173,32 +171,23 @@ export default function Signup() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
-                <div className="grid grid-cols-2 gap-4">
-                  {["firstName", "lastName"].map((name, idx) => (
-                    <FormField
-                      key={name}
-                      control={form.control}
-                      name={name as "firstName" | "lastName"}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            {name === "firstName" ? "First Name" : "Last Name"}
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder={
-                                name === "firstName" ? "John" : "Doe"
-                              }
-                              {...field}
-                              className="bg-white/5 border-white/10"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John Doe"
+                          {...field}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}

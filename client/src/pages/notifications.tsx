@@ -175,7 +175,7 @@ export default function NotificationsPage() {
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
                             <span className="text-white font-semibold text-sm">
-                              {notification.actor?.firstName?.[0] ||
+                              {notification.actor?.fullName?.[0] ||
                                 notification.actor?.username?.[0] ||
                                 "?"}
                             </span>

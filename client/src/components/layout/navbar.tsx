@@ -310,7 +310,7 @@ export default function Navbar() {
                           alt={user.username}
                         />
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {user.firstName?.[0]?.toUpperCase() ||
+                          {user.fullName?.[0]?.toUpperCase() ||
                             user.username[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -318,9 +318,7 @@ export default function Navbar() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
                     <div className="px-2 py-1.5">
-                      <p className="text-sm font-medium">
-                        {user.firstName} {user.lastName}
-                      </p>
+                      <p className="text-sm font-medium">{user.fullName}</p>
                       <p className="text-xs text-muted-foreground">
                         @{user.username}
                       </p>

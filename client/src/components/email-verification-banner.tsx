@@ -7,7 +7,7 @@ interface EmailVerificationBannerProps {
   user: {
     emailVerified?: boolean;
     email: string;
-    firstName?: string;
+    fullName?: string;
   };
   onDismiss?: () => void;
 }

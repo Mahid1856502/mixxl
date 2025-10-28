@@ -222,8 +222,7 @@ export default function Messages() {
         username: user?.username,
         email: user?.email,
         profileImage: user?.profileImage,
-        firstName: user?.firstName,
-        lastName: user?.lastName,
+        fullName: user?.fullName,
       },
     });
 
@@ -340,10 +339,8 @@ export default function Messages() {
                                   </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-medium truncate">
-                                      {searchUser.firstName &&
-                                      searchUser.lastName
-                                        ? `${searchUser.firstName} ${searchUser.lastName}`
-                                        : searchUser.username}
+                                      {searchUser.fullName ||
+                                        searchUser.username}
                                     </p>
                                     <p className="text-sm text-muted-foreground truncate">
                                       @{searchUser.username}

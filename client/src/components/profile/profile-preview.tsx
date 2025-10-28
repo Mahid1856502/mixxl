@@ -31,19 +31,10 @@ export default function ProfilePreview({
 
   const values = useWatch({
     control: form.control,
-    name: [
-      "firstName",
-      "lastName",
-      "bio",
-      "role",
-      "location",
-      "website",
-      "profileImage",
-    ],
+    name: ["fullName", "bio", "role", "location", "website", "profileImage"],
   });
 
-  const [firstName, lastName, bio, role, location, website, profileImage] =
-    values;
+  const [fullName, bio, role, location, website, profileImage] = values;
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,7 +80,7 @@ export default function ProfilePreview({
                   className="object-cover"
                 />
                 <AvatarFallback className="text-xl">
-                  {firstName?.[0]?.toUpperCase() ||
+                  {fullName?.[0]?.toUpperCase() ||
                     user.username[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -123,11 +114,7 @@ export default function ProfilePreview({
           <Separator />
 
           <div className="space-y-2">
-            <h3 className="font-semibold">
-              {firstName && lastName
-                ? `${firstName} ${lastName}`
-                : user.username}
-            </h3>
+            <h3 className="font-semibold">{fullName || user.username}</h3>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             {bio && (
               <p className="text-sm text-muted-foreground italic">"{bio}"</p>

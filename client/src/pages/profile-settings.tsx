@@ -27,8 +27,7 @@ import ProfilePreview from "@/components/profile/profile-preview";
 import { useStripeCountries } from "@/api/hooks/stripe/useStripeCountries";
 
 const schema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
+  fullName: z.string().min(1, "Full name is required"),
   bio: z.string().max(200).optional(),
   location: z.string().optional(),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -52,8 +51,7 @@ export default function ProfileSettings() {
   const form = useForm<userProfileInput>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       bio: "",
       location: "",
       website: "",
@@ -69,8 +67,7 @@ export default function ProfileSettings() {
   useEffect(() => {
     if (user) {
       form.reset({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
+        fullName: user.fullName || "",
         bio: user.bio || "",
         location: user.location || "",
         website: user.website || "",
@@ -100,8 +97,7 @@ export default function ProfileSettings() {
 
   const onSubmit = async (values: userProfileInput) => {
     updateProfile({
-      firstName: values.firstName,
-      lastName: values.lastName,
+      fullName: values.fullName,
       bio: values.bio,
       location: values.location,
       website: values.website,
@@ -182,31 +178,17 @@ export default function ProfileSettings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      {...form.register("firstName")}
-                      placeholder="Enter your first name"
-                    />
-                    {form.formState.errors.firstName && (
-                      <p className="text-sm text-red-500">
-                        {form.formState.errors.firstName.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      {...form.register("lastName")}
-                      placeholder="Enter your last name"
-                    />
-                    {form.formState.errors.lastName && (
-                      <p className="text-sm text-red-500">
-                        {form.formState.errors.lastName.message}
-                      </p>
-                    )}
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    {...form.register("fullName")}
+                    placeholder="Enter your first name"
+                  />
+                  {form.formState.errors.fullName && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.fullName.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -40,7 +40,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
 
 export function generateVerificationEmail(
   verificationUrl: string,
-  firstName: string
+  fullName: string
 ) {
   const subject = "Verify your Mixxl account";
 
@@ -58,7 +58,7 @@ export function generateVerificationEmail(
       </div>
       
       <div style="background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0;">Hi ${firstName}!</h2>
+        <h2 style="color: #333; margin-top: 0;">Hi ${fullName}!</h2>
         
         <p>Thanks for signing up for Mixxl, the independent music platform that puts artists first.</p>
         
@@ -98,7 +98,7 @@ export function generateVerificationEmail(
   const text = `
     Welcome to Mixxl!
     
-    Hi ${firstName}!
+    Hi ${fullName}!
     
     Thanks for signing up for Mixxl, the independent music platform that puts artists first.
     

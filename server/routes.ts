@@ -115,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
       const emailContent = generateVerificationEmail(
         verificationUrl,
-        newUser.firstName || "User"
+        newUser.fullName || "User"
       );
 
       await sendEmail({
@@ -216,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
       const emailContent = generateVerificationEmail(
         verificationUrl,
-        user.firstName || "User"
+        user.fullName || "User"
       );
 
       await sendEmail({
@@ -309,8 +309,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         business_type: "individual", // TODO: support company accounts later
         individual: {
-          first_name: user.firstName || undefined,
-          last_name: user.lastName || undefined,
+          first_name: user.fullName || undefined,
+          full_name_aliases: user.fullName || undefined,
           email: user.email,
         },
         business_profile: {
@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               actorId: visitor.id,
               type: "profile_visit",
               title: "Profile Visit",
-              message: `${visitor.firstName} ${visitor.lastName} (@${visitor.username}) viewed your profile`,
+              message: `${visitor.fullName} (@${visitor.username}) viewed your profile`,
               actionUrl: `/profile/${visitor.username}`,
             });
           }
@@ -1478,7 +1478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             actorId: req.user.id,
             type: "message",
             title: "New Message",
-            message: `${sender.firstName} ${sender.lastName} sent you a message`,
+            message: `${sender.fullName} sent you a message`,
             actionUrl: `/messages?conversation=${conversationId}`,
           });
         }
@@ -1551,8 +1551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       {
         id: "550e8400-e29b-41d4-a716-446655440002",
         username: "indieartist",
-        firstName: "Indie",
-        lastName: "Artist",
+        fullName: "Indie",
         role: "artist",
         profileImage: null,
         emailVerified: true,
@@ -1560,8 +1559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       {
         id: "550e8400-e29b-41d4-a716-446655440003",
         username: "musiclover",
-        firstName: "Music",
-        lastName: "Lover",
+        fullName: "Music",
         role: "fan",
         profileImage: null,
         emailVerified: false,
@@ -1569,8 +1567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       {
         id: "550e8400-e29b-41d4-a716-446655440004",
         username: "beatmaker",
-        firstName: "Beat",
-        lastName: "Maker",
+        fullName: "Beat",
         role: "artist",
         profileImage: null,
         emailVerified: false,
@@ -1585,8 +1582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const filtered = users.filter(
       (user) =>
         user.username.toLowerCase().includes(query) ||
-        user.firstName.toLowerCase().includes(query) ||
-        user.lastName.toLowerCase().includes(query)
+        user.fullName.toLowerCase().includes(query)
     );
 
     res.json(filtered);
@@ -2041,7 +2037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actorId: req.user.id,
           type: "tip",
           title: "New Tip Received",
-          message: `${tipper.firstName} ${tipper.lastName} sent you a tip of ${
+          message: `${tipper.fullName} sent you a tip of ${
             currency === "GBP"
               ? "£"
               : currency === "USD"

@@ -126,7 +126,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">
-              {getGreeting()}, {user.firstName || user.username}!
+              {getGreeting()}, {user.fullName || user.username}!
             </h1>
             <p className="text-muted-foreground">
               {user.role === "artist"
@@ -455,7 +455,7 @@ export default function Dashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">
-                              {artist.firstName} {artist.lastName}
+                              {artist.fullName}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {artist.genre || "Independent Artist"}

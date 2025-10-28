@@ -78,10 +78,7 @@ export default function Contact() {
   useEffect(() => {
     if (user) {
       form.reset({
-        name:
-          user.firstName && user.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : "",
+        name: user.fullName || "",
         email: user.email || "",
         subject: "",
         category: "",

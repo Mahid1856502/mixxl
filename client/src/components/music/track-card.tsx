@@ -20,6 +20,7 @@ import {
   Crown,
   ListMusic,
   Edit,
+  Trash,
 } from "lucide-react";
 import { TrackExtended } from "@shared/schema";
 import { useMusicPlayer } from "@/hooks/use-music-player";
@@ -445,16 +446,25 @@ export default function TrackCard({
                 {track.id === currentTrack?.id && isPlaying ? "Pause" : "Play"}
               </Button>
               {track.artistId === user?.id && (
-                <Link href={`/upload/${track.id}`}>
+                <>
+                  <Link href={`/upload/${track.id}`}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs"
+                    >
+                      <Edit />
+                      Edit
+                    </Button>
+                  </Link>
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="h-8 px-3 text-xs"
+                    size="sm"
+                    className="h-8 text-xs px-3 border border-red-700 hover:border-red-500 bg-red-950 hover:bg-red-900 hover:text-white"
                   >
-                    <Edit />
-                    Edit
+                    <Trash className="" />
                   </Button>
-                </Link>
+                </>
               )}
             </div>
           </div>

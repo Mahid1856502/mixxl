@@ -21,13 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Eye, EyeOff, User, Mail, Lock, Headphones } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
 import { useCreateDJ } from "@/api/hooks/admin/useCreateDJ";
 
 // ✅ Validation schema (role locked to "DJ")
 const djSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")
@@ -85,8 +83,7 @@ export function CreateDJModal({
   const form = useForm<DJForm>({
     resolver: zodResolver(djSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       username: "",
       email: "",
       password: "TEMP_DJ_PASS", // 🔒 Temporary password
@@ -115,28 +112,23 @@ export function CreateDJModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {["firstName", "lastName"].map((name, idx) => (
-                <FormField
-                  key={name}
-                  control={form.control}
-                  name={name as "firstName" | "lastName"}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {name === "firstName" ? "First Name" : "Last Name"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={name === "firstName" ? "John" : "Doe"}
-                          {...field}
-                          className="bg-white/5 border-white/10"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="John Doe"
+                        {...field}
+                        className="bg-white/5 border-white/10"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField

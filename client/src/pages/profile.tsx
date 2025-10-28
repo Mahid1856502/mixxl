@@ -39,7 +39,7 @@ import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useUserById } from "@/api/hooks/users/useUserById";
 import { useQueryParams } from "@/hooks/use-query-params";
 import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
-import { useAlbums } from "@/api/hooks/tracks/useAlbums";
+import { useAlbums, useDeleteAlbum } from "@/api/hooks/tracks/useAlbums";
 import { AlbumsList } from "@/components/music/album-list";
 
 export default function Profile() {
@@ -52,6 +52,12 @@ export default function Profile() {
   const [params, setParams] = useQueryParams({
     tab: "music",
   });
+
+  const { mutate: deleteAlbum, isPending } = useDeleteAlbum();
+
+  async function handleDelete(id: string) {
+    deleteAlbum(id);
+  }
 
   const profileUserId = id || currentUser?.id || "";
   const isOwnProfile = profileUserId === currentUser?.id;
@@ -239,7 +245,7 @@ export default function Profile() {
                   alt={user?.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl">
-                  {user?.firstName?.[0]?.toUpperCase() ||
+                  {user?.fullName?.[0]?.toUpperCase() ||
                     user?.username[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -249,9 +255,7 @@ export default function Profile() {
                 <div>
                   <div className="flex items-center space-x-3 mb-2">
                     <h1 className="text-3xl font-bold">
-                      {user?.firstName && user?.lastName
-                        ? `${user?.firstName} ${user?.lastName}`
-                        : user?.username}
+                      {user?.fullName || user?.username}
                     </h1>
                     {user?.emailVerified && (
                       <Verified className="w-6 h-6 text-blue-500" />
@@ -285,8 +289,7 @@ export default function Profile() {
                         className="h-7 text-xs bg-gradient-to-r from-pink-500/10 to-orange-500/10 hover:from-pink-500/20 hover:to-orange-500/20 border-pink-500/30"
                       >
                         <MessageCircle className="w-3 h-3 mr-1" />
-                        Message{" "}
-                        {user?.firstName ? user?.firstName : user?.username}
+                        Message {user?.fullName || user?.username}
                       </Button>
                     )}
                     <div className="flex items-center space-x-1 text-sm text-muted-foreground">
@@ -463,7 +466,7 @@ export default function Profile() {
                   ? user?.role === "artist"
                     ? "Your Tracks"
                     : "Your Music Library"
-                  : `${user?.firstName}'s ${
+                  : `${user?.fullName}'s ${
                       user?.role === "artist" ? "Tracks" : "Music Library"
                     }`}
               </h2>
@@ -658,7 +661,12 @@ export default function Profile() {
           {user?.role === "artist" && (
             <>
               <TabsContent value="albums" className="space-y-6">
-                <AlbumsList albums={albums || []} isOwnProfile={isOwnProfile} />
+                <AlbumsList
+                  albums={albums || []}
+                  isOwnProfile={isOwnProfile}
+                  onDelete={handleDelete}
+                  isPending={isPending}
+                />
               </TabsContent>
               <TabsContent value="analytics" className="space-y-6">
                 <h2 className="text-2xl font-bold">Analytics Overview</h2>
@@ -786,7 +794,7 @@ export default function Profile() {
         onClose={() => setShowTipModal(false)}
         artist={{
           id: user?.id,
-          artistName: user?.firstName || user?.username,
+          artistName: user?.fullName || user?.username,
           profileImage: user?.profileImage,
         }}
       />

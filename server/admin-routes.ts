@@ -539,7 +539,7 @@ export function registerAdminRoutes(app: Express) {
             const emailContent = generateBroadcastEmail(
               broadcast.title,
               broadcast.message,
-              user.firstName || "User"
+              user.fullName || "User"
             );
 
             const emailSent = await sendEmail({
@@ -657,8 +657,7 @@ export function registerAdminRoutes(app: Express) {
         id: user.id,
         username: user.username,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        fullName: user.fullName,
         role: user.role,
         emailVerified: user.emailVerified,
         subscriptionStatus: user.subscriptionStatus,

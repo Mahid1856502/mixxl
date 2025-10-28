@@ -135,7 +135,7 @@ export default function UserCard({
               alt={user.username}
             />
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {user.firstName?.[0]?.toUpperCase() ||
+              {user.fullName?.[0]?.toUpperCase() ||
                 user.username[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -144,9 +144,7 @@ export default function UserCard({
         <div className="flex-1 min-w-0">
           <Link href={`/profile/${user.id}`}>
             <p className="font-medium truncate hover:text-primary transition-colors text-sm md:text-base">
-              {user.firstName && user.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : user.username}
+              {user.fullName || user.username}
               {user.emailVerified && (
                 <Verified className="w-4 h-4 inline ml-1 text-blue-500" />
               )}
@@ -239,7 +237,7 @@ export default function UserCard({
                   alt={user.username}
                 />
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user.firstName?.[0]?.toUpperCase() ||
+                  {user.fullName?.[0]?.toUpperCase() ||
                     user.username[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -248,9 +246,7 @@ export default function UserCard({
             <div className="flex-1 min-w-0 pt-1">
               <Link href={`/profile/${user.id}`}>
                 <h3 className="font-semibold truncate hover:text-primary transition-colors flex items-center">
-                  {user.firstName && user.lastName
-                    ? `${user.firstName} ${user.lastName}`
-                    : user.username}
+                  {user.fullName || user.username}
                   {user.emailVerified && (
                     <Verified className="w-4 h-4 ml-1 text-blue-500" />
                   )}

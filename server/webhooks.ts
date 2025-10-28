@@ -92,6 +92,13 @@ export function registerWebhooksRoutes(app: Express) {
               break;
             }
 
+            if (!purchase.trackId) {
+              console.error(
+                `❌ Track with ${purchase.trackId} not found for purchase`
+              );
+              break;
+            }
+
             // Fetch related entities safely
             const [track, buyer] = await Promise.all([
               storage.getTrack(purchase.trackId),
@@ -118,8 +125,8 @@ export function registerWebhooksRoutes(app: Express) {
                 actorId: buyer.id,
                 type: "purchase", // clearer semantic than "tip"
                 title: "Track Purchased!",
-                message: `${buyer.firstName ?? ""} ${
-                  buyer.lastName ?? ""
+                message: `${
+                  buyer.fullName || buyer.username
                 } purchased your track "${track.title}"`,
                 actionUrl: `/profile/${track.artistId}`,
               });

@@ -6,50 +6,76 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Music, 
-  Eye, 
-  EyeOff, 
-  User, 
-  Mail, 
-  Lock, 
-  Users, 
-  ArrowLeft, 
+import {
+  Music,
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Lock,
+  Users,
+  ArrowLeft,
   ArrowRight,
   CheckCircle,
   Star,
   Radio,
   Upload,
   Heart,
-  Globe
+  Globe,
 } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/currency-selector";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 // Step 1: Basic Info Schema
 const basicInfoSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  username: z.string().min(3, "Username must be at least 3 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .regex(
+      /^[a-zA-Z0-9_]+$/,
+      "Username can only contain letters, numbers, and underscores"
+    ),
   preferredCurrency: z.string().default("GBP"),
 });
 
 // Step 2: Security Schema
-const securitySchema = z.object({
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const securitySchema = z
+  .object({
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 // Step 3: Role Selection Schema
 const roleSchema = z.object({
@@ -76,9 +102,29 @@ const preferencesSchema = z.object({
 });
 
 const MUSIC_GENRES = [
-  "Rock", "Pop", "Hip Hop", "R&B", "Country", "Electronic", "Jazz", "Blues",
-  "Classical", "Reggae", "Folk", "Indie", "Alternative", "Metal", "Punk",
-  "Funk", "Soul", "Gospel", "World", "Ambient", "House", "Techno", "Dubstep"
+  "Rock",
+  "Pop",
+  "Hip Hop",
+  "R&B",
+  "Country",
+  "Electronic",
+  "Jazz",
+  "Blues",
+  "Classical",
+  "Reggae",
+  "Folk",
+  "Indie",
+  "Alternative",
+  "Metal",
+  "Punk",
+  "Funk",
+  "Soul",
+  "Gospel",
+  "World",
+  "Ambient",
+  "House",
+  "Techno",
+  "Dubstep",
 ];
 
 type BasicInfo = z.infer<typeof basicInfoSchema>;
@@ -114,8 +160,7 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
   const basicInfoForm = useForm<BasicInfo>({
     resolver: zodResolver(basicInfoSchema),
     defaultValues: formData.basicInfo || {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       email: "",
       username: "",
       preferredCurrency: DEFAULT_CURRENCY,
@@ -162,36 +207,48 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
 
   const nextStep = async () => {
     let isValid = false;
-    
+
     switch (currentStep) {
       case 1:
         isValid = await basicInfoForm.trigger();
         if (isValid) {
-          setFormData(prev => ({ ...prev, basicInfo: basicInfoForm.getValues() }));
+          setFormData((prev) => ({
+            ...prev,
+            basicInfo: basicInfoForm.getValues(),
+          }));
         }
         break;
       case 2:
         isValid = await securityForm.trigger();
         if (isValid) {
-          setFormData(prev => ({ ...prev, security: securityForm.getValues() }));
+          setFormData((prev) => ({
+            ...prev,
+            security: securityForm.getValues(),
+          }));
         }
         break;
       case 3:
         isValid = await roleForm.trigger();
         if (isValid) {
-          setFormData(prev => ({ ...prev, role: roleForm.getValues() }));
+          setFormData((prev) => ({ ...prev, role: roleForm.getValues() }));
         }
         break;
       case 4:
         isValid = await profileForm.trigger();
         if (isValid) {
-          setFormData(prev => ({ ...prev, profile: profileForm.getValues() }));
+          setFormData((prev) => ({
+            ...prev,
+            profile: profileForm.getValues(),
+          }));
         }
         break;
       case 5:
         isValid = await preferencesForm.trigger();
         if (isValid) {
-          setFormData(prev => ({ ...prev, preferences: preferencesForm.getValues() }));
+          setFormData((prev) => ({
+            ...prev,
+            preferences: preferencesForm.getValues(),
+          }));
         }
         break;
     }
@@ -236,7 +293,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             <div className="text-center">
               <User className="w-12 h-12 mx-auto mb-4 text-primary" />
               <h2 className="text-2xl font-bold">Basic Information</h2>
-              <p className="text-muted-foreground">Let's start with the basics</p>
+              <p className="text-muted-foreground">
+                Let's start with the basics
+              </p>
             </div>
 
             <Form {...basicInfoForm}>
@@ -244,32 +303,22 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={basicInfoForm.control}
-                    name="firstName"
+                    name="fullName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>Full Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="John" {...field} className="bg-white/5 border-white/10" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={basicInfoForm.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Doe" {...field} className="bg-white/5 border-white/10" />
+                          <Input
+                            placeholder="John"
+                            {...field}
+                            className="bg-white/5 border-white/10"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-
                 <FormField
                   control={basicInfoForm.control}
                   name="email"
@@ -332,7 +381,8 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                       </FormControl>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground">
-                        This will be used for tips, payments, and earnings. You can change this later in settings.
+                        This will be used for tips, payments, and earnings. You
+                        can change this later in settings.
                       </p>
                     </FormItem>
                   )}
@@ -375,7 +425,11 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                             className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                             onClick={() => setShowPassword(!showPassword)}
                           >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </FormControl>
@@ -404,9 +458,15 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                             variant="ghost"
                             size="icon"
                             className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
                           >
-                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </FormControl>
@@ -425,7 +485,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             <div className="text-center">
               <Users className="w-12 h-12 mx-auto mb-4 text-primary" />
               <h2 className="text-2xl font-bold">Choose Your Role</h2>
-              <p className="text-muted-foreground">How do you plan to use Mixxl?</p>
+              <p className="text-muted-foreground">
+                How do you plan to use Mixxl?
+              </p>
             </div>
 
             <Form {...roleForm}>
@@ -435,19 +497,22 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card 
+                      <Card
                         className={`cursor-pointer transition-all ${
-                          field.value === "fan" 
-                            ? "border-primary bg-primary/10" 
+                          field.value === "fan"
+                            ? "border-primary bg-primary/10"
                             : "border-white/10 hover:border-white/20"
                         }`}
                         onClick={() => field.onChange("fan")}
                       >
                         <CardContent className="p-6 text-center">
                           <Heart className="w-12 h-12 mx-auto mb-4 text-pink-400" />
-                          <h3 className="text-lg font-semibold mb-2">Music Fan</h3>
+                          <h3 className="text-lg font-semibold mb-2">
+                            Music Fan
+                          </h3>
                           <p className="text-sm text-muted-foreground mb-4">
-                            Discover new music, support artists, and build your collection
+                            Discover new music, support artists, and build your
+                            collection
                           </p>
                           <div className="space-y-2 text-xs text-left">
                             <div className="flex items-center space-x-2">
@@ -470,10 +535,10 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                         </CardContent>
                       </Card>
 
-                      <Card 
+                      <Card
                         className={`cursor-pointer transition-all ${
-                          field.value === "artist" 
-                            ? "border-primary bg-primary/10" 
+                          field.value === "artist"
+                            ? "border-primary bg-primary/10"
                             : "border-white/10 hover:border-white/20"
                         }`}
                         onClick={() => field.onChange("artist")}
@@ -482,7 +547,8 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                           <Star className="w-12 h-12 mx-auto mb-4 text-amber-400" />
                           <h3 className="text-lg font-semibold mb-2">Artist</h3>
                           <p className="text-sm text-muted-foreground mb-4">
-                            Upload music, connect with fans, and grow your audience
+                            Upload music, connect with fans, and grow your
+                            audience
                           </p>
                           <div className="space-y-2 text-xs text-left">
                             <div className="flex items-center space-x-2">
@@ -519,7 +585,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             <div className="text-center">
               <Music className="w-12 h-12 mx-auto mb-4 text-primary" />
               <h2 className="text-2xl font-bold">Build Your Profile</h2>
-              <p className="text-muted-foreground">Tell the community about yourself</p>
+              <p className="text-muted-foreground">
+                Tell the community about yourself
+              </p>
             </div>
 
             <Form {...profileForm}>
@@ -532,9 +600,11 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                       <FormLabel>Bio (Optional)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder={formData.role?.role === "artist" 
-                            ? "Tell fans about your music journey..." 
-                            : "Share what kind of music you love..."}
+                          placeholder={
+                            formData.role?.role === "artist"
+                              ? "Tell fans about your music journey..."
+                              : "Share what kind of music you love..."
+                          }
                           className="bg-white/5 border-white/10 resize-none"
                           rows={3}
                           {...field}
@@ -601,7 +671,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                               onClick={() => {
                                 const current = field.value || [];
                                 if (isSelected) {
-                                  field.onChange(current.filter(g => g !== genre));
+                                  field.onChange(
+                                    current.filter((g) => g !== genre)
+                                  );
                                 } else {
                                   field.onChange([...current, genre]);
                                 }
@@ -647,13 +719,17 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             <div className="text-center">
               <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-400" />
               <h2 className="text-2xl font-bold">Final Preferences</h2>
-              <p className="text-muted-foreground">Customize your Mixxl experience</p>
+              <p className="text-muted-foreground">
+                Customize your Mixxl experience
+              </p>
             </div>
 
             <Form {...preferencesForm}>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Privacy & Interactions</h3>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Privacy & Interactions
+                  </h3>
                   <div className="space-y-4">
                     <FormField
                       control={preferencesForm.control}
@@ -668,7 +744,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                           </FormControl>
                           <div>
                             <FormLabel>Allow direct messages</FormLabel>
-                            <p className="text-sm text-muted-foreground">Let other users send you messages</p>
+                            <p className="text-sm text-muted-foreground">
+                              Let other users send you messages
+                            </p>
                           </div>
                         </FormItem>
                       )}
@@ -688,8 +766,8 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                           <div>
                             <FormLabel>Allow tips</FormLabel>
                             <p className="text-sm text-muted-foreground">
-                              {formData.role?.role === "artist" 
-                                ? "Let fans support you with tips" 
+                              {formData.role?.role === "artist"
+                                ? "Let fans support you with tips"
                                 : "Enable tipping your favorite artists"}
                             </p>
                           </div>
@@ -712,7 +790,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                               </FormControl>
                               <div>
                                 <FormLabel>Open to collaborations</FormLabel>
-                                <p className="text-sm text-muted-foreground">Let other artists invite you to collaborate</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Let other artists invite you to collaborate
+                                </p>
                               </div>
                             </FormItem>
                           )}
@@ -730,8 +810,13 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                                 />
                               </FormControl>
                               <div>
-                                <FormLabel>Include music in radio rotation</FormLabel>
-                                <p className="text-sm text-muted-foreground">Allow your tracks to be played on community radio</p>
+                                <FormLabel>
+                                  Include music in radio rotation
+                                </FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  Allow your tracks to be played on community
+                                  radio
+                                </p>
                               </div>
                             </FormItem>
                           )}
@@ -757,7 +842,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                           </FormControl>
                           <div>
                             <FormLabel>Email notifications</FormLabel>
-                            <p className="text-sm text-muted-foreground">Receive updates and news via email</p>
+                            <p className="text-sm text-muted-foreground">
+                              Receive updates and news via email
+                            </p>
                           </div>
                         </FormItem>
                       )}
@@ -776,7 +863,9 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                           </FormControl>
                           <div>
                             <FormLabel>Push notifications</FormLabel>
-                            <p className="text-sm text-muted-foreground">Get instant notifications in your browser</p>
+                            <p className="text-sm text-muted-foreground">
+                              Get instant notifications in your browser
+                            </p>
                           </div>
                         </FormItem>
                       )}
@@ -801,17 +890,23 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             <div className="w-10 h-10 rounded-lg mixxl-gradient flex items-center justify-center">
               <Music className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold mixxl-gradient-text">Mixxl</span>
+            <span className="text-2xl font-bold mixxl-gradient-text">
+              Mixxl
+            </span>
           </div>
           <h1 className="text-3xl font-bold mb-2">Join the community</h1>
-          <p className="text-muted-foreground">Create your account in just a few steps</p>
+          <p className="text-muted-foreground">
+            Create your account in just a few steps
+          </p>
         </div>
 
         <Card className="glass-effect border-white/10">
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <CardTitle>Step {currentStep} of {totalSteps}</CardTitle>
+                <CardTitle>
+                  Step {currentStep} of {totalSteps}
+                </CardTitle>
                 <CardDescription>Complete your profile setup</CardDescription>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -820,7 +915,7 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
             </div>
             <Progress value={progress} className="w-full" />
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {renderStep()}
 
@@ -838,8 +933,12 @@ export default function SignupWizard({ onClose }: SignupWizardProps) {
                 onClick={currentStep === totalSteps ? handleSubmit : nextStep}
                 className="flex items-center space-x-2"
               >
-                <span>{currentStep === totalSteps ? "Create Account" : "Next"}</span>
-                {currentStep !== totalSteps && <ArrowRight className="w-4 h-4" />}
+                <span>
+                  {currentStep === totalSteps ? "Create Account" : "Next"}
+                </span>
+                {currentStep !== totalSteps && (
+                  <ArrowRight className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </CardContent>

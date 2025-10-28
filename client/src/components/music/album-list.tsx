@@ -1,20 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Eye } from "lucide-react";
+import { Edit, Trash, Loader2 } from "lucide-react";
 import { Album } from "@shared/schema";
+import { ConfirmDialog } from "../common/ConfirmPopup";
+import { useDeleteAlbum } from "@/api/hooks/tracks/useAlbums";
 
 type AlbumsTabProps = {
   albums: Album[];
-  isOwnProfile?: boolean; // show edit icon only when true
+  isOwnProfile?: boolean;
+  onDelete: (id: string) => Promise<void> | void;
+  isPending: boolean;
 };
 
 export const AlbumsList = ({
   albums,
   isOwnProfile = false,
+  onDelete,
+  isPending = false,
 }: AlbumsTabProps) => {
   const [, setLocation] = useLocation();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<Partial<Album> | null>(
+    null
+  );
 
   if (!albums || albums.length === 0) {
     return (
@@ -31,21 +41,21 @@ export const AlbumsList = ({
       {albums.map((album) => (
         <Card
           key={album.id}
-          className="bg-card p-3 border border-white/6 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex items-center"
+          onClick={() => setLocation(`/view-album/${album.id}`)}
+          className="group bg-card border border-white/5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer flex items-center justify-between"
         >
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-4 flex-1 min-w-0 p-3">
             <div className="flex-shrink-0 w-20 h-20 rounded-md overflow-hidden bg-slate-800">
               {album.coverImage ? (
                 <img
                   src={album.coverImage}
                   alt={album.title ?? "Album cover"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                   loading="lazy"
                   onError={(e) => {
                     console.warn(
                       "Album cover failed to load:",
-                      album.coverImage,
-                      album.id
+                      album.coverImage
                     );
                     (e.currentTarget as HTMLImageElement).style.objectFit =
                       "contain";
@@ -62,25 +72,21 @@ export const AlbumsList = ({
               <h3 className="text-sm font-semibold truncate">
                 {album.title ?? "Untitled"}
               </h3>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {album.description || "No description available."}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2 font-medium">
                 £{album.price}
               </p>
             </div>
           </div>
 
-          {/* Actions: View always, Edit only if own profile */}
-          <div className="flex items-center gap-1 ml-2">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setLocation(`/view-album/${album.id}`)}
-              aria-label={`View ${album.title ?? "album"}`}
-              className="p-1 rounded-md"
+          {/* Edit + Delete (only for own profile) */}
+          {isOwnProfile && (
+            <div
+              className="flex items-center gap-1 pr-3"
+              onClick={(e) => e.stopPropagation()} // prevent triggering view
             >
-              <Eye className="w-4 h-4" />
-            </Button>
-
-            {isOwnProfile && (
               <Button
                 size="icon"
                 variant="ghost"
@@ -90,10 +96,48 @@ export const AlbumsList = ({
               >
                 <Edit className="w-4 h-4" />
               </Button>
-            )}
-          </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => {
+                  setDeleteOpen(true);
+                  setSelectedAlbum(album);
+                }}
+                aria-label={`Edit ${album.title ?? "album"}`}
+                className="p-1 rounded-md hover:bg-red-500 hover:text-white"
+              >
+                <Trash className="w-4 h-4" />
+              </Button>{" "}
+            </div>
+          )}
         </Card>
       ))}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Album"
+        description={
+          <>
+            Are you sure you want to delete the Album{" "}
+            <strong>{selectedAlbum?.title || "Untitled"}</strong>? This action
+            cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={async () => {
+          if (selectedAlbum?.id) {
+            try {
+              await onDelete(String(selectedAlbum.id));
+              setDeleteOpen(false);
+              setSelectedAlbum(null);
+            } catch (err) {
+              console.error("Delete failed:", err);
+            }
+          }
+        }}
+        isPending={isPending}
+      />
     </div>
   );
 };

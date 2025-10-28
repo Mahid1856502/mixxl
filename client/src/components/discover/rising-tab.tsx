@@ -72,15 +72,13 @@ export default function RisingArtists({
                     alt={artist.username}
                   />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {artist.firstName?.[0]?.toUpperCase() ||
+                    {artist.fullName?.[0]?.toUpperCase() ||
                       artist.username[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">
-                    {artist.firstName && artist.lastName
-                      ? `${artist.firstName} ${artist.lastName}`
-                      : artist.username}
+                    {artist.fullName ? artist.fullName : artist.username}
                   </p>
                   <p className="text-sm text-muted-foreground">{artist.bio}</p>
                 </div>

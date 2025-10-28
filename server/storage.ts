@@ -570,6 +570,8 @@ export class MySQLStorage implements IStorage {
         duration: tracks.duration,
         hasPreviewOnly: tracks.hasPreviewOnly,
         waveformData: tracks.waveformData,
+        previewUrl: tracks.previewUrl,
+        fileUrl: tracks.fileUrl,
         coverImage: tracks.coverImage,
         price: tracks.price,
         isPublic: tracks.isPublic,
@@ -718,8 +720,7 @@ export class MySQLStorage implements IStorage {
           filters.search
             ? or(
                 ilike(users.username, `%${filters.search}%`),
-                ilike(users.firstName, `%${filters.search}%`),
-                ilike(users.lastName, `%${filters.search}%`)
+                ilike(users.fullName, `%${filters.search}%`)
               )
             : undefined,
           filters.genre && filters.genre !== "all"
@@ -763,13 +764,7 @@ export class MySQLStorage implements IStorage {
         title: tracks.title,
         description: tracks.description,
         artistId: tracks.artistId,
-        artistName: sql<string>`
-      CASE
-        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-        THEN ${users.firstName} || ' ' || ${users.lastName}
-        ELSE ${users.username}
-      END
-    `.as("artistName"),
+        artistName: users.fullName,
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -792,8 +787,6 @@ export class MySQLStorage implements IStorage {
         downloadCount: tracks.downloadCount,
         albumId: tracks.albumId || null,
         trackNumber: tracks.trackNumber || null,
-
-        // ✅ expose raw purchase status instead of hasAccess
         purchaseStatus: purchasedTracks.paymentStatus,
       })
       .from(tracks)
@@ -802,7 +795,7 @@ export class MySQLStorage implements IStorage {
         purchasedTracks,
         and(
           eq(purchasedTracks.trackId, tracks.id),
-          eq(purchasedTracks.userId, userId) // don’t filter by status here
+          eq(purchasedTracks.userId, userId)
         )
       )
       .where(eq(tracks.artistId, artistId))
@@ -823,8 +816,7 @@ export class MySQLStorage implements IStorage {
           ilike(tracks.title, `%${safeSearch}%`),
           ilike(tracks.description, `%${safeSearch}%`),
           ilike(users.username, `%${safeSearch}%`),
-          ilike(users.firstName, `%${safeSearch}%`),
-          ilike(users.lastName, `%${safeSearch}%`)
+          ilike(users.fullName, `%${safeSearch}%`)
         )
       );
     }
@@ -851,13 +843,7 @@ export class MySQLStorage implements IStorage {
         id: tracks.id,
         title: tracks.title,
         artistId: tracks.artistId,
-        artistName: sql<string>`
-      CASE
-        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-        THEN ${users.firstName} || ' ' || ${users.lastName}
-        ELSE ${users.username}
-      END
-    `.as("artistName"),
+        artistName: users.fullName,
         description: tracks.description,
         genre: tracks.genre,
         mood: tracks.mood,
@@ -868,14 +854,12 @@ export class MySQLStorage implements IStorage {
         previewDuration: tracks.previewDuration,
         hasPreviewOnly: tracks.hasPreviewOnly,
         coverImage: tracks.coverImage,
-        // waveformData: tracks.waveformData,
         price: tracks.price,
         playCount: tracks.playCount,
         likesCount: tracks.likesCount,
         downloadCount: tracks.downloadCount,
         isExplicit: tracks.isExplicit,
         isPublic: tracks.isPublic,
-        // submitToRadio: tracks.submitToRadio,
         createdAt: tracks.createdAt,
         updatedAt: tracks.updatedAt,
 
@@ -889,7 +873,6 @@ export class MySQLStorage implements IStorage {
         and(
           eq(purchasedTracks.trackId, tracks.id),
           eq(purchasedTracks.userId, filters.userId ?? sql`NULL`)
-          // no status filter — let service layer decide access
         )
       )
       .where(and(...conditions))
@@ -1069,13 +1052,7 @@ export class MySQLStorage implements IStorage {
         id: tracks.id,
         title: tracks.title,
         artistId: tracks.artistId,
-        artistName: sql<string>`
-      CASE
-        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-        THEN ${users.firstName} || ' ' || ${users.lastName}
-        ELSE ${users.username}
-      END
-    `.as("artistName"),
+        artistName: users.fullName,
         description: tracks.description,
         genre: tracks.genre,
         mood: tracks.mood,
@@ -1821,8 +1798,7 @@ export class MySQLStorage implements IStorage {
         actor: {
           id: users.id,
           username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          fullName: users.fullName,
           profileImage: users.profileImage,
           emailVerified: users.emailVerified,
         },
@@ -1890,8 +1866,7 @@ export class MySQLStorage implements IStorage {
           id: users.id,
           username: users.username,
           email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          fullName: users.fullName,
           role: users.role,
           profileImage: users.profileImage,
           emailVerified: users.emailVerified,
@@ -1900,8 +1875,7 @@ export class MySQLStorage implements IStorage {
         .where(
           or(
             like(users.username, `%${query}%`),
-            like(users.firstName, `%${query}%`),
-            like(users.lastName, `%${query}%`)
+            like(users.fullName, `%${query}%`)
           )
         )
         .limit(10);
@@ -1957,13 +1931,7 @@ export class MySQLStorage implements IStorage {
         title: tracks.title,
         description: tracks.description,
         artistId: tracks.artistId,
-        artistName: sql<string>`
-      CASE
-        WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-        THEN ${users.firstName} || ' ' || ${users.lastName}
-        ELSE ${users.username}
-      END
-    `.as("artistName"),
+        artistName: users.fullName,
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -2010,13 +1978,7 @@ export class MySQLStorage implements IStorage {
         title: tracks.title,
         description: tracks.description,
         artistId: tracks.artistId,
-        artistName: sql<string>`
-        CASE
-          WHEN ${users.firstName} IS NOT NULL AND ${users.lastName} IS NOT NULL
-          THEN ${users.firstName} || ' ' || ${users.lastName}
-          ELSE ${users.username}
-        END
-      `.as("artistName"),
+        artistName: users.fullName,
         genre: tracks.genre,
         duration: tracks.duration,
         fileUrl: tracks.fileUrl,
@@ -2037,8 +1999,8 @@ export class MySQLStorage implements IStorage {
         waveformData: tracks.waveformData,
         stripePriceId: tracks.stripePriceId,
         downloadCount: tracks.downloadCount,
-        albumId: tracks.albumId || null,
-        trackNumber: tracks.trackNumber || null,
+        albumId: tracks.albumId,
+        trackNumber: tracks.trackNumber,
         // Purchase info
         purchaseStatus: purchasedTracks.paymentStatus,
         purchasedAt: purchasedTracks.purchasedAt,
@@ -2065,8 +2027,7 @@ export class MySQLStorage implements IStorage {
       .select({
         id: followingUserTable.id,
         username: followingUserTable.username,
-        firstName: followingUserTable.firstName,
-        lastName: followingUserTable.lastName,
+        fullName: followingUserTable.fullName,
         role: followingUserTable.role,
         bio: followingUserTable.bio,
         profileImage: followingUserTable.profileImage,
@@ -2229,8 +2190,7 @@ export class MySQLStorage implements IStorage {
         artist: {
           id: users.id,
           username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          fullName: users.fullName,
           profileImage: users.profileImage,
         },
       })
@@ -2274,8 +2234,7 @@ export class MySQLStorage implements IStorage {
         artist: {
           id: users.id,
           username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          fullName: users.fullName,
           profileImage: users.profileImage,
         },
       })
