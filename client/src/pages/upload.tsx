@@ -142,9 +142,30 @@ export default function Upload() {
       // 2️⃣ Handle preview if requested
       let previewBlob: Blob | null = null;
       let previewDuration = track?.previewDuration ?? 0;
-      if (data.hasPreviewOnly && audioFile) {
+
+      if (data.hasPreviewOnly) {
         previewDuration = Math.min(data.previewDuration || 30, duration);
-        previewBlob = await getAudioPreview(audioFile, 0, previewDuration);
+
+        const durationChanged = previewDuration !== track?.previewDuration;
+        const needsNewPreview =
+          audioFile || !track?.previewUrl || durationChanged;
+
+        if (needsNewPreview) {
+          let sourceFile: File | null = audioFile ?? null;
+
+          if (!sourceFile && track?.fileUrl) {
+            const response = await fetch(track.fileUrl);
+            const blob = await response.blob();
+            sourceFile = new File([blob], "existing_audio.wav", {
+              type: blob.type || "audio/wav",
+              lastModified: Date.now(),
+            });
+          }
+
+          if (sourceFile) {
+            previewBlob = await getAudioPreview(sourceFile, 0, previewDuration);
+          }
+        }
       }
 
       // 3️⃣ Upload assets (only if new ones provided)
@@ -193,7 +214,7 @@ export default function Upload() {
           {
             onSuccess: () => {
               form.reset();
-              setLocation("/profile");
+              setLocation(`/profile/${user?.id}`);
             },
           }
         );
@@ -201,7 +222,7 @@ export default function Upload() {
         uploadTrack(payload, {
           onSuccess: () => {
             form.reset();
-            setLocation("/profile");
+            setLocation(`/profile/${user?.id}`);
           },
         });
       }
