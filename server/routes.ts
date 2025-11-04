@@ -764,12 +764,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // -------------------- GET BY ID --------------------
-  app.get("/api/albums/:id", async (req, res) => {
+  // -------------------- GET BY Buyer ID --------------------
+  app.get("/api/albums/buyer", authenticate, async (req, res) => {
     try {
-      const album = await storage.getAlbum(req.params.id);
+      const { id = "" } = req.user;
+
+      if (!id) {
+        return res.status(400).json({ message: "User not found" });
+      }
+
+      const result = await storage.getAlbumsByBuyerId(id);
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- GET BY ID --------------------
+  app.get("/api/albums/:id", authenticate, async (req, res) => {
+    try {
+      const album = await storage.getAlbum(req.params.id, req.user?.id);
       if (!album) return res.status(404).json({ message: "Album not found" });
       res.json(album);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // -------------------- GET ALL ALBUMS --------------------
+  app.get("/api/albums", authenticate, async (req, res) => {
+    try {
+      const albums = await storage.getAllAlbums(req.user?.id);
+      res.json(albums);
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Server error" });
@@ -998,6 +1032,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.recordTrackPurchase({
         userId: buyerId,
         trackId: track.id,
+        albumId: null,
+        purchaseType: "track",
         price: String(track?.price || 0),
         currency: buyer.preferredCurrency || "usd",
         stripeCheckoutSessionId: session.id as string,
@@ -1009,6 +1045,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ checkoutUrl: session.url });
     } catch (error: any) {
       console.error("Buy track error:", error);
+      return res
+        .status(500)
+        .json({ message: "Server error", error: error.message });
+    }
+  });
+
+  app.post("/api/buy-album", authenticate, async (req, res) => {
+    try {
+      const { albumId } = req.body;
+      const { id: buyerId } = req.user;
+
+      // 1️⃣ Fetch buyer, album, and artist
+      const buyer = await storage.getUser(buyerId);
+      if (!buyer) return res.status(404).json({ message: "Buyer not found" });
+
+      const album = await storage.getAlbum(albumId);
+      if (!album) return res.status(404).json({ message: "Album not found" });
+
+      const artist = await storage.getUser(album.artistId);
+      if (!artist || !artist.stripeAccountId) {
+        return res
+          .status(400)
+          .json({ message: "Artist has no Stripe account set up" });
+      }
+
+      // 2️⃣ Check if user already owns this album
+      const existingPurchase = await storage.getUserAlbumPurchase(
+        buyerId,
+        albumId
+      );
+      if (existingPurchase && existingPurchase.paymentStatus === "succeeded") {
+        return res.status(400).json({ message: "Album already purchased" });
+      }
+
+      // 3️⃣ Create Stripe Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: buyer.preferredCurrency || "usd",
+              product_data: {
+                name: album.title,
+                images: album.coverImage ? [album.coverImage] : [],
+                description: album.description || "",
+              },
+              unit_amount: Math.round(Number(album.price) * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        customer: buyer.stripeCustomerId || undefined,
+        success_url: `${process.env.FRONTEND_URL}/dashboard?tab=music`,
+        cancel_url: `${process.env.FRONTEND_URL}/purchase/cancel`,
+        metadata: {
+          buyerId,
+          albumId: album.id,
+          artistId: artist.id,
+          type: "album",
+        },
+        payment_intent_data: {
+          transfer_data: {
+            destination: artist.stripeAccountId,
+          },
+          on_behalf_of: artist.stripeAccountId,
+        },
+      });
+
+      // 4️⃣ Record pending purchase
+      await storage.recordTrackPurchase({
+        userId: buyerId,
+        albumId: album.id,
+        trackId: null,
+        purchaseType: "album",
+        price: String(album.price),
+        currency: buyer.preferredCurrency || "usd",
+        stripeCheckoutSessionId: session.id as string,
+        stripePaymentIntentId: session.payment_intent as string,
+        stripeTransferId: null,
+        paymentStatus: "pending",
+      });
+
+      return res.json({ checkoutUrl: session.url });
+    } catch (error: any) {
+      console.error("Buy album error:", error);
       return res
         .status(500)
         .json({ message: "Server error", error: error.message });
@@ -1085,6 +1207,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(tracks);
     } catch (error) {
       console.error("User tracks error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.delete("/api/tracks/:id", authenticate, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      // 1️⃣ Ensure the track exists and belongs to the authenticated user
+      const track = await storage.getTrack(id, userId);
+      if (!track) {
+        return res
+          .status(404)
+          .json({ message: "Track not found or access denied" });
+      }
+
+      // 2️⃣ Soft delete — mark as deleted instead of removing
+      await storage.deleteTrack(id);
+
+      res.json({ success: true, message: "Track soft deleted successfully" });
+    } catch (error) {
+      console.error("Soft delete error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

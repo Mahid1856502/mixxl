@@ -167,6 +167,125 @@ export function registerWebhooksRoutes(app: Express) {
   );
 
   app.post(
+    "/api/albums/stripe/webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["stripe-signature"] as string;
+      let event: Stripe.Event;
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_BUY_ALBUMS_WEBHOOK_SECRET! // ⚠️ new webhook secret for albums
+        );
+      } catch (err) {
+        console.error("❌ Webhook signature verification failed.", err);
+        return res.sendStatus(400);
+      }
+
+      try {
+        switch (event.type) {
+          // ✅ Album purchase completed
+          case "checkout.session.completed": {
+            const session = event.data.object as Stripe.Checkout.Session;
+
+            // Update purchase record (mark as succeeded)
+            const purchase = await storage.updatePurchasedTrackBySessionId(
+              session.id,
+              {
+                stripePaymentIntentId: session.payment_intent as string,
+                paymentStatus: "succeeded",
+                purchasedAt: new Date(),
+              }
+            );
+
+            if (!purchase) {
+              console.warn(
+                "⚠️ No purchase record found for session",
+                session.id
+              );
+              break;
+            }
+
+            if (!purchase.albumId) {
+              console.error("❌ Album ID missing for purchase", {
+                purchaseId: purchase.id,
+              });
+              break;
+            }
+
+            // Fetch album + buyer
+            const [album, buyer] = await Promise.all([
+              storage.getAlbum(purchase.albumId),
+              storage.getUser(purchase.userId),
+            ]);
+
+            if (!album) {
+              console.error("❌ Album not found for purchase", {
+                purchaseId: purchase.id,
+                albumId: purchase.albumId,
+              });
+            }
+
+            if (!buyer) {
+              console.error("❌ Buyer not found for purchase", {
+                purchaseId: purchase.id,
+                userId: purchase.userId,
+              });
+            }
+
+            // 🔔 Notify artist
+            if (album && buyer) {
+              await storage.createNotification({
+                userId: album.artistId,
+                actorId: buyer.id,
+                type: "purchase",
+                title: "Album Purchased!",
+                message: `${
+                  buyer.fullName || buyer.username
+                } purchased your album "${album.title}"`,
+                actionUrl: `/profile/${album.artistId}`,
+              });
+            }
+
+            break;
+          }
+
+          // ❌ Payment failed
+          case "payment_intent.payment_failed": {
+            const intent = event.data.object as any;
+            await storage.updatePurchasedTrackBySessionId(intent.id, {
+              paymentStatus: "failed",
+            });
+            break;
+          }
+
+          // 💸 Refund
+          case "charge.refunded": {
+            const charge = event.data.object as any;
+            if (charge.payment_intent) {
+              await storage.updatePurchasedTrackBySessionId(
+                charge.payment_intent,
+                { paymentStatus: "refunded" }
+              );
+            }
+            break;
+          }
+
+          default:
+            console.log(`Unhandled event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
+      } catch (err) {
+        console.error("🔥 Webhook handler error:", err);
+        res.status(500).send("Webhook handler error");
+      }
+    }
+  );
+
+  app.post(
     "/api/connect/webhook",
     express.raw({ type: "application/json" }),
     async (req, res) => {

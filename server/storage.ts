@@ -14,6 +14,8 @@ import {
   exists,
   getTableColumns,
   inArray,
+  max,
+  isNotNull,
 } from "drizzle-orm";
 import {
   users,
@@ -89,6 +91,7 @@ import {
   albums,
   UpdateAlbum,
   AlbumExtended,
+  PaymentStatus,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -128,7 +131,12 @@ export interface IStorage {
 
   // Album operations
   createAlbum(insertAlbum: InsertAlbum & { artistId: string }): Promise<Album>;
-  getAlbum(id: string): Promise<AlbumExtended | null>;
+  getAlbum(id: string, userId?: string): Promise<AlbumExtended | null>;
+  getAllAlbums(userId?: string): Promise<AlbumExtended[]>;
+  getUserAlbumPurchase(
+    userId: string,
+    albumId: string
+  ): Promise<PurchasedTrack | null>;
   getAlbumsByArtistId(artistId: string): Promise<Album[]>;
   updateAlbum(id: string, updateData: UpdateAlbum): Promise<Album>;
   deleteAlbum(id: string): Promise<void>;
@@ -551,15 +559,52 @@ export class MySQLStorage implements IStorage {
     return result;
   }
 
-  // storage.ts
-  async getAlbum(id: string): Promise<AlbumExtended | null> {
-    // Fetch album
-    const [album] = await db.select().from(albums).where(eq(albums.id, id));
+  async getAlbum(
+    id: string,
+    userId?: string
+  ): Promise<(AlbumExtended & { artistName: string }) | null> {
+    const [album] = await db
+      .select({
+        ...getTableColumns(albums),
+        artistName: users.fullName,
+      })
+      .from(albums)
+      .innerJoin(users, eq(albums.artistId, users.id))
+      .where(eq(albums.id, id));
 
     if (!album) return null;
 
-    // Fetch tracks associated with album
-    const result = await db
+    let purchaseStatus: PaymentStatus = "pending";
+
+    if (userId) {
+      const [purchase] = await db
+        .select({
+          paymentStatus: purchasedTracks.paymentStatus,
+          purchasedAt: purchasedTracks.purchasedAt,
+        })
+        .from(purchasedTracks)
+        .where(
+          and(
+            eq(purchasedTracks.albumId, id),
+            eq(purchasedTracks.userId, userId),
+            eq(purchasedTracks.paymentStatus, "succeeded")
+          )
+        )
+        .orderBy(desc(purchasedTracks.purchasedAt))
+        .limit(1);
+
+      if (purchase?.paymentStatus === "succeeded") {
+        purchaseStatus = "succeeded";
+      }
+    }
+
+    // 👇 Compute fileUrl + paymentStatus inside the SELECT
+    const fileUrlExpr =
+      purchaseStatus === "succeeded"
+        ? tracks.fileUrl
+        : sql<string>`COALESCE(${tracks.previewUrl}, ${tracks.fileUrl})`;
+
+    const tracksList = await db
       .select({
         id: tracks.id,
         title: tracks.title,
@@ -570,8 +615,6 @@ export class MySQLStorage implements IStorage {
         duration: tracks.duration,
         hasPreviewOnly: tracks.hasPreviewOnly,
         waveformData: tracks.waveformData,
-        previewUrl: tracks.previewUrl,
-        fileUrl: tracks.fileUrl,
         coverImage: tracks.coverImage,
         price: tracks.price,
         isPublic: tracks.isPublic,
@@ -581,16 +624,133 @@ export class MySQLStorage implements IStorage {
         likesCount: tracks.likesCount,
         downloadCount: tracks.downloadCount,
         createdAt: tracks.createdAt,
+        fileUrl: fileUrlExpr,
+        paymentStatus: sql<PaymentStatus>`${purchaseStatus}`,
       })
       .from(tracks)
       .where(eq(tracks.albumId, id))
       .orderBy(tracks.trackNumber);
 
-    return { ...album, tracks: result };
+    return {
+      ...album,
+      artistName: album.artistName ?? "Unknown Artist",
+      tracks: tracksList,
+      purchaseStatus,
+    };
   }
 
-  async getAlbumsByArtistId(artistId: string): Promise<Album[]> {
-    return db.select().from(albums).where(eq(albums.artistId, artistId));
+  async getAllAlbums(userId?: string): Promise<AlbumExtended[]> {
+    const conditions = [isNull(albums.deletedAt)] as any[];
+
+    const rows = await db
+      .select({
+        ...getTableColumns(albums),
+        artistName: users.fullName,
+        // ✅ Prefer "succeeded" > "pending" > "failed" > "refunded"
+        purchaseStatus: userId
+          ? sql<PaymentStatus>`
+          (
+            SELECT pt.payment_status
+            FROM purchased_tracks pt
+            WHERE pt.album_id = ${albums.id}
+              AND pt.user_id = ${userId}
+            ORDER BY
+              CASE pt.payment_status
+                WHEN 'succeeded' THEN 1
+                WHEN 'pending' THEN 2
+                WHEN 'failed' THEN 3
+                WHEN 'refunded' THEN 4
+                ELSE 5
+              END
+            LIMIT 1
+          )
+        `.as("purchaseStatus")
+          : sql<PaymentStatus>`NULL`.as("purchaseStatus"),
+      })
+      .from(albums)
+      .leftJoin(users, eq(albums.artistId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(albums.createdAt));
+
+    return rows.map((album) => ({
+      ...album,
+      purchaseStatus: album.purchaseStatus ?? null,
+    }));
+  }
+
+  async getAlbumsByArtistId(artistId: string): Promise<
+    (Album & {
+      artistName: string | null;
+      purchaseStatus: PaymentStatus | null;
+    })[]
+  > {
+    const conditions = [
+      eq(albums.artistId, artistId),
+      isNull(albums.deletedAt), // ✅ exclude soft-deleted albums
+    ] as any[];
+
+    const rows = await db
+      .select({
+        ...getTableColumns(albums),
+        artistName: users.fullName,
+        // ✅ Prefer "succeeded" > "pending" > "failed" > "refunded"
+        purchaseStatus: sql<PaymentStatus>`
+        (
+          SELECT pt.payment_status
+          FROM purchased_tracks pt
+          WHERE pt.album_id = ${albums.id}
+          ORDER BY
+            CASE pt.payment_status
+              WHEN 'succeeded' THEN 1
+              WHEN 'pending' THEN 2
+              WHEN 'failed' THEN 3
+              WHEN 'refunded' THEN 4
+              ELSE 5
+            END
+          LIMIT 1
+        )
+      `.as("purchaseStatus"),
+      })
+      .from(albums)
+      .leftJoin(users, eq(albums.artistId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(albums.createdAt));
+
+    return rows.map((album) => ({
+      ...album,
+      purchaseStatus: album.purchaseStatus ?? null,
+    }));
+  }
+
+  // to render albums inside user profile, user who bought the album
+  async getAlbumsByBuyerId(userId: string): Promise<
+    (Album & {
+      artistName: string | null;
+      purchaseStatus: PaymentStatus | null;
+    })[]
+  > {
+    const rows = await db
+      .select({
+        ...getTableColumns(albums),
+        artistName: users.fullName,
+        purchaseStatus: purchasedTracks.paymentStatus,
+      })
+      .from(purchasedTracks)
+      .innerJoin(albums, eq(purchasedTracks.albumId, albums.id)) // ✅ ensure album exists
+      .leftJoin(users, eq(albums.artistId, users.id))
+      .where(
+        and(
+          eq(purchasedTracks.userId, userId),
+          eq(purchasedTracks.paymentStatus, "succeeded"), // ✅ only successful purchases
+          isNull(albums.deletedAt) // ✅ exclude soft-deleted albums
+        )
+      )
+      .orderBy(desc(purchasedTracks.purchasedAt));
+
+    return rows.map((album) => ({
+      ...album,
+      purchaseStatus: album.purchaseStatus ?? null,
+    }));
   }
 
   // ✅ Update Album (partial)
@@ -687,7 +847,31 @@ export class MySQLStorage implements IStorage {
   }
 
   async deleteAlbum(id: string): Promise<void> {
-    await db.delete(albums).where(eq(albums.id, id));
+    await db
+      .update(albums)
+      .set({
+        deletedAt: sql`CURRENT_TIMESTAMP`, // ✅ mark as deleted
+        updatedAt: sql`CURRENT_TIMESTAMP`, // optional, but good practice
+      })
+      .where(eq(albums.id, id));
+  }
+
+  async getUserAlbumPurchase(
+    userId: string,
+    albumId: string
+  ): Promise<PurchasedTrack | null> {
+    const [purchase] = await db
+      .select()
+      .from(purchasedTracks)
+      .where(
+        and(
+          eq(purchasedTracks.userId, userId),
+          eq(purchasedTracks.albumId, albumId),
+          eq(purchasedTracks.paymentStatus, "succeeded")
+        )
+      )
+      .orderBy(desc(purchasedTracks.purchasedAt));
+    return purchase || null;
   }
 
   // inside your function
@@ -788,6 +972,7 @@ export class MySQLStorage implements IStorage {
         albumId: tracks.albumId || null,
         trackNumber: tracks.trackNumber || null,
         purchaseStatus: purchasedTracks.paymentStatus,
+        deletedAt: tracks.deletedAt,
       })
       .from(tracks)
       .innerJoin(users, eq(tracks.artistId, users.id))
@@ -798,14 +983,18 @@ export class MySQLStorage implements IStorage {
           eq(purchasedTracks.userId, userId)
         )
       )
-      .where(eq(tracks.artistId, artistId))
+      // 🧩 Filter out soft-deleted tracks
+      .where(and(eq(tracks.artistId, artistId), isNull(tracks.deletedAt)))
       .orderBy(desc(tracks.createdAt));
 
     return result;
   }
 
   async getTracks(filters: FeaturedArtistFilters): Promise<any[]> {
-    const conditions = [eq(tracks.isPublic, true)] as any[];
+    const conditions = [
+      eq(tracks.isPublic, true),
+      isNull(tracks.deletedAt), // ✅ Exclude soft-deleted tracks
+    ] as any[];
 
     // sanitizes % and _ to avoid injection vector
     const safeSearch = (filters?.search ?? "").replace(/[%_]/g, "\\$&");
@@ -899,7 +1088,10 @@ export class MySQLStorage implements IStorage {
   }
 
   async deleteTrack(id: string): Promise<void> {
-    await db.delete(tracks).where(eq(tracks.id, id));
+    await db
+      .update(tracks)
+      .set({ deletedAt: new Date() })
+      .where(eq(tracks.id, id));
   }
 
   async incrementPlayCount(id: string): Promise<void> {
@@ -1956,6 +2148,7 @@ export class MySQLStorage implements IStorage {
         trackNumber: tracks.trackNumber || null,
         // ✅ expose purchase status (only succeeded will come through)
         purchaseStatus: purchasedTracks.paymentStatus,
+        deletedAt: tracks.deletedAt,
       })
       .from(purchasedTracks)
       .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))
@@ -2005,6 +2198,7 @@ export class MySQLStorage implements IStorage {
         purchaseStatus: purchasedTracks.paymentStatus,
         purchasedAt: purchasedTracks.purchasedAt,
         buyerId: purchasedTracks.userId, // expose buyer
+        deletedAt: tracks.deletedAt,
       })
       .from(purchasedTracks)
       .innerJoin(tracks, eq(purchasedTracks.trackId, tracks.id))

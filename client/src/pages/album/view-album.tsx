@@ -2,7 +2,7 @@ import React from "react";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Edit } from "lucide-react";
+import { Loader2, Edit } from "lucide-react";
 import { format } from "date-fns"; // optional
 import { useAlbum } from "@/api/hooks/tracks/useAlbums";
 import TrackCard from "@/components/music/track-card";
@@ -43,16 +43,6 @@ export const AlbumView = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setLocation(-1 as any)} // go back
-        className="mb-6"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back
-      </Button>
-
       <Card className="overflow-hidden glass-effect border-white/10">
         <div className="grid grid-cols-1 md:grid-cols-2">
           <div className="bg-slate-900">
@@ -80,6 +70,7 @@ export const AlbumView = () => {
               Edit
             </Button>
             <h1 className="text-2xl font-bold mb-2">{album.title}</h1>
+            <h1 className="text-md font-semibold mb-2">{album.artistName}</h1>
             {album.description && (
               <p className="text-muted-foreground mb-4">{album.description}</p>
             )}
@@ -98,11 +89,11 @@ export const AlbumView = () => {
         </div>
       </Card>
       {/* Tracklist */}
-      {album.tracks?.length > 0 && (
+      {album?.tracks?.length && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Tracks</h2>
           <ul className="gap-4 grid grid-cols-1 md:grid-cols-2">
-            {album.tracks.map((track: any, idx: number) => (
+            {album?.tracks?.map((track: any, idx: number) => (
               <TrackCard
                 track={track}
                 key={track.id}

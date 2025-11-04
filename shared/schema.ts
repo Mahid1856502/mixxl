@@ -19,6 +19,7 @@ import { z } from "zod";
 
 // Enums
 export const roleEnum = pgEnum("role", ["fan", "artist", "admin", "DJ"]);
+export const purchaseTypeEnum = pgEnum("purchaseType", ["track", "album"]);
 export const messageTypeEnum = pgEnum("message_type", [
   "text",
   "track",
@@ -276,6 +277,7 @@ export const albums = pgTable(
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
     stripePriceId: varchar("stripe_price_id", { length: 255 }),
 
+    deletedAt: timestamp("deleted_at"), // null = active, non-null = deleted
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -300,9 +302,9 @@ export const tracks = pgTable(
     tags: json("tags"),
     duration: integer("duration"), // in seconds
     fileUrl: varchar("file_url", { length: 500 }).notNull(),
-    previewUrl: varchar("preview_url", { length: 500 }), // 30-second preview file
-    previewDuration: integer("preview_duration").default(30), // preview length in seconds
-    hasPreviewOnly: boolean("has_preview_only").default(false), // if true, only preview available until purchased
+    previewUrl: varchar("preview_url", { length: 500 }),
+    previewDuration: integer("preview_duration").default(30),
+    hasPreviewOnly: boolean("has_preview_only").default(false),
     waveformData: json("waveform_data"),
     coverImage: varchar("cover_image", { length: 500 }),
     price: decimal("price", { precision: 10, scale: 2 }),
@@ -312,16 +314,16 @@ export const tracks = pgTable(
     downloadCount: integer("download_count").default(0),
     playCount: integer("play_count").default(0),
     likesCount: integer("likes_count").default(0),
-    // NEW: Stripe Price ID for one-time payment
     stripePriceId: varchar("stripe_price_id", { length: 255 }),
-
     albumId: uuid("album_id").references(() => albums.id, {
       onDelete: "set null",
     }),
-    trackNumber: integer("track_number"), // order in album
-
+    trackNumber: integer("track_number"),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+
+    // 🆕 Soft delete column
+    deletedAt: timestamp("deleted_at"), // null = active, non-null = deleted
   },
   (table) => ({
     artistIdx: index("tracks_artist_idx").on(table.artistId),
@@ -329,6 +331,7 @@ export const tracks = pgTable(
     publicIdx: index("tracks_public_idx").on(table.isPublic),
     createdIdx: index("tracks_created_idx").on(table.createdAt),
     previewIdx: index("tracks_preview_idx").on(table.hasPreviewOnly),
+    deletedIdx: index("tracks_deleted_idx").on(table.deletedAt),
   })
 );
 
@@ -340,6 +343,7 @@ export const purchasedTracks = pgTable(
     userId: uuid("user_id").notNull(),
     trackId: uuid("track_id").references(() => tracks.id),
     albumId: uuid("album_id").references(() => albums.id),
+    purchaseType: purchaseTypeEnum("purchaseType").notNull().default("track"),
 
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
     currency: varchar("currency", { length: 10 }).notNull().default("usd"),
@@ -1018,7 +1022,11 @@ export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
 
 export type Album = typeof albums.$inferSelect;
-export type AlbumExtended = Album & { tracks: Partial<Track>[] };
+export type AlbumExtended = Album & {
+  tracks?: Partial<Track>[];
+  artistName: string | null;
+  purchaseStatus: PaymentStatus | null;
+};
 export type InsertAlbum = z.infer<typeof insertAlbumSchema>;
 export type UpdateAlbum = z.infer<typeof updateAlbumSchema>;
 

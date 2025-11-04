@@ -4,7 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
-import { TrendingUp, Music, Users, Heart, Radio, Compass } from "lucide-react";
+import {
+  TrendingUp,
+  Music,
+  Users,
+  Heart,
+  Radio,
+  Compass,
+  Album,
+} from "lucide-react";
 import { useFeaturedArtists } from "@/api/hooks/artists/useArtists";
 import { usePublicPlaylists } from "@/api/hooks/playlist/usePlaylist";
 import { useRadioSession } from "@/api/hooks/radio/useRadioSession";
@@ -16,6 +24,8 @@ import FiltersCard from "@/components/discover/filter-card";
 import { useQueryParams } from "@/hooks/use-query-params";
 import { Playlist } from "@shared/schema";
 import RisingArtists from "@/components/discover/rising-tab";
+import { useAllAlbums } from "@/api/hooks/tracks/useAlbums";
+import { AlbumsList } from "@/components/music/album-list";
 
 export default function Discover() {
   const [params, setParams] = useQueryParams({
@@ -31,6 +41,10 @@ export default function Discover() {
   const { data: tracks = [], isLoading: tracksLoading } = useTracks({
     enable: tab === "tracks" || tab === "trending",
     search,
+  });
+
+  const { data: albums = [], isLoading: albumsLoading } = useAllAlbums({
+    enable: tab === "albums",
   });
 
   const { data: playlists = [] } = usePublicPlaylists({
@@ -108,31 +122,35 @@ export default function Discover() {
           onValueChange={(tab) => setParams({ tab })}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="tracks" className="flex items-center space-x-2">
-              <Music className="w-4 h-4" />
-              <span>Tracks</span>
+              <Music className="w-4 h-4 sm:block hidden" />
+              <span className="sm:text-sm text-xs">Tracks</span>
+            </TabsTrigger>
+            <TabsTrigger value="albums" className="flex items-center space-x-2">
+              <Album className="w-4 h-4 sm:block hidden" />
+              <span className="sm:text-sm text-xs">Albums</span>
             </TabsTrigger>
             <TabsTrigger
               value="playlists"
               className="flex items-center space-x-2"
             >
-              <Heart className="w-4 h-4" />
-              <span>Playlists</span>
+              <Heart className="w-4 h-4 sm:block hidden" />
+              <span className="sm:text-sm text-xs">Playlists</span>
             </TabsTrigger>
             <TabsTrigger
               value="artists"
               className="flex items-center space-x-2"
             >
-              <Users className="w-4 h-4" />
-              <span>Artists</span>
+              <Users className="w-4 h-4 sm:block hidden" />
+              <span className="sm:text-sm text-xs">Artists</span>
             </TabsTrigger>
             <TabsTrigger
               value="trending"
               className="flex items-center space-x-2"
             >
-              <TrendingUp className="w-4 h-4" />
-              <span>Trending</span>
+              <TrendingUp className="w-4 h-4 sm:block hidden" />
+              <span className="sm:text-sm text-xs">Trending</span>
             </TabsTrigger>
           </TabsList>
           <TabsContent value="tracks">
@@ -144,6 +162,17 @@ export default function Discover() {
               tracks={tracks}
               tracksLoading={tracksLoading}
             />
+          </TabsContent>
+          <TabsContent value="albums">
+            {/* <TracksTab
+              sort={sort}
+              genre={genre}
+              mood={mood}
+              searchQuery={search}
+              tracks={tracks}
+              tracksLoading={tracksLoading}
+            /> */}
+            <AlbumsList albums={albums || []} isPending={albumsLoading} />
           </TabsContent>
           <TabsContent value="playlists" className="space-y-6">
             <div className="flex items-center justify-between">

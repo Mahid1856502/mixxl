@@ -36,8 +36,21 @@ async function deleteAlbum(id: string): Promise<void> {
 }
 
 // optional: fetch albums by artist or all public
-async function fetchAlbums(artistId?: string): Promise<Album[]> {
+async function fetchAlbums(artistId?: string): Promise<AlbumExtended[]> {
   const url = `/api/albums/artist/${artistId}`;
+  const res = await apiRequest("GET", url);
+  if (!res.ok) throw new Error("Failed to fetch albums");
+  return res.json();
+}
+
+async function fetchMyAlbums(): Promise<AlbumExtended[]> {
+  const res = await apiRequest("GET", `/api/albums/buyer`);
+  if (!res.ok) throw new Error("Failed to fetch my albums");
+  return res.json();
+}
+
+async function fetchAllAlbums(): Promise<Album[]> {
+  const url = `/api/albums`;
   const res = await apiRequest("GET", url);
   if (!res.ok) throw new Error("Failed to fetch albums");
   return res.json();
@@ -52,11 +65,33 @@ export function useAlbum(id?: string) {
   });
 }
 
-export function useAlbums(artistId: string) {
+export function useMyAlbums({ enabled }: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["my-albums"],
+    queryFn: () => fetchMyAlbums(),
+    enabled,
+  });
+}
+
+export function useAllAlbums({ enable }: { enable?: boolean }) {
+  return useQuery({
+    queryKey: ["albums"],
+    queryFn: () => fetchAllAlbums(),
+    enabled: !!enable,
+  });
+}
+
+export function useAlbums({
+  enabled,
+  artistId,
+}: {
+  enabled?: boolean;
+  artistId?: string;
+}) {
   return useQuery({
     queryKey: artistId ? ["albums", "artist", artistId] : ["albums"],
     queryFn: () => fetchAlbums(artistId),
-    enabled: !!artistId,
+    enabled: !!artistId && enabled,
   });
 }
 

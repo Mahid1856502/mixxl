@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import PreviewPlayer from "./preview-player";
 import PurchaseModal from "./purchase-modal";
@@ -21,12 +21,15 @@ import {
   ListMusic,
   Edit,
   Trash,
+  Loader2,
 } from "lucide-react";
 import { TrackExtended } from "@shared/schema";
 import { useMusicPlayer } from "@/hooks/use-music-player";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { PlaylistModal } from "../modals/add-to-playlist-modal";
 import { Skeleton } from "../ui/skeleton";
+import { useDeleteTrack } from "@/api/hooks/tracks/useMyTracks";
+import { ConfirmDialog } from "../common/ConfirmPopup";
 
 interface TrackCardProps {
   track: TrackExtended;
@@ -58,6 +61,11 @@ export default function TrackCard({
   } = useMusicPlayer();
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const { mutate: softDeleteTrack, isPending } = useDeleteTrack(user?.id);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingTrack, setDeletingTrack] = useState<TrackExtended | null>(
+    null
+  );
 
   const hasFullAccess =
     // track.isPublic ||
@@ -461,8 +469,16 @@ export default function TrackCard({
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs px-3 border border-red-700 hover:border-red-500 bg-red-950 hover:bg-red-900 hover:text-white"
+                    onClick={() => {
+                      setDeletingTrack(track);
+                      setDeleteOpen(true);
+                    }}
                   >
-                    <Trash className="" />
+                    {isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash />
+                    )}
                   </Button>
                 </>
               )}
@@ -498,6 +514,41 @@ export default function TrackCard({
           open={open}
           user={user}
           trackId={track?.id}
+        />
+      )}
+      {deleteOpen && (
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Delete Track"
+          description={
+            <>
+              <p>
+                Are you sure you want to delete{" "}
+                <strong>{deletingTrack?.title || "Untitled"}</strong>? This
+                action cannot be undone.
+              </p>
+              <ul className="mt-3 list-disc list-inside text-sm text-muted-foreground">
+                <li>
+                  Existing buyers will <strong>keep access</strong> to their
+                  purchased copy.
+                </li>
+                <li>
+                  The track will be{" "}
+                  <strong>removed from your public profile</strong>.
+                </li>
+              </ul>
+            </>
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={() => {
+            if (deletingTrack?.id) {
+              softDeleteTrack(deletingTrack.id);
+              setDeleteOpen(false);
+            }
+          }}
+          isPending={isPending}
         />
       )}
     </Card>

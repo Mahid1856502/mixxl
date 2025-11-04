@@ -39,7 +39,11 @@ import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useUserById } from "@/api/hooks/users/useUserById";
 import { useQueryParams } from "@/hooks/use-query-params";
 import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
-import { useAlbums, useDeleteAlbum } from "@/api/hooks/tracks/useAlbums";
+import {
+  useAlbums,
+  useDeleteAlbum,
+  useMyAlbums,
+} from "@/api/hooks/tracks/useAlbums";
 import { AlbumsList } from "@/components/music/album-list";
 
 export default function Profile() {
@@ -59,7 +63,7 @@ export default function Profile() {
     deleteAlbum(id);
   }
 
-  const profileUserId = id || currentUser?.id || "";
+  const profileUserId = id || "";
   const isOwnProfile = profileUserId === currentUser?.id;
   const { data: user } = useUserById(profileUserId ?? "");
 
@@ -68,8 +72,16 @@ export default function Profile() {
     profileUserId
   );
 
-  const { data: albums } = useAlbums(profileUserId);
-  console.log("albums", albums);
+  const { data: albums } = useAlbums({
+    artistId: profileUserId,
+    enabled: params.tab === "albums" && user?.role === "artist",
+  });
+  const { data: myAlbums } = useMyAlbums({
+    enabled: params.tab === "albums" && user?.role !== "artist",
+  });
+  const finalAlbums = user?.role === "artist" ? albums || [] : myAlbums || [];
+
+  console.log("finalAlbums", finalAlbums);
 
   const { data: userPlaylists = [] } = useUserPlaylists({
     identifier: profileUserId,
@@ -439,15 +451,15 @@ export default function Profile() {
               <Users className="w-4 h-4" />
               <span>Social</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="albums"
+              className="flex items-center space-x-2 text-xs md:text-sm"
+            >
+              <Album className="w-4 h-4" />
+              <span>Albums</span>
+            </TabsTrigger>
             {user?.role === "artist" && (
               <>
-                <TabsTrigger
-                  value="albums"
-                  className="flex items-center space-x-2 text-xs md:text-sm"
-                >
-                  <Album className="w-4 h-4" />
-                  <span>Albums</span>
-                </TabsTrigger>
                 <TabsTrigger
                   value="analytics"
                   className="flex items-center space-x-2 text-xs md:text-sm"
@@ -658,16 +670,16 @@ export default function Profile() {
             </div>
           </TabsContent>
 
+          <TabsContent value="albums" className="space-y-6">
+            <AlbumsList
+              albums={finalAlbums || []}
+              isOwnProfile={isOwnProfile}
+              onDelete={handleDelete}
+              isPending={isPending}
+            />
+          </TabsContent>
           {user?.role === "artist" && (
             <>
-              <TabsContent value="albums" className="space-y-6">
-                <AlbumsList
-                  albums={albums || []}
-                  isOwnProfile={isOwnProfile}
-                  onDelete={handleDelete}
-                  isPending={isPending}
-                />
-              </TabsContent>
               <TabsContent value="analytics" className="space-y-6">
                 <h2 className="text-2xl font-bold">Analytics Overview</h2>
 

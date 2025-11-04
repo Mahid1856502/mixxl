@@ -1,6 +1,8 @@
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Track } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 async function fetchUserTracks(userId?: string) {
   const url = userId
@@ -38,5 +40,25 @@ export function useTrack(trackId?: string) {
     queryFn: () => fetchTrack(trackId!), // non-null assertion since `enabled` guards it
     enabled: !!trackId, // don’t run unless trackId is provided
     retry: false, // disable retry if 404 means “not found”
+  });
+}
+
+export function useDeleteTrack(userId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/tracks/${id}`);
+      if (!res.ok) throw new Error("Failed to delete track");
+    },
+    onSuccess: (_, id) => {
+      toast({ title: `Track deleted successfully! ${id}` });
+      // Invalidate cached lists and single track query
+      queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      queryClient.invalidateQueries({ queryKey: ["track", id] });
+      queryClient.invalidateQueries({ queryKey: ["userTracks", userId] });
+    },
+    onError: (error) => {
+      toast({ title: "Error deleting track", description: error.message });
+    },
   });
 }

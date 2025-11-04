@@ -23,8 +23,6 @@ export function useTracks(filters: DiscoverFilters = {}) {
 }
 
 export function useCreateTrack() {
-  const queryClient = useQueryClient();
-
   return useMutation<Track, Error, InsertTrack>({
     mutationFn: async (data: InsertTrack) => {
       const res = await apiRequest("POST", "/api/tracks", data);

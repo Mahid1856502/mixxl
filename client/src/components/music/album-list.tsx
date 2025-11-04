@@ -2,29 +2,39 @@ import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash, Loader2 } from "lucide-react";
-import { Album } from "@shared/schema";
+import { Edit, Trash, Crown } from "lucide-react";
 import { ConfirmDialog } from "../common/ConfirmPopup";
-import { useDeleteAlbum } from "@/api/hooks/tracks/useAlbums";
+import AlbumPurchaseModal from "./album-purchase-modal";
+import { AlbumExtended, User } from "@shared/schema";
 
 type AlbumsTabProps = {
-  albums: Album[];
+  albums: AlbumExtended[];
   isOwnProfile?: boolean;
-  onDelete: (id: string) => Promise<void> | void;
+  onDelete?: (id: string) => Promise<void> | void;
   isPending: boolean;
+  user?: User | null;
 };
 
 export const AlbumsList = ({
   albums,
   isOwnProfile = false,
   onDelete,
+  user,
   isPending = false,
 }: AlbumsTabProps) => {
+  console.log("albums", albums);
   const [, setLocation] = useLocation();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedAlbum, setSelectedAlbum] = useState<Partial<Album> | null>(
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumExtended | null>(
     null
   );
+  const handlePurchase = (album: AlbumExtended) => {
+    setSelectedAlbum(album);
+    setShowPurchaseModal(true);
+  };
+
+  console.log("showPurchaseModal", showPurchaseModal);
 
   if (!albums || albums.length === 0) {
     return (
@@ -41,7 +51,9 @@ export const AlbumsList = ({
       {albums.map((album) => (
         <Card
           key={album.id}
-          onClick={() => setLocation(`/view-album/${album.id}`)}
+          onClick={() => {
+            setLocation(`/view-album/${album.id}`);
+          }}
           className="group bg-card border border-white/5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer flex items-center justify-between"
         >
           <div className="flex items-center gap-4 flex-1 min-w-0 p-3">
@@ -73,43 +85,56 @@ export const AlbumsList = ({
                 {album.title ?? "Untitled"}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {album.description || "No description available."}
+                {album?.artistName || "Unknown Artist"}
               </p>
-              <p className="text-xs text-muted-foreground mt-2 font-medium">
-                £{album.price}
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {album.description || "No description available."}
               </p>
             </div>
           </div>
 
           {/* Edit + Delete (only for own profile) */}
-          {isOwnProfile && (
-            <div
-              className="flex items-center gap-1 pr-3"
-              onClick={(e) => e.stopPropagation()} // prevent triggering view
-            >
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setLocation(`/upload/album/${album.id}`)}
-                aria-label={`Edit ${album.title ?? "album"}`}
-                className="p-1 rounded-md"
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => {
-                  setDeleteOpen(true);
-                  setSelectedAlbum(album);
-                }}
-                aria-label={`Edit ${album.title ?? "album"}`}
-                className="p-1 rounded-md hover:bg-red-500 hover:text-white"
-              >
-                <Trash className="w-4 h-4" />
-              </Button>{" "}
-            </div>
-          )}
+          <div
+            className="flex items-center gap-1 pr-3"
+            onClick={(e) => e.stopPropagation()} // prevent triggering view
+          >
+            {isOwnProfile && user?.role === "artist" ? (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setLocation(`/upload/album/${album.id}`)}
+                  aria-label={`Edit ${album.title ?? "album"}`}
+                  className="p-1 rounded-md"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    setDeleteOpen(true);
+                    setSelectedAlbum(album);
+                  }}
+                  aria-label={`Edit ${album.title ?? "album"}`}
+                  className="p-1 rounded-md hover:bg-red-500 hover:text-white"
+                >
+                  <Trash className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              album.purchaseStatus !== "succeeded" && (
+                <Button
+                  size="sm"
+                  onClick={() => handlePurchase(album)}
+                  className="h-8 px-3 text-xs mixxl-gradient text-white"
+                >
+                  <Crown className="w-3 h-3 mr-1" />
+                  Buy £{album.price}
+                </Button>
+              )
+            )}
+          </div>
         </Card>
       ))}
       <ConfirmDialog
@@ -128,7 +153,7 @@ export const AlbumsList = ({
         onConfirm={async () => {
           if (selectedAlbum?.id) {
             try {
-              await onDelete(String(selectedAlbum.id));
+              await onDelete?.(String(selectedAlbum.id));
               setDeleteOpen(false);
               setSelectedAlbum(null);
             } catch (err) {
@@ -137,6 +162,11 @@ export const AlbumsList = ({
           }
         }}
         isPending={isPending}
+      />
+      <AlbumPurchaseModal
+        album={showPurchaseModal ? selectedAlbum : null}
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
       />
     </div>
   );
