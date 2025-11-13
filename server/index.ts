@@ -1,11 +1,11 @@
 // ✅ Add this block FIRST — before any imports
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("🚨 Unhandled Rejection:", reason);
-});
+// process.on("unhandledRejection", (reason, promise) => {
+//   console.error("🚨 Unhandled Rejection:", reason);
+// });
 
-process.on("uncaughtException", (err) => {
-  console.error("🔥 Uncaught Exception:", err);
-});
+// process.on("uncaughtException", (err) => {
+//   console.error("🔥 Uncaught Exception:", err);
+// });
 
 // process.on("SIGINT", () => {
 //   console.log("👋 Gracefully shutting down (SIGINT)");
@@ -16,6 +16,10 @@ process.on("uncaughtException", (err) => {
 //   console.log("👋 Gracefully shutting down (SIGTERM)");
 //   process.exit(0);
 // });
+
+process.on("SIGINT", (signal) => console.log("🚨 SIGINT received:", signal));
+process.on("SIGTERM", (signal) => console.log("🚨 SIGTERM received:", signal));
+process.on("exit", (code) => console.log("🛑 Process exit with code", code));
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
