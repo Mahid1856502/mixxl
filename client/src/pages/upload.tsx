@@ -139,6 +139,7 @@ export default function Upload() {
         duration = await getAudioDuration(audioFile);
       }
 
+      debugger;
       // 2️⃣ Handle preview if requested
       let previewBlob: Blob | null = null;
       let previewDuration = track?.previewDuration ?? 0;
