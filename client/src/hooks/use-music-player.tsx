@@ -11,6 +11,7 @@ import { classifyPlaybackError } from "@/utils/audio-utils";
 import { useAudioPlayer } from "@/hooks/use-audio-manager";
 import { TrackExtended } from "@shared/schema";
 import { useAuth } from "./use-auth";
+import * as Sentry from "@sentry/react";
 
 interface MusicPlayerContextType {
   currentTrack: TrackExtended | null;
@@ -105,6 +106,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
     } catch (error) {
       const errorType = classifyPlaybackError(error);
+      Sentry.logger.info(JSON.stringify(error), { log_source: "sentry_test" });
       console.error("Audio playback failed", {
         error,
         errorType,

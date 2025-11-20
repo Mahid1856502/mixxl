@@ -1,38 +1,34 @@
-// ✅ Add this block FIRST — before any imports
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("🚨 Unhandled Rejection:", reason);
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("🔥 Uncaught Exception:", err);
-});
-
-process.on("SIGINT", () => {
-  console.log("👋 Gracefully shutting down (SIGINT)");
-  process.exit(0);
-});
-
-process.on("SIGTERM", () => {
-  console.log("👋 Gracefully shutting down (SIGTERM)");
-  process.exit(0);
-});
-
+// ---------------------------------------------------------
+// 📦 Imports
+// ---------------------------------------------------------
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
+import http from "http";
+import cors from "cors";
+import "dotenv/config";
+import jwt from "jsonwebtoken";
+
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import "dotenv/config";
-import cors from "cors";
-import http from "http";
-import { createWSS } from "./ws"; // 👈 our new module
+import { createWSS } from "./ws";
 import { registerWebhooksRoutes } from "./webhooks";
 
+// Database
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+
+// Sentry 8+
+import * as Sentry from "@sentry/node";
+import "@sentry/tracing";
+
+import { User, users } from "@shared/schema";
+
+// ---------------------------------------------------------
+// 🔧 Core Setup
+// ---------------------------------------------------------
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
 const PORT = parseInt(process.env.PORT || "5000", 10);
-
-const CORS_ORIGIN =
-  NODE_ENV === "development" ? "http://localhost:5173" : "https://mixxl.fm";
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -40,27 +36,80 @@ const allowedOrigins = [
   "https://www.mixxl.fm",
 ];
 
-// app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+// ---------------------------------------------------------
+// 🟣 Sentry Initialization (v8)
+// ---------------------------------------------------------
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: NODE_ENV,
+  tracesSampleRate: 0.2,
+  integrations: [
+    Sentry.expressIntegration(), // ✅ no args
+    Sentry.httpIntegration(), // optional: outgoing HTTP requests
+    Sentry.nativeNodeFetchIntegration(), // optional: fetch/undici instrumentation
+  ],
+});
+
+// ---------------------------------------------------------
+// 🟢 JWT Middleware + Sentry user context
+// ---------------------------------------------------------
+declare global {
+  namespace Express {
+    export interface Request {
+      user: User;
+    }
+  }
+}
+
+app.use(async (req, _res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth) return next();
+
+  const token = auth.split(" ")[1];
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "") as any;
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (user) {
+      req.user = user;
+
+      // ✅ Sentry 8 way: get current scope for this request
+      const scope = Sentry.getCurrentScope();
+      if (scope) {
+        scope.setUser({ id: user.id, email: user.email });
+        scope.setTag("role", user.role); // optional: attach more info
+      }
+    }
+  } catch {
+    log("Invalid JWT provided");
+  }
+
+  next();
+});
+
+// ---------------------------------------------------------
+// 🟦 CORS Configuration
+// ---------------------------------------------------------
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow REST clients with no origin (like curl, Postman)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
+      if (!origin) return callback(null, true); // allow curl/postman
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", "Accept"],
   })
 );
-// app.options("*", cors({ origin: CORS_ORIGIN, credentials: true }));
-// Make sure OPTIONS preflight always responds with headers
-// Handle preflight
+
 app.options(
   "*",
   cors({
@@ -70,34 +119,52 @@ app.options(
     allowedHeaders: ["Authorization", "Content-Type", "Accept"],
   })
 );
-// 👇 Register webhooks BEFORE JSON body parser
+
+// ---------------------------------------------------------
+// 🟣 Webhooks BEFORE JSON parser
+// ---------------------------------------------------------
 registerWebhooksRoutes(app);
 
+// ---------------------------------------------------------
+// 📦 Body Parser + Static
+// ---------------------------------------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+// ---------------------------------------------------------
+// 🚀 Main bootstrap
+// ---------------------------------------------------------
 (async () => {
   const server = http.createServer(app);
 
+  // API routes
   await registerRoutes(app);
 
-  // 👇 All WS logic moves out
+  // WebSocket server
   createWSS(server);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // ---------------------------------------------------------
+  // 🔴 Error Handling (Sentry + Logger)
+  // ---------------------------------------------------------
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    Sentry.captureException(err); // send error to Sentry
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    if (NODE_ENV === "development") console.error(err);
+    res.status(status).json({ message: "Internal Server Error" });
   });
 
+  // ---------------------------------------------------------
+  // 🟩 Vite dev / production
+  // ---------------------------------------------------------
   if (NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
+  // ---------------------------------------------------------
+  // 🚀 Start server
+  // ---------------------------------------------------------
   server.listen(PORT, "0.0.0.0", () => {
     log(`🚀 [${NODE_ENV}] Server running at http://0.0.0.0:${PORT}`);
   });

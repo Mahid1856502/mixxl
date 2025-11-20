@@ -49,6 +49,8 @@ export default function VerifyEmail() {
     if (data) {
       // Save JWT token in localStorage
       localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user?.id);
+      localStorage.setItem("email", data.user?.email);
 
       // Save user in React Query cache
       queryClient.setQueryData(["/api/auth/me"], data.user);

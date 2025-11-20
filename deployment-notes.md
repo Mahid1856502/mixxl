@@ -47,3 +47,8 @@ Cpanel:
 Username: mixxcata
 pass: 19Klark22!@
 url: https://server801.web-hosting.com/cpanel
+
+
+https://privateemail.com/
+mahid@mixxl.fm
+2VaQ:xRL7Ee5Yp*

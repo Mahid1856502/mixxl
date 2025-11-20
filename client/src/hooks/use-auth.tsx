@@ -45,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     onSuccess: (data) => {
       setToken(data.token);
       localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user?.id);
+      localStorage.setItem("email", data.user?.email);
       queryClient.setQueryData(["/api/auth/me"], data.user);
       toast({
         title: "Welcome back!",
@@ -68,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     onSuccess: (data) => {
       setToken(data.token);
       localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user?.id);
+      localStorage.setItem("email", data.user?.email);
+
       queryClient.setQueryData(["/api/auth/me"], data.user);
       toast({
         title: "Account created!",
