@@ -73,6 +73,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.get("/api/sentry-error", (_req, _res) => {
+    throw new Error("🔥 Test error from /sentry-error");
+  });
+
   // Auth routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
