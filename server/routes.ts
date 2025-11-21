@@ -4,6 +4,7 @@ import { WebSocket } from "ws";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import crypto from "crypto";
+import * as Sentry from "@sentry/node";
 import {
   insertUserSchema,
   insertTrackSchema,
@@ -348,6 +349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Stripe account creation error:", error);
+      Sentry.logger.error(
+        Sentry.logger.fmt`Uh on, something broke, here's the error: '${error}'`
+      );
       res.status(500).json({ message: "Server error" });
     }
   });
@@ -444,6 +448,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (error) {
         console.error("Stripe account refresh error:", error);
+        Sentry.logger.error(
+          Sentry.logger
+            .fmt`Uh on, something broke, here's the error: '${error}'`
+        );
         res.status(500).json({ message: "Server error" });
       }
     }

@@ -47,7 +47,9 @@ Sentry.init({
     Sentry.expressIntegration(),
     Sentry.httpIntegration(),
     Sentry.nativeNodeFetchIntegration(),
+    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
   ],
+  enableLogs: true,
 });
 
 // ---------------------------------------------------------
