@@ -44,9 +44,9 @@ Sentry.init({
   environment: NODE_ENV,
   tracesSampleRate: 0.2,
   integrations: [
-    Sentry.expressIntegration(), // ✅ no args
-    Sentry.httpIntegration(), // optional: outgoing HTTP requests
-    Sentry.nativeNodeFetchIntegration(), // optional: fetch/undici instrumentation
+    Sentry.expressIntegration(),
+    Sentry.httpIntegration(),
+    Sentry.nativeNodeFetchIntegration(),
   ],
 });
 
@@ -80,11 +80,10 @@ app.use(async (req, _res, next) => {
     if (user) {
       req.user = user;
 
-      // ✅ Sentry 8 way: get current scope for this request
       const scope = Sentry.getCurrentScope();
       if (scope) {
         scope.setUser({ id: user.id, email: user.email });
-        scope.setTag("role", user.role); // optional: attach more info
+        scope.setTag("role", user.role);
       }
     }
   } catch {
@@ -100,7 +99,7 @@ app.use(async (req, _res, next) => {
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow curl/postman
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       callback(new Error("Not allowed by CORS"));
     },
@@ -133,22 +132,59 @@ app.use(express.urlencoded({ extended: false }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ---------------------------------------------------------
+// 🔹 Async handler helper
+// ---------------------------------------------------------
+function asyncHandler(fn: Function) {
+  return function (req: Request, res: Response, next: NextFunction) {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
+// Optional: wrap all routes automatically after registration
+function wrapAsyncRoutes(app: express.Express) {
+  app._router.stack.forEach((layer: any) => {
+    if (layer.route) {
+      layer.route.stack.forEach((routeLayer: any) => {
+        const original = routeLayer.handle;
+        if (!original._isAsyncWrapped) {
+          routeLayer.handle = asyncHandler(original);
+          routeLayer.handle._isAsyncWrapped = true;
+        }
+      });
+    }
+  });
+}
+
+// ---------------------------------------------------------
 // 🚀 Main bootstrap
 // ---------------------------------------------------------
 (async () => {
   const server = http.createServer(app);
 
-  // API routes
+  // 1️⃣ API routes
   await registerRoutes(app);
 
-  // WebSocket server
+  // 2️⃣ Wrap all async routes automatically
+  wrapAsyncRoutes(app);
+
+  // 3️⃣ WebSocket server
   createWSS(server);
 
   // ---------------------------------------------------------
-  // 🔴 Error Handling (Sentry + Logger)
+  // 🔴 Error Handling Middleware (Sentry + Logger)
   // ---------------------------------------------------------
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    Sentry.captureException(err); // send error to Sentry
+    Sentry.captureException(err); // Send error to Sentry
+    console.error("Unhandled error:", err);
+
+    // Handle Stripe specific errors if desired
+    if (err.type === "StripeInvalidRequestError") {
+      return res.status(400).json({
+        message: "Stripe account is invalid or missing required information",
+        details: err.message,
+      });
+    }
+
     const status = err.status || err.statusCode || 500;
     res.status(status).json({ message: "Internal Server Error" });
   });

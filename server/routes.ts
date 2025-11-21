@@ -39,6 +39,7 @@ import { log } from "./vite";
 import { getWSS } from "./ws";
 import { stripe } from "./stripe";
 import { formatCountry } from "./utils";
+import { asyncHandler } from "./asyncHandler";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -2853,4 +2854,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   return httpServer;
+}
+
+export function wrapAsyncRoutes(app: Express) {
+  app._router.stack.forEach((layer: any) => {
+    if (layer.route) {
+      layer.route.stack.forEach((routeLayer: any) => {
+        const original = routeLayer.handle;
+        routeLayer.handle = asyncHandler(original);
+      });
+    }
+  });
 }
