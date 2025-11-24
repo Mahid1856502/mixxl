@@ -312,7 +312,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         business_type: "individual", // TODO: support company accounts later
         individual: {
           first_name: user.fullName || undefined,
-          full_name_aliases: user.fullName || undefined,
           email: user.email,
         },
         business_profile: {
