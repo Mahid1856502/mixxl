@@ -92,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userData.role === "artist") {
         const lifetimeFreeCount = await storage.countLifetimeFreeArtists();
 
-        if (lifetimeFreeCount < 30) {
+        if (lifetimeFreeCount < 31) {
           extraFields = {
             subscriptionStatus: "lifetime_free",
             trialEndsAt: null,
