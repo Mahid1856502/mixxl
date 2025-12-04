@@ -70,7 +70,7 @@ export function FeaturedArtistsCarousel({
   // ---------- Fallback ----------
   if (artists.length === 0) {
     return (
-      <div className="relative min-h-[80vh]">
+      <div className="relative min-h-[70vh]">
         <img
           src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&h=900&fit=crop"
           alt="Mixxl Placeholder"
@@ -107,6 +107,7 @@ export function FeaturedArtistsCarousel({
       <Carousel
         opts={{ loop: true, align: "start" }}
         className="w-full overflow-hidden"
+        autoScroll={{ interval: 3000 }} // ⬅️ Auto-scroll every 3s (optional)
       >
         <CarouselContent>
           {artists.map((artist) => (

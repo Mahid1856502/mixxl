@@ -230,7 +230,7 @@ export default function UserCard({
         <div className="p-4 space-y-3">
           <div className="flex items-start space-x-3">
             <Link href={`/profile/${user.id}`}>
-              <Avatar className="h-12 w-12 -mt-8 border-2 border-background">
+              <Avatar className="h-12 w-12 border-2 border-background">
                 <AvatarImage
                   className="object-cover"
                   src={user.profileImage ?? ""}
@@ -276,28 +276,32 @@ export default function UserCard({
           {/* Actions */}
           {currentUser && currentUser.id !== user.id && (
             <div className="flex items-center space-x-2 pt-2">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() =>
+                  setLocation(`/store/${user.username?.toLocaleLowerCase()}`)
+                }
+                className={`flex-1 mixxl-gradient text-white`}
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                Visit Store
+              </Button>
+
               {showFollowButton && (
                 <Button
                   size="sm"
-                  variant={isFollowing ? "outline" : "default"}
+                  variant="outline"
                   onClick={handleFollow}
                   disabled={
                     followMutation.isPending || unfollowMutation.isPending
                   }
-                  className={`flex-1 ${
-                    isFollowing ? "" : "mixxl-gradient text-white"
-                  }`}
+                  className="px-3"
                 >
                   {isFollowing ? (
-                    <>
-                      <UserCheck className="w-4 h-4 mr-1" />
-                      Following
-                    </>
+                    <UserCheck className="w-4 h-4 mr-1" />
                   ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-1" />
-                      Follow
-                    </>
+                    <UserPlus className="w-4 h-4 mr-1" />
                   )}
                 </Button>
               )}

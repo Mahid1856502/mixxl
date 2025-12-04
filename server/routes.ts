@@ -924,9 +924,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertTrackSchema.parse(trackData);
       const track = await storage.createTrack(validatedData);
-
+      console.log("Track uploaded:", track.id || track.title);
       res.json(track);
     } catch (error) {
+      console.error("Error upload track:", error);
       if (error instanceof ZodError) {
         return res
           .status(400)

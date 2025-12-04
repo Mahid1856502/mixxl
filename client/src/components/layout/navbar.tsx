@@ -111,27 +111,27 @@ export default function Navbar() {
             </Link>
 
             {/* Only show navigation on non-dashboard pages */}
-            {!location.startsWith("/dashboard") && (
-              <div className="hidden md:flex items-center space-x-6">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive(item.href)
-                          ? "bg-primary/20 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+            {/* {!location.startsWith("/dashboard") && ( */}
+            <div className="hidden md:flex items-center space-x-6">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive(item.href)
+                        ? "bg-primary/20 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+            {/* )} */}
           </div>
 
           {/* Search and user menu */}

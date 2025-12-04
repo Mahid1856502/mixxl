@@ -52,6 +52,8 @@ import Feedback from "@/pages/admin/feedback";
 import Earnings from "@/pages/earnings";
 import ManageAlbum from "@/pages/album/manage-album";
 import { AlbumView } from "@/pages/album/view-album";
+import Store from "@/pages/artists/store";
+import ProductDetail from "@/pages/artists/store/product-detail";
 
 export interface AppRoute {
   path: string;
@@ -126,6 +128,18 @@ export const appRoutes: AppRoute[] = [
     path: "/track/:id",
     component: TrackPage,
     roles: ["fan", "artist", "admin"],
+  },
+
+  // ==================== Online Store ====================
+  {
+    path: "/store/:username",
+    component: Store,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/store/:artistId/product/:productId",
+    component: ProductDetail,
+    roles: ["fan", "artist", "admin", "DJ"],
   },
 
   // Artist-only

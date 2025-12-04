@@ -45,6 +45,7 @@ import {
   useMyAlbums,
 } from "@/api/hooks/tracks/useAlbums";
 import { AlbumsList } from "@/components/music/album-list";
+import SocialModal from "@/components/modals/social-modal";
 
 export default function Profile() {
   const { id } = useParams();
@@ -53,6 +54,8 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const [showTipModal, setShowTipModal] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isSocialOpen, setIsSocialOpen] = useState(false);
+  const [showFollowers, setShowFollowers] = useState(true);
   const [params, setParams] = useQueryParams({
     tab: "music",
   });
@@ -81,8 +84,6 @@ export default function Profile() {
   });
   const finalAlbums = user?.role === "artist" ? albums || [] : myAlbums || [];
 
-  console.log("finalAlbums", finalAlbums);
-
   const { data: userPlaylists = [] } = useUserPlaylists({
     identifier: profileUserId,
     enabled: params.tab === "playlists",
@@ -93,6 +94,8 @@ export default function Profile() {
     enabled: !!profileUserId,
   }) as { data: any[] };
 
+  console.log("followers", followers);
+
   const { data: following = [] } = useQuery({
     queryKey: ["/api/users", profileUserId, "following"],
     enabled: !!profileUserId,
@@ -100,11 +103,7 @@ export default function Profile() {
 
   const { data: isFollowing } = useQuery({
     queryKey: ["/api/users", profileUserId, "is-following"],
-    enabled:
-      !!profileUserId &&
-      !!currentUser &&
-      !isOwnProfile &&
-      params.tab === "social",
+    enabled: !!profileUserId && !!currentUser && !isOwnProfile,
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
@@ -244,7 +243,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 -mt-16 relative z-10">
+      <div className="max-w-5xl mx-auto px-6 -mt-16 relative z-10">
         {/* Profile Info */}
         <Card className="glass-effect border-white/10 mb-8">
           <CardContent className="p-8">
@@ -352,14 +351,26 @@ export default function Profile() {
                     </div>
                     <div className="text-muted-foreground">Playlists</div>
                   </div>
-                  <div className="text-center">
+                  <button
+                    onClick={() => {
+                      setIsSocialOpen(true);
+                      setShowFollowers(true);
+                    }}
+                    className="text-center"
+                  >
                     <div className="font-bold text-lg">{followers.length}</div>
                     <div className="text-muted-foreground">Followers</div>
-                  </div>
-                  <div className="text-center">
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsSocialOpen(true);
+                      setShowFollowers(false);
+                    }}
+                    className="text-center"
+                  >
                     <div className="font-bold text-lg">{following.length}</div>
                     <div className="text-muted-foreground">Following</div>
-                  </div>
+                  </button>
                   {user?.role === "artist" && (
                     <div className="text-center">
                       <div className="font-bold text-lg">
@@ -444,13 +455,7 @@ export default function Profile() {
               <Heart className="w-4 h-4" />
               <span>Playlists</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="social"
-              className="flex items-center space-x-2 text-xs md:text-sm"
-            >
-              <Users className="w-4 h-4" />
-              <span>Social</span>
-            </TabsTrigger>
+
             <TabsTrigger
               value="albums"
               className="flex items-center space-x-2 text-xs md:text-sm"
@@ -478,7 +483,7 @@ export default function Profile() {
                   ? user?.role === "artist"
                     ? "Your Tracks"
                     : "Your Music Library"
-                  : `${user?.fullName}'s ${
+                  : `${user?.username}'s ${
                       user?.role === "artist" ? "Tracks" : "Music Library"
                     }`}
               </h2>
@@ -591,83 +596,6 @@ export default function Profile() {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="social" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Following */}
-              <Card className="glass-effect border-white/10">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-xs md:text-sm">
-                    <Users className="w-5 h-5" />
-                    <span>Following ({following.length})</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {following.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">
-                        {isOwnProfile
-                          ? "You're not following anyone yet"
-                          : "Not following anyone yet"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {following.slice(0, 5).map((followedUser: any) => (
-                        <UserCard
-                          key={followedUser.id}
-                          user={followedUser}
-                          isFollowing
-                          variant="compact"
-                        />
-                      ))}
-                      {following.length > 5 && (
-                        <Button variant="outline" className="w-full">
-                          View All Following
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Followers */}
-              <Card className="glass-effect border-white/10">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-xs md:text-sm">
-                    <Users className="w-5 h-5" />
-                    <span>Followers ({followers.length})</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {followers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">
-                        {isOwnProfile ? "No followers yet" : "No followers yet"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {followers.slice(0, 5).map((follower: any) => (
-                        <UserCard
-                          key={follower.id}
-                          user={follower}
-                          variant="compact"
-                        />
-                      ))}
-                      {followers.length > 5 && (
-                        <Button variant="outline" className="w-full">
-                          View All Followers
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
           <TabsContent value="albums" className="space-y-6">
@@ -812,6 +740,16 @@ export default function Profile() {
       />
       {modalOpen && (
         <CreatePlaylistModal open={modalOpen} onOpenChange={setModalOpen} />
+      )}
+      {isSocialOpen && (
+        <SocialModal
+          isOpen={isSocialOpen}
+          onClose={() => setIsSocialOpen(false)}
+          followers={followers}
+          following={following}
+          isOwnProfile={isOwnProfile}
+          showFollowers={showFollowers}
+        />
       )}
     </div>
   );

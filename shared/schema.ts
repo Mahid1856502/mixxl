@@ -13,6 +13,7 @@ import {
   uuid,
   bigint,
   check,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -960,6 +961,159 @@ export const discountCodeUsage = pgTable(
     codeIdx: index("discount_code_usage_code_idx").on(table.codeId),
     userIdx: index("discount_code_usage_user_idx").on(table.userId),
     orderIdx: index("discount_code_usage_order_idx").on(table.orderId),
+  })
+);
+
+// Store
+export const stores = pgTable(
+  "stores",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    name: varchar("name", { length: 150 }).notNull(),
+    handle: varchar("handle", { length: 100 }).notNull().unique(), // e.g., /store/artist-name
+
+    description: text("description"),
+    bannerImage: varchar("banner_image", { length: 500 }),
+    logoImage: varchar("logo_image", { length: 500 }),
+
+    currency: varchar("currency", { length: 3 }).default("USD"),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    userUnique: unique("user_store_unique").on(table.userId),
+    handleIdx: index("store_handle_idx").on(table.handle),
+  })
+);
+
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    storeId: uuid("store_id")
+      .notNull()
+      .references(() => stores.id, { onDelete: "cascade" }),
+
+    title: varchar("title", { length: 200 }).notNull(),
+    description: text("description"),
+
+    images: json("images").$type<string[]>(), // array of URLs
+
+    published: boolean("published").default(false),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    storeIdx: index("products_store_idx").on(table.storeId),
+  })
+);
+
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+
+    sku: varchar("sku", { length: 100 }).notNull().unique(),
+
+    title: varchar("title", { length: 150 }).notNull(), // e.g., "Black - Large"
+
+    priceCents: integer("price_cents").notNull(), // store in cents
+    weightGrams: integer("weight_grams"),
+
+    // optional structured data
+    attributes: json("attributes"),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    productIdx: index("variants_product_idx").on(table.productId),
+    skuIdx: index("variants_sku_idx").on(table.sku),
+  })
+);
+
+export const inventoryItems = pgTable(
+  "inventory_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "cascade" }),
+
+    stockQuantity: integer("stock_quantity").notNull().default(0),
+    reservedQuantity: integer("reserved_quantity").notNull().default(0),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    variantUnique: unique("inventory_variant_unique").on(table.variantId),
+  })
+);
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    storeId: uuid("store_id")
+      .notNull()
+      .references(() => stores.id, { onDelete: "cascade" }),
+
+    buyerId: uuid("buyer_id").references(() => users.id), // fan or guest (nullable if using guest checkout)
+
+    totalCents: integer("total_cents").notNull(),
+    currency: varchar("currency", { length: 3 }).default("USD"),
+
+    status: varchar("status", { length: 50 }).notNull().default("pending"),
+    paymentStatus: varchar("payment_status", { length: 50 }).default("unpaid"),
+
+    shippingAddress: json("shipping_address"),
+    billingAddress: json("billing_address"),
+
+    stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 200 }),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    storeIdx: index("orders_store_idx").on(table.storeId),
+    buyerIdx: index("orders_buyer_idx").on(table.buyerId),
+  })
+);
+
+export const orderLines = pgTable(
+  "order_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id),
+
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    lineTotalCents: integer("line_total_cents").notNull(),
+
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    orderIdx: index("order_lines_order_idx").on(table.orderId),
+    variantIdx: index("order_lines_variant_idx").on(table.variantId),
   })
 );
 
