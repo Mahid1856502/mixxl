@@ -24,7 +24,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <img src={image} alt={title} className="aspect-square object-cover" />
+      <img
+        src={image}
+        alt={title}
+        className="aspect-square object-cover"
+        loading="lazy"
+      />
 
       {/* Title with ellipsis */}
       <div

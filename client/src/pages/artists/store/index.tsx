@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ProductCard from "@/components/artist/store/ProductCard";
 import ArtistBanner from "@/components/artist/store/ArtistBanner";
 import { useParams } from "wouter";
@@ -16,147 +16,107 @@ interface Product {
   category: ProductCategory;
 }
 
+// Static products data moved outside component to avoid re-creation on every render
+const products: Product[] = [
+  {
+    image:
+      "https://images.pexels.com/photos/734983/pexels-photo-734983.jpeg?auto=compress&cs=tinysrgb&w=400",
+    title: "Ceramic Coffee Mug",
+    price: "19.99",
+    description: "A high-quality ceramic mug perfect for your morning coffee.",
+    category: { label: "Cups", value: "cups" },
+  },
+  {
+    image:
+      "https://images.pexels.com/photos/2560894/pexels-photo-2560894.jpeg?auto=compress&cs=tinysrgb&w=400",
+    title: "Graphic T-Shirt",
+    price: "24.99",
+    description: "Soft cotton T-shirt with a stylish graphic design.",
+    category: { label: "T Shirts", value: "tshirts" },
+  },
+  {
+    image:
+      "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=400&q=80",
+    title: "Classic Hoodie",
+    price: "49.99",
+    description: "Warm and comfortable hoodie for everyday wear.",
+    category: { label: "Hoodies", value: "hoodies" },
+  },
+  {
+    image:
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80",
+    title: "Vinyl Record",
+    price: "34.99",
+    description:
+      "Limited edition vinyl record for collectors and music lovers.",
+    category: { label: "CDs & Vinyl", value: "cdsvinyl" },
+  },
+  {
+    image:
+      "https://images.pexels.com/photos/1001990/pexels-photo-1001990.jpeg?auto=compress&cs=tinysrgb&w=400",
+    title: "Ceramic Tea Set",
+    price: "59.99",
+    description: "Elegant ceramic tea set for a perfect tea experience.",
+    category: { label: "Cups", value: "cups" },
+  },
+  {
+    image:
+      "https://images.pexels.com/photos/3053824/pexels-photo-3053824.jpeg?auto=compress&cs=tinysrgb&w=400",
+    title: "Hooded Sweatshirt",
+    price: "39.99",
+    description: "Comfortable hooded sweatshirt available in multiple colors.",
+    category: { label: "Hoodies", value: "hoodies" },
+  },
+  // Repeat products as needed
+];
+
+const filters = [
+  { label: "All", value: "all" },
+  { label: "Cups", value: "cups" },
+  { label: "T Shirts", value: "tshirts" },
+  { label: "Hoodies", value: "hoodies" },
+  { label: "CDs & Vinyl", value: "cdsvinyl" },
+];
+
 const Store = () => {
   const { username } = useParams();
-  console.log("Artist ID:", username);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const itemsPerPage = 8;
 
-  const filters = [
-    { label: "All", value: "all" },
-    { label: "Cups", value: "cups" },
-    { label: "T Shirts", value: "tshirts" },
-    { label: "Hoodies", value: "hoodies" },
-    { label: "CDs & Vinyl", value: "cdsvinyl" },
-  ];
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-  const products: Product[] = [
-    {
-      image: "https://images.pexels.com/photos/734983/pexels-photo-734983.jpeg",
-      title: "Ceramic Coffee Mug",
-      price: "19.99",
-      description:
-        "A high-quality ceramic mug perfect for your morning coffee.",
-      category: { label: "Cups", value: "cups" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/2560894/pexels-photo-2560894.jpeg",
-      title: "Graphic T-Shirt",
-      price: "24.99",
-      description: "Soft cotton T-shirt with a stylish graphic design.",
-      category: { label: "T Shirts", value: "tshirts" },
-    },
-    {
-      image:
-        "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=800&q=80",
-      title: "Classic Hoodie",
-      price: "49.99",
-      description: "Warm and comfortable hoodie for everyday wear.",
-      category: { label: "Hoodies", value: "hoodies" },
-    },
-    {
-      image:
-        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-      title: "Vinyl Record",
-      price: "34.99",
-      description:
-        "Limited edition vinyl record for collectors and music lovers.",
-      category: { label: "CDs & Vinyl", value: "cdsvinyl" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/1001990/pexels-photo-1001990.jpeg",
-      title: "Ceramic Tea Set",
-      price: "59.99",
-      description: "Elegant ceramic tea set for a perfect tea experience.",
-      category: { label: "Cups", value: "cups" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/3053824/pexels-photo-3053824.jpeg",
-      title: "Hooded Sweatshirt",
-      price: "39.99",
-      description:
-        "Comfortable hooded sweatshirt available in multiple colors.",
-      category: { label: "Hoodies", value: "hoodies" },
-    },
-    {
-      image: "https://images.pexels.com/photos/734983/pexels-photo-734983.jpeg",
-      title: "Ceramic Coffee Mug",
-      price: "19.99",
-      description:
-        "A high-quality ceramic mug perfect for your morning coffee.",
-      category: { label: "Cups", value: "cups" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/2560894/pexels-photo-2560894.jpeg",
-      title: "Graphic T-Shirt",
-      price: "24.99",
-      description: "Soft cotton T-shirt with a stylish graphic design.",
-      category: { label: "T Shirts", value: "tshirts" },
-    },
-    {
-      image:
-        "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=800&q=80",
-      title: "Classic Hoodie",
-      price: "49.99",
-      description: "Warm and comfortable hoodie for everyday wear.",
-      category: { label: "Hoodies", value: "hoodies" },
-    },
-    {
-      image:
-        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
-      title: "Vinyl Record",
-      price: "34.99",
-      description:
-        "Limited edition vinyl record for collectors and music lovers.",
-      category: { label: "CDs & Vinyl", value: "cdsvinyl" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/1001990/pexels-photo-1001990.jpeg",
-      title: "Ceramic Tea Set",
-      price: "59.99",
-      description: "Elegant ceramic tea set for a perfect tea experience.",
-      category: { label: "Cups", value: "cups" },
-    },
-    {
-      image:
-        "https://images.pexels.com/photos/3053824/pexels-photo-3053824.jpeg",
-      title: "Hooded Sweatshirt",
-      price: "39.99",
-      description:
-        "Comfortable hooded sweatshirt available in multiple colors.",
-      category: { label: "Hoodies", value: "hoodies" },
-    },
-  ];
-
-  // ---------- FILTER & SEARCH ----------
+  // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchesFilter =
         selectedFilter === "all" || product.category.value === selectedFilter;
 
       const matchesSearch =
-        product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase());
+        product.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        product.description
+          .toLowerCase()
+          .includes(debouncedSearch.toLowerCase());
 
       return matchesFilter && matchesSearch;
     });
-  }, [selectedFilter, searchQuery, products]);
+  }, [selectedFilter, debouncedSearch]);
 
-  // ---------- PAGINATION ----------
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedProducts = useMemo(() => {
+    return filteredProducts.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredProducts, currentPage]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
@@ -167,7 +127,7 @@ const Store = () => {
       <ArtistBanner
         name="John Doe"
         bio="Independent artist blending modern beats with soulful melodies. Explore exclusive merch and music."
-        banner="https://images.pexels.com/photos/6270274/pexels-photo-6270274.jpeg"
+        banner="https://images.pexels.com/photos/6270274/pexels-photo-6270274.jpeg?auto=compress&cs=tinysrgb&w=800"
         links={{
           Instagram: "https://instagram.com",
           Spotify: "https://spotify.com",
@@ -209,18 +169,16 @@ const Store = () => {
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full">
-        <div className="col-span-1 md:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {paginatedProducts.map((product, idx) => (
-            <ProductCard
-              key={idx}
-              image={product.image}
-              title={product.title}
-              price={product.price}
-              description={product.description}
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+        {paginatedProducts.map((product, idx) => (
+          <ProductCard
+            key={idx}
+            image={product.image}
+            title={product.title}
+            price={product.price}
+            description={product.description}
+          />
+        ))}
       </div>
 
       {/* Pagination */}
