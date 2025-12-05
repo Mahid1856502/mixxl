@@ -104,7 +104,7 @@ export default function Navbar() {
             {/* Hide logo completely on dashboard */}
             <Link href="/" className="flex items-center group">
               <Logo
-                size="xxl"
+                size="xl"
                 variant="full"
                 className="group-hover:scale-105 transition-transform duration-200"
               />

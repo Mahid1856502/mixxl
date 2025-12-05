@@ -33,6 +33,7 @@ const PORT = parseInt(process.env.PORT || "5000", 10);
 const allowedOrigins = [
   "http://localhost:5173",
   "https://mixxl.fm",
+  "https://mixxl.vercel.app",
   "https://www.mixxl.fm",
 ];
 
