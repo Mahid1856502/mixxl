@@ -4,6 +4,7 @@ import { ArrowLeft, Star } from "lucide-react";
 import ProductCard from "@/components/artist/store/ProductCard";
 import { Button } from "@/components/ui/button";
 import { useProduct } from "@/api/hooks/products/useProducts";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProductDetail = () => {
   const { username, productId } = useParams();
@@ -80,8 +81,54 @@ const ProductDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-lg font-medium">
-        Loading product...
+      <div className="px-4 md:px-10 lg:px-20 py-12 max-w-7xl mx-auto">
+        {/* PRODUCT GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14">
+          {/* LEFT — IMAGE */}
+          <div>
+            <Skeleton className="rounded-2xl h-[470px] w-full" />
+
+            <div className="flex gap-4 mt-5">
+              {[1, 2, 3, 4].map((n) => (
+                <Skeleton key={n} className="w-24 h-24 rounded-xl" />
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT — TEXT DETAILS */}
+          <div className="flex flex-col gap-6">
+            <Skeleton className="h-10 w-2/3 rounded" />
+            <Skeleton className="h-8 w-1/4 rounded" />
+            <Skeleton className="h-32 w-full rounded" />
+
+            {/* VARIANTS */}
+            <div className="flex gap-3">
+              {[1, 2, 3].map((n) => (
+                <Skeleton key={n} className="h-10 w-24 rounded" />
+              ))}
+            </div>
+
+            {/* CTA BUTTONS */}
+            <div className="flex gap-4 mt-4">
+              <Skeleton className="h-12 w-32 rounded-xl" />
+              <Skeleton className="h-12 w-32 rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* REVIEWS */}
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-2 gap-8">
+          {[1, 2].map((n) => (
+            <Skeleton key={n} className="h-40 w-full rounded-xl" />
+          ))}
+        </div>
+
+        {/* RELEVANT PRODUCTS */}
+        <div className="mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[1, 2, 3, 4].map((n) => (
+            <Skeleton key={n} className="h-72 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }
