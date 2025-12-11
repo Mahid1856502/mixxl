@@ -1,195 +1,173 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import ProductCard from "@/components/artist/store/ProductCard";
 import ArtistBanner from "@/components/artist/store/ArtistBanner";
-import { useParams } from "wouter";
 
-interface ProductCategory {
-  label: string;
-  value: string;
-}
-
-interface Product {
-  image: string;
-  title: string;
-  price: string;
-  description: string;
-  category: ProductCategory;
-}
-
-// Static products data moved outside component to avoid re-creation on every render
-const products: Product[] = [
-  {
-    image:
-      "https://images.pexels.com/photos/734983/pexels-photo-734983.jpeg?auto=compress&cs=tinysrgb&w=400",
-    title: "Ceramic Coffee Mug",
-    price: "19.99",
-    description: "A high-quality ceramic mug perfect for your morning coffee.",
-    category: { label: "Cups", value: "cups" },
-  },
-  {
-    image:
-      "https://images.pexels.com/photos/2560894/pexels-photo-2560894.jpeg?auto=compress&cs=tinysrgb&w=400",
-    title: "Graphic T-Shirt",
-    price: "24.99",
-    description: "Soft cotton T-shirt with a stylish graphic design.",
-    category: { label: "T Shirts", value: "tshirts" },
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=400&q=80",
-    title: "Classic Hoodie",
-    price: "49.99",
-    description: "Warm and comfortable hoodie for everyday wear.",
-    category: { label: "Hoodies", value: "hoodies" },
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80",
-    title: "Vinyl Record",
-    price: "34.99",
-    description:
-      "Limited edition vinyl record for collectors and music lovers.",
-    category: { label: "CDs & Vinyl", value: "cdsvinyl" },
-  },
-  {
-    image:
-      "https://images.pexels.com/photos/1001990/pexels-photo-1001990.jpeg?auto=compress&cs=tinysrgb&w=400",
-    title: "Ceramic Tea Set",
-    price: "59.99",
-    description: "Elegant ceramic tea set for a perfect tea experience.",
-    category: { label: "Cups", value: "cups" },
-  },
-  {
-    image:
-      "https://images.pexels.com/photos/3053824/pexels-photo-3053824.jpeg?auto=compress&cs=tinysrgb&w=400",
-    title: "Hooded Sweatshirt",
-    price: "39.99",
-    description: "Comfortable hooded sweatshirt available in multiple colors.",
-    category: { label: "Hoodies", value: "hoodies" },
-  },
-  // Repeat products as needed
-];
-
-const filters = [
-  { label: "All", value: "all" },
-  { label: "Cups", value: "cups" },
-  { label: "T Shirts", value: "tshirts" },
-  { label: "Hoodies", value: "hoodies" },
-  { label: "CDs & Vinyl", value: "cdsvinyl" },
-];
+import { useParams, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { useStoreByUser } from "@/api/hooks/store/useStore";
+import { useProductsByStore } from "@/api/hooks/products/useProducts";
+import { useUser } from "@/api/hooks/users/useUser";
+import ArtistBannerSkeleton from "@/components/artist/store/ArtistBannerSkeleton";
+import ProductCardSkeleton from "@/components/artist/store/ProductCardSkeleton";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Store = () => {
   const { username } = useParams();
-  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [, navigate] = useLocation();
+
+  // Logged-in user (viewer)
+  const { user } = useAuth();
+  const { data: currUser, isLoading: currUserLoading } = useUser(username);
+
+  const { data: store, isLoading: storeLoading } = useStoreByUser(currUser?.id);
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
-
   const itemsPerPage = 8;
 
   // Debounce search input
   useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(handler);
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 1000);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Filtered products
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesFilter =
-        selectedFilter === "all" || product.category.value === selectedFilter;
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isFetching: productsFetching,
+  } = useProductsByStore(store?.id, currentPage, itemsPerPage, debouncedSearch);
 
-      const matchesSearch =
-        product.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        product.description
-          .toLowerCase()
-          .includes(debouncedSearch.toLowerCase());
+  const isOwnProfile = user?.id === currUser?.id;
 
-      return matchesFilter && matchesSearch;
-    });
-  }, [selectedFilter, debouncedSearch]);
+  // ---------------------- No Store -----------------------
+  if (!storeLoading && !store && !currUserLoading) {
+    return (
+      <div className="w-full px-6 py-16 flex flex-col items-center text-center">
+        <h2 className="text-3xl font-semibold mb-4">
+          This artist hasn’t created a store yet.
+        </h2>
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
-  const paginatedProducts = useMemo(() => {
-    return filteredProducts.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
+        {isOwnProfile ? (
+          <>
+            <p className="text-gray-300 max-w-md mb-6">
+              You haven’t set up your store yet. Create your store to start
+              selling merch, music, and more.
+            </p>
+            <Button
+              onClick={() => navigate(`/store/${username}/manage`)}
+              className="bg-gray-950 text-gray-200 hover:bg-gray-900/50 border-2 border-gray-500 transition"
+            >
+              Setup Your Store
+            </Button>
+          </>
+        ) : (
+          <p className="text-gray-400">
+            Check back later—this creator’s shop is coming soon!
+          </p>
+        )}
+      </div>
     );
-  }, [filteredProducts, currentPage]);
+  }
 
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
+  const totalPages = productsData?.limit
+    ? Math.ceil((productsData?.totalCount || 0) / productsData.limit)
+    : 1;
 
   return (
     <div className="px-4 md:p-8 w-full">
-      <ArtistBanner
-        name="John Doe"
-        bio="Independent artist blending modern beats with soulful melodies. Explore exclusive merch and music."
-        banner="https://images.pexels.com/photos/6270274/pexels-photo-6270274.jpeg?auto=compress&cs=tinysrgb&w=800"
-        links={{
-          Instagram: "https://instagram.com",
-          Spotify: "https://spotify.com",
-          YouTube: "https://youtube.com",
-        }}
-      />
+      {storeLoading || currUserLoading ? (
+        <ArtistBannerSkeleton />
+      ) : (
+        <ArtistBanner
+          name={store?.name ?? ""}
+          bio={store?.description ?? ""}
+          banner={store?.bannerImage ?? ""}
+          isOwnProfile={isOwnProfile}
+          links={{
+            Instagram: "#",
+            YouTube: "#",
+            Spotify: "#",
+          }}
+        />
+      )}
 
       {/* Filters + Search */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-row justify-between items-center mb-8 gap-4">
         <input
           type="text"
           placeholder="Search products..."
-          className="border px-4 py-2 rounded-md w-full md:w-64 bg-white/10 border-gray-300"
+          className="border px-4 py-2 rounded-md w-72 bg-white/10 border-gray-300 text-sm md:text-base"
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setCurrentPage(1);
           }}
         />
-
-        <div className="flex flex-wrap gap-3">
-          {filters.map((filter) => (
-            <button
-              key={filter.value}
-              className={`px-4 py-2 rounded-full text-sm border transition ${
-                selectedFilter === filter.value
-                  ? "bg-white/10 text-white"
-                  : "bg-black text-white"
-              }`}
-              onClick={() => {
-                setSelectedFilter(filter.value);
-                setCurrentPage(1);
-              }}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
-        {paginatedProducts.map((product, idx) => (
-          <ProductCard
-            key={idx}
-            image={product.image}
-            title={product.title}
-            price={product.price}
-            description={product.description}
-          />
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+        {productsLoading ||
+        productsFetching ||
+        storeLoading ||
+        currUserLoading ? (
+          Array.from({ length: itemsPerPage }).map((_, i) => (
+            <ProductCardSkeleton key={i} />
+          ))
+        ) : productsData?.products.length ? (
+          productsData.products.map((product) => {
+            const lowestVariantPrice = product.variants?.length
+              ? Math.min(...product.variants.map((v) => v.priceCents))
+              : null;
+
+            return (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                image={product.images?.[0] ?? ""}
+                title={product.title}
+                price={
+                  lowestVariantPrice !== null
+                    ? (lowestVariantPrice / 100).toFixed(2)
+                    : "N/A"
+                }
+                description={product.description || ""}
+              />
+            );
+          })
+        ) : isOwnProfile ? (
+          <div className="col-span-full flex flex-col items-center mt-4">
+            <p className="mb-4 text-center text-gray-300">
+              You don't have any product added yet.
+            </p>
+            <Button
+              onClick={() => navigate(`/store/${username}/mutate-product`)}
+              className="flex items-center gap-2 bg-gray-950 text-gray-200 hover:bg-gray-900/50 border-2 border-gray-500 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add Your First Product
+            </Button>
+          </div>
+        ) : (
+          <div className="col-span-full flex flex-col items-center mt-4">
+            <p className="mb-4 text-center text-gray-300">
+              {currUser?.fullName} don't have any product added yet.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center mt-8 gap-4">
           <button
-            className="px-4 py-2 border rounded-md border-gray-100 bg-white/10"
-            onClick={() => handlePageChange(currentPage - 1)}
+            className="px-4 py-2 border rounded-md border-gray-500 bg-white/10 flex items-center disabled:opacity-70"
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
           >
-            Previous
+            <ChevronLeft className="w-4 h-4 mr-1" /> Previous
           </button>
 
           <span className="px-4 py-2 text-sm">
@@ -197,11 +175,11 @@ const Store = () => {
           </span>
 
           <button
-            className="px-4 py-2 border rounded-md border-gray-100 bg-white/10"
-            onClick={() => handlePageChange(currentPage + 1)}
+            className="px-4 py-2 border rounded-md border-gray-500 bg-white/10 flex items-center disabled:opacity-70"
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
             disabled={currentPage === totalPages}
           >
-            Next
+            Next <ChevronRight className="w-4 h-4 ml-1" />
           </button>
         </div>
       )}

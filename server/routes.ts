@@ -2693,8 +2693,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   try {
     const { registerAdminRoutes } = await import("./admin-routes");
     const { registerUploadRoutes } = await import("./upload-routes");
+    const { registerProductRoutes } = await import(
+      "./modules/products/product.route"
+    );
+    const { registerStoreRoutes } = await import("./modules/store/store.route");
     registerAdminRoutes(app);
     registerUploadRoutes(app);
+    registerProductRoutes(app);
+    registerStoreRoutes(app);
   } catch (error) {
     console.error("Failed to register admin or upload routes:", error);
   }

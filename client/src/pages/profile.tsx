@@ -36,7 +36,6 @@ import {
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
-import { useUserById } from "@/api/hooks/users/useUserById";
 import { useQueryParams } from "@/hooks/use-query-params";
 import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
 import {
@@ -46,6 +45,7 @@ import {
 } from "@/api/hooks/tracks/useAlbums";
 import { AlbumsList } from "@/components/music/album-list";
 import SocialModal from "@/components/modals/social-modal";
+import { useUser } from "@/api/hooks/users/useUser";
 
 export default function Profile() {
   const { id } = useParams();
@@ -68,7 +68,7 @@ export default function Profile() {
 
   const profileUserId = id || "";
   const isOwnProfile = profileUserId === currentUser?.id;
-  const { data: user } = useUserById(profileUserId ?? "");
+  const { data: user } = useUser(profileUserId ?? "");
 
   const { data: userTracks = [], isLoading: tracksLoading } = useUserTracks(
     params.tab === "music",

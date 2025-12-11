@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Progress } from "../ui/progress";
 
 interface CoverUploaderProps {
+  title?: string;
   coverFile?: File | null;
   setCoverFile?: (coverFile: File | null) => void;
   progress?: number; // Upload progress (0–100)
@@ -16,6 +17,7 @@ export default function CoverUploader({
   setCoverFile,
   progress,
   coverUrl,
+  title = "Cover Art (Optional)",
 }: CoverUploaderProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export default function CoverUploader({
     <Card className="glass-effect border-white/10">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <span>Cover Art (Optional)</span>
+          <span>{title}</span>
         </CardTitle>
       </CardHeader>
       <CardContent>

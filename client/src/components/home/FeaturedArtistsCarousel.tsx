@@ -46,7 +46,7 @@ export function FeaturedArtistsCarousel({
           id: spot.id,
           name: spot.title,
           description: spot.description,
-          profileLink: spot.buttonUrl || `/profile/${spot.artist?.username}`,
+          profileLink: spot.buttonUrl,
           mediaUrl: spot.imageUrl || spot.videoUrl,
           mediaType: spot.imageUrl ? "image" : "video",
           backgroundColor: "from-purple-600/30 to-pink-600/30",
@@ -150,12 +150,14 @@ export function FeaturedArtistsCarousel({
                         {artist.description}
                       </p>
                       <div className="flex flex-col sm:flex-row gap-4">
-                        <Link href={artist.profileLink}>
-                          <Button className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold px-8 py-4 text-sm md:text-lg">
-                            Visit Profile
-                            <ExternalLink className="ml-2 w-5 h-5" />
-                          </Button>
-                        </Link>
+                        {artist.profileLink && (
+                          <Link href={artist.profileLink}>
+                            <Button className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-600 hover:to-pink-700 text-white font-semibold px-8 py-4 text-sm md:text-lg">
+                              Visit Profile
+                              <ExternalLink className="ml-2 w-5 h-5" />
+                            </Button>
+                          </Link>
+                        )}
                         {!user && (
                           <Link href="/signup">
                             <Button

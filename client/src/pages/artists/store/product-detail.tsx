@@ -1,52 +1,35 @@
-import React, { useState } from "react";
-import { useRoute, Link } from "wouter";
+import React, { useState, useEffect } from "react";
+import { Link, useParams } from "wouter";
 import { ArrowLeft, Star } from "lucide-react";
 import ProductCard from "@/components/artist/store/ProductCard";
 import { Button } from "@/components/ui/button";
+import { useProduct } from "@/api/hooks/products/useProducts";
 
 const ProductDetail = () => {
-  const [match, params] = useRoute("/store/:id");
-  const { id } = params ?? {};
+  const { username, productId } = useParams();
+  const { data: product, isLoading, error } = useProduct(productId);
 
-  const products = [
+  // fake reviews
+  const fakeReviews = [
     {
-      id: "1",
-      image:
-        "https://images.pexels.com/photos/4065905/pexels-photo-4065905.jpeg",
-      title: "Ceramic Coffee Mug",
-      price: "19.99",
-      description:
-        "This ceramic mug delivers a solid, no-nonsense feel that holds up to everyday use. The glossy finish gives it a clean, polished look without trying too hard. Its balanced weight keeps each sip steady, and the insulation holds heat well enough for a long coffee session. Durable and scratch-resistant, it stands up to repeated washes without losing its charm. Suitable for any workspace or kitchen without clashing with anything around it.",
-      fullDescription:
-        "This ceramic coffee mug is crafted from premium clay and kiln-fired for maximum durability. Its smooth exterior glaze prevents cracking while the ergonomic handle ensures a comfortable grip.",
-      category: { label: "Cups", value: "cups" },
-      variants: [
-        { label: "White", value: "white" },
-        { label: "Black", value: "black" },
-        { label: "Matte Brown", value: "brown" },
-      ],
-      images: [
-        "https://images.unsplash.com/photo-1603791440384-56cd371ee9a7?auto=format&fit=crop&w=800&q=80",
-        "https://images.pexels.com/photos/4065905/pexels-photo-4065905.jpeg",
-        "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?auto=format&fit=crop&w=800&q=80",
-      ],
-      reviews: [
-        {
-          user: "Sarah K.",
-          rating: 5,
-          comment:
-            "Beautiful mug! The quality is outstanding and it arrived quickly.",
-        },
-        {
-          user: "Daniel R.",
-          rating: 4,
-          comment:
-            "Great design. Wish it was slightly bigger, but still love it!",
-        },
-      ],
+      user: "Sarah K.",
+      rating: 5,
+      comment:
+        "Beautiful mug! The quality is outstanding and it arrived quickly.",
+    },
+    {
+      user: "Daniel R.",
+      rating: 4,
+      comment: "Great design. Wish it was slightly bigger, but still love it!",
+    },
+    {
+      user: "Mona L.",
+      rating: 5,
+      comment: "Exactly as described. Definitely buying another one.",
     },
   ];
 
+  // fake relevant products
   const relevantProducts = [
     {
       image: "https://images.pexels.com/photos/734983/pexels-photo-734983.jpeg",
@@ -54,7 +37,6 @@ const ProductDetail = () => {
       price: "19.99",
       description:
         "A high-quality ceramic mug perfect for your morning coffee.",
-      category: { label: "Cups", value: "cups" },
     },
     {
       image:
@@ -62,7 +44,6 @@ const ProductDetail = () => {
       title: "Graphic T-Shirt",
       price: "24.99",
       description: "Soft cotton T-shirt with a stylish graphic design.",
-      category: { label: "T Shirts", value: "tshirts" },
     },
     {
       image:
@@ -70,7 +51,6 @@ const ProductDetail = () => {
       title: "Classic Hoodie",
       price: "49.99",
       description: "Warm and comfortable hoodie for everyday wear.",
-      category: { label: "Hoodies", value: "hoodies" },
     },
     {
       image:
@@ -79,42 +59,79 @@ const ProductDetail = () => {
       price: "34.99",
       description:
         "Limited edition vinyl record for collectors and music lovers.",
-      category: { label: "CDs & Vinyl", value: "cdsvinyl" },
     },
   ];
 
-  const product = products.find((p) => p.id === id) || products[0];
-  const [selectedVariant, setSelectedVariant] = useState(
-    product.variants ? product.variants[0].value : ""
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    null
   );
-  const [activeImage, setActiveImage] = useState(product.image);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
 
+  useEffect(() => {
+    if (!product) return;
+    if (!activeImage) {
+      setActiveImage(product.images?.[0] || null);
+    }
+    if (!selectedVariantId && product.variants.length > 0) {
+      setSelectedVariantId(product.variants[0].id);
+    }
+  }, [product]);
+
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-lg font-medium">
+        Loading product...
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="py-20 text-center text-lg font-medium text-red-500">
+        Failed to load product.
+      </div>
+    );
+  }
+
+  const selectedVariant =
+    product.variants.find((v) => v.id === selectedVariantId) ||
+    product.variants[0];
+
+  const price = selectedVariant
+    ? (selectedVariant.priceCents / 100).toFixed(2)
+    : "0.00";
+
   const displayedReviews = showAllReviews
-    ? product.reviews
-    : product.reviews?.slice(0, 2);
+    ? fakeReviews
+    : fakeReviews.slice(0, 2);
 
   return (
     <div className="px-4 md:px-10 lg:px-20 py-12 max-w-7xl mx-auto">
-      {/* Back */}
-      <Link href="/store">
-        <Button className="mb-8 text-sm">
+      {/* BACK */}
+      {/* <Link href={`/store/${username}`}>
+        <Button className="flex items-center gap-2 bg-gray-950 text-gray-200 hover:bg-gray-900/50 border-2 border-gray-500 transition">
           <ArrowLeft /> Back to Store
         </Button>
-      </Link>
+      </Link> */}
 
-      {/* PRODUCT TOP SECTION — IMAGES LEFT, DETAILS RIGHT */}
+      {/* PRODUCT SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-14">
-        {/* LEFT: IMAGE GALLERY */}
+        {/* LEFT — IMAGES */}
         <div>
           <div className="rounded-2xl overflow-hidden shadow-md bg-white w-full">
             <img
-              src={activeImage}
+              src={
+                activeImage ||
+                product.images?.[0] ||
+                "https://via.placeholder.com/600x600"
+              }
               alt={product.title}
               className="w-full h-[470px] object-cover"
             />
           </div>
 
+          {/* thumbnails */}
           <div className="flex gap-4 mt-5 overflow-x-auto pb-2">
             {product.images?.map((img, idx) => (
               <img
@@ -132,35 +149,44 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* RIGHT: DETAILS + CTA */}
+        {/* RIGHT — DETAILS */}
         <div className="flex flex-col gap-6">
           <h1 className="text-4xl font-semibold tracking-tight">
             {product.title}
           </h1>
-          <p className="text-3xl font-bold">${product.price}</p>
+
+          {selectedVariant && <p className="text-3xl font-bold">${price}</p>}
+
           <p className="text-gray-400 text-lg leading-relaxed">
             {product.description}
           </p>
 
           {/* VARIANTS */}
-          {product.variants && (
+          {product.variants.length > 0 && (
             <div>
               <p className="font-semibold mb-2">Variants</p>
               <div className="flex flex-wrap gap-3">
                 {product.variants.map((variant) => (
                   <Button
-                    key={variant.value}
-                    onClick={() => setSelectedVariant(variant.value)}
+                    key={variant.id}
+                    onClick={() => setSelectedVariantId(variant.id)}
                     className={`px-4 py-2 rounded-lg border text-sm transition-all ${
-                      selectedVariant === variant.value
+                      selectedVariant?.id === variant.id
                         ? "bg-white/10 hover:bg-white/10 border-white"
                         : "bg-black text-white"
                     }`}
                   >
-                    {variant.label}
+                    {variant.title}
                   </Button>
                 ))}
               </div>
+
+              {/* STOCK */}
+              {selectedVariant && (
+                <p className="font-semibold mt-4">
+                  In stock: {selectedVariant.stockQuantity}
+                </p>
+              )}
             </div>
           )}
 
@@ -169,18 +195,18 @@ const ProductDetail = () => {
             <Button className="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-900 font-medium shadow">
               Add to Cart
             </Button>
-            <Button className="border border-black px-6 py-3 rounded-xl mixxl-gradient font-medium">
+            <Button className="border border-black px-6 py-3 rounded-xl font-medium">
               Buy Now
             </Button>
           </div>
         </div>
       </div>
 
-      {/* REVIEWS — GRID STRUCTURE */}
+      {/* REVIEWS */}
       <div className="mt-20">
         <h2 className="text-3xl font-bold mb-6">Customer Reviews</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {displayedReviews?.map((review, idx) => (
+          {displayedReviews.map((review, idx) => (
             <div
               key={idx}
               className="border p-5 rounded-xl shadow-sm hover:shadow-md transition bg-gray-900"
@@ -204,8 +230,7 @@ const ProductDetail = () => {
           ))}
         </div>
 
-        {/* SHOW MORE */}
-        {product.reviews && product.reviews.length > 2 && (
+        {fakeReviews.length > 2 && (
           <div className="mt-6 text-center">
             <Button
               onClick={() => setShowAllReviews(!showAllReviews)}
@@ -224,6 +249,7 @@ const ProductDetail = () => {
           {relevantProducts.map((p, idx) => (
             <ProductCard
               key={idx}
+              id={String(idx)}
               image={p.image}
               title={p.title}
               price={p.price}

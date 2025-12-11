@@ -54,6 +54,9 @@ import ManageAlbum from "@/pages/album/manage-album";
 import { AlbumView } from "@/pages/album/view-album";
 import Store from "@/pages/artists/store";
 import ProductDetail from "@/pages/artists/store/product-detail";
+import ManageStore from "@/pages/artists/store/manage-store";
+import ManageProducts from "@/pages/artists/store/manage-products";
+import MutateProduct from "@/pages/artists/store/mutate-product";
 
 export interface AppRoute {
   path: string;
@@ -137,7 +140,22 @@ export const appRoutes: AppRoute[] = [
     roles: ["fan", "artist", "admin", "DJ"],
   },
   {
-    path: "/store/:artistId/product/:productId",
+    path: "/store/:username/manage",
+    component: ManageStore,
+    roles: ["artist"],
+  },
+  {
+    path: "/store/:username/products",
+    component: ManageProducts,
+    roles: ["artist"],
+  },
+  {
+    path: "/store/:username/mutate-product/:productId?",
+    component: MutateProduct,
+    roles: ["artist"],
+  },
+  {
+    path: "/store/:username/product/:productId",
     component: ProductDetail,
     roles: ["fan", "artist", "admin", "DJ"],
   },

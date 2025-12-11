@@ -24,6 +24,7 @@ import {
   Shield,
   Wallet,
   Music,
+  Store,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
 import { useEffect, useState } from "react";
@@ -100,7 +101,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20">
           {/* Logo and primary navigation */}
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-2 md:space-x-8">
             {/* Hide logo completely on dashboard */}
             <Link href="/" className="flex items-center group">
               <Logo
@@ -112,33 +113,34 @@ export default function Navbar() {
 
             {/* Only show navigation on non-dashboard pages */}
             {/* {!location.startsWith("/dashboard") && ( */}
-            <div className="hidden md:flex items-center space-x-6">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive(item.href)
-                        ? "bg-primary/20 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
+            <div className="flex items-center space-x-1 md:space-x-6">
+              {user &&
+                navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive(item.href)
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="hidden md:block">{item.name}</span>
+                    </Link>
+                  );
+                })}
             </div>
             {/* )} */}
           </div>
 
           {/* Search and user menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {/* WebSocket connection indicator */}
             {user && (
-              <div className="flex items-center space-x-2">
+              <div className="hidden items-center space-x-2 md:flex">
                 <div
                   className={`w-2 h-2 rounded-full ${
                     isConnected ? "bg-green-500" : "bg-red-500"
@@ -316,6 +318,7 @@ export default function Navbar() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
+
                   <DropdownMenuContent className="w-56" align="end">
                     <div className="px-2 py-1.5">
                       <p className="text-sm font-medium">{user.fullName}</p>
@@ -326,7 +329,9 @@ export default function Navbar() {
                         {user.role}
                       </Badge>
                     </div>
+
                     <DropdownMenuSeparator />
+
                     <DropdownMenuItem asChild>
                       <Link
                         href={`/profile/${user.id}`}
@@ -336,27 +341,33 @@ export default function Navbar() {
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
+
                     {user.role === "artist" && (
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/artist/earnings"
-                          className="flex items-center space-x-2"
-                        >
-                          <Wallet className="w-4 h-4" />
-                          <span>Earnings</span>
-                        </Link>
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/artist/earnings"
+                            className="flex items-center space-x-2"
+                          >
+                            <Wallet className="w-4 h-4" />
+                            <span>Earnings</span>
+                          </Link>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/store/${user.username?.toLocaleLowerCase()}`}
+                            className="flex items-center space-x-2"
+                          >
+                            <Store className="w-4 h-4" />
+                            <span>Manage Store</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
                     )}
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/profile-settings"
-                        className="flex items-center space-x-2"
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span>Settings</span>
-                      </Link>
-                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
+
                     <DropdownMenuItem onClick={logout} className="text-red-500">
                       <LogOut className="w-4 h-4 mr-2" />
                       <span>Sign out</span>

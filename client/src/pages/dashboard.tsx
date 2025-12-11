@@ -125,16 +125,16 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-xl md:text-3xl font-bold mb-2">
               {getGreeting()}, {user.fullName || user.username}!
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               {user.role === "artist"
                 ? "Ready to share your music with the world?"
                 : "Discover your next favorite track"}
             </p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="hidden items-center space-x-3 md:flex">
             <Badge variant="secondary" className="capitalize">
               {user.role}
             </Badge>
@@ -225,12 +225,22 @@ export default function Dashboard() {
           onValueChange={(tab) => setParams({ tab })}
         >
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="music">Music</TabsTrigger>
-            <TabsTrigger value="playlists">Playlists</TabsTrigger>
-            <TabsTrigger value="social">Social</TabsTrigger>
+            <TabsTrigger className="text-xs md:text-sm" value="overview">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger className="text-xs md:text-sm" value="music">
+              Music
+            </TabsTrigger>
+            <TabsTrigger className="text-xs md:text-sm" value="playlists">
+              Playlists
+            </TabsTrigger>
+            <TabsTrigger className="text-xs md:text-sm" value="social">
+              Social
+            </TabsTrigger>
             {user.role === "artist" && (
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger className="text-xs md:text-sm" value="analytics">
+                Analytics
+              </TabsTrigger>
             )}
           </TabsList>
 

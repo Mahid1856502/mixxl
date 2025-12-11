@@ -975,20 +975,13 @@ export const stores = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
 
     name: varchar("name", { length: 150 }).notNull(),
-    handle: varchar("handle", { length: 100 }).notNull().unique(), // e.g., /store/artist-name
-
     description: text("description"),
     bannerImage: varchar("banner_image", { length: 500 }),
-    logoImage: varchar("logo_image", { length: 500 }),
-
-    currency: varchar("currency", { length: 3 }).default("USD"),
-
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
     userUnique: unique("user_store_unique").on(table.userId),
-    handleIdx: index("store_handle_idx").on(table.handle),
   })
 );
 
@@ -1026,16 +1019,10 @@ export const productVariants = pgTable(
       .references(() => products.id, { onDelete: "cascade" }),
 
     sku: varchar("sku", { length: 100 }).notNull().unique(),
-
     title: varchar("title", { length: 150 }).notNull(), // e.g., "Black - Large"
-
     priceCents: integer("price_cents").notNull(), // store in cents
-    weightGrams: integer("weight_grams"),
-
-    // optional structured data
-    attributes: json("attributes"),
-
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
     productIdx: index("variants_product_idx").on(table.productId),
@@ -1056,6 +1043,7 @@ export const inventoryItems = pgTable(
     reservedQuantity: integer("reserved_quantity").notNull().default(0),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
     variantUnique: unique("inventory_variant_unique").on(table.variantId),
