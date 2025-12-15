@@ -46,7 +46,7 @@ const Store = () => {
     return (
       <div className="w-full px-6 py-16 flex flex-col items-center text-center">
         <h2 className="text-3xl font-semibold mb-4">
-          This artist hasn’t created a store yet.
+          Store hasn’t created yet.
         </h2>
 
         {isOwnProfile ? (

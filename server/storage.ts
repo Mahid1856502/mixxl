@@ -398,8 +398,9 @@ export class MySQLStorage implements IStorage {
     const result = await db
       .select()
       .from(users)
-      .where(eq(users.username, username))
+      .where(ilike(users.username, username))
       .limit(1);
+
     return result[0];
   }
 
