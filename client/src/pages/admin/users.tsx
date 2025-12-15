@@ -40,7 +40,7 @@ import { User } from "@shared/schema";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
 import { useDeleteUser } from "@/api/hooks/admin/useManageUsers";
 import { CreateDJModal } from "@/components/modals/create-dj-modal";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 
 export default function UsersAdmin() {
   const { user: currentUser } = useAuth();

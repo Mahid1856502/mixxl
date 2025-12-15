@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Users, Star, Mail, TrendingUp, Crown, Euro } from "lucide-react";
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
 
 export default function AdminDashboard() {

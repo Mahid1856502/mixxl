@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { PUBLIC_ROUTES } from "./routes.config";
 

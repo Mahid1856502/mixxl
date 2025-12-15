@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { MessageCircle, Send } from "lucide-react";

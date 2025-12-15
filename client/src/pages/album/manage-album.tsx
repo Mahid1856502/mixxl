@@ -22,7 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import AlbumTracks from "@/components/music/album-tracks";
 import CoverUploader from "@/components/music/cover-uploader";
 import { useUploadFile } from "@/api/hooks/s3/useUploadFile";

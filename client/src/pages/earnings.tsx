@@ -13,7 +13,7 @@ import {
 import { getCurrency } from "@/lib/currency";
 import { Banknote, CreditCard, ShoppingCart, Wallet } from "lucide-react";
 import { useStripeAccount } from "@/api/hooks/stripe/useStripeAccount";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { Button } from "@/components/ui/button";
 
 const Earnings = () => {

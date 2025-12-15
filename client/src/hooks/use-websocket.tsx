@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "./use-auth";
+import { useAuth } from "../provider/use-auth";
 
 interface WebSocketMessage {
   type: string;

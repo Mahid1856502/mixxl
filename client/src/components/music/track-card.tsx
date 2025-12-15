@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import PreviewPlayer from "./preview-player";
@@ -24,8 +24,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { TrackExtended } from "@shared/schema";
-import { useMusicPlayer } from "@/hooks/use-music-player";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useMusicPlayer } from "@/provider/use-music-player";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../provider/tooltip";
 import { PlaylistModal } from "../modals/add-to-playlist-modal";
 import { Skeleton } from "../ui/skeleton";
 import { useDeleteTrack } from "@/api/hooks/tracks/useMyTracks";

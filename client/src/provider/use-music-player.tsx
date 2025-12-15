@@ -8,7 +8,7 @@ import React, {
   ReactNode,
 } from "react";
 import { classifyPlaybackError } from "@/utils/audio-utils";
-import { useAudioPlayer } from "@/hooks/use-audio-manager";
+import { useAudioPlayer } from "@/provider/use-audio-manager";
 import { TrackExtended } from "@shared/schema";
 import { useAuth } from "./use-auth";
 import * as Sentry from "@sentry/react";

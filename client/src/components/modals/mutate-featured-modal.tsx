@@ -137,20 +137,20 @@ export function AddFeaturedSpotModal({
             )}
           </div>
 
-          {/* Price USD */}
+          {/* Price GBP */}
           <div className="flex flex-col space-y-3">
             <Controller
               control={control}
               name={"priceUSD"}
               render={({ field }) => (
                 <>
-                  <Label htmlFor="priceUSD">Price (USD)</Label>
+                  <Label htmlFor="priceUSD">Price (GBP)</Label>
                   <Input
                     className="bg-gray-800 border-gray-600 text-white"
                     id="priceUSD"
                     type="text"
                     {...field}
-                    placeholder="Price in USD"
+                    placeholder="Price in GBP"
                     onChange={(e) =>
                       field.onChange(numbersOnly(e.target.value))
                     }

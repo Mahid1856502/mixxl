@@ -23,7 +23,7 @@ const variantSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Variant title is required"),
   sku: z.string().min(1, "SKU is required"),
-  priceCents: z.number().min(0, "Price is required"),
+  price: z.number().min(0, "Price is required"),
   stockQuantity: z.number().min(0, "Stock is required"),
 });
 
@@ -81,7 +81,7 @@ const MutateProduct = () => {
         {
           title: "",
           sku: "",
-          priceCents: 0,
+          price: 0,
           stockQuantity: 0,
         },
       ],
@@ -111,7 +111,7 @@ const MutateProduct = () => {
           id: v.id,
           title: v.title,
           sku: v.sku,
-          priceCents: v.priceCents,
+          price: v.price,
           stockQuantity: v.stockQuantity ?? 0,
         })),
       });
@@ -365,17 +365,17 @@ const MutateProduct = () => {
               </div>
 
               <div className="sm:col-span-1">
-                <label className="block mb-1 text-sm">Price (cents)</label>
+                <label className="block mb-1 text-sm">Price ($)</label>
                 <Input
                   type="number"
-                  {...register(`variants.${index}.priceCents` as const, {
+                  {...register(`variants.${index}.price` as const, {
                     valueAsNumber: true,
                   })}
                   className="bg-white/5 border-white/10"
                 />
-                {errors.variants?.[index]?.priceCents && (
+                {errors.variants?.[index]?.price && (
                   <p className="text-red-400 text-xs mt-1">
-                    {errors.variants[index]?.priceCents?.message}
+                    {errors.variants[index]?.price?.message}
                   </p>
                 )}
               </div>
@@ -418,7 +418,7 @@ const MutateProduct = () => {
               append({
                 title: "",
                 sku: "",
-                priceCents: 0,
+                price: 0,
                 stockQuantity: 0,
               })
             }

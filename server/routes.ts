@@ -15,7 +15,6 @@ import {
   insertCollaborationSchema,
   insertLiveStreamSchema,
   insertLiveStreamMessageSchema,
-  insertPurchasedTrackSchema,
   updateRadioSessionSchema,
   InsertUser,
   updateTrackSchema,
@@ -1010,7 +1009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         line_items: [
           {
             price_data: {
-              currency: buyer.preferredCurrency || "usd",
+              currency: buyer.preferredCurrency || "gbp",
               product_data: {
                 name: track.title,
                 // images: track.coverImage ? [track.coverImage] : [],
@@ -1044,7 +1043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         albumId: null,
         purchaseType: "track",
         price: String(track?.price || 0),
-        currency: buyer.preferredCurrency || "usd",
+        currency: buyer.preferredCurrency || "gbp",
         stripeCheckoutSessionId: session.id as string,
         stripePaymentIntentId: session.payment_intent as string,
         stripeTransferId: null, // transfer will happen in webhook
@@ -1095,7 +1094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         line_items: [
           {
             price_data: {
-              currency: buyer.preferredCurrency || "usd",
+              currency: buyer.preferredCurrency || "gbp",
               product_data: {
                 name: album.title,
                 images: album.coverImage ? [album.coverImage] : [],
@@ -1130,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trackId: null,
         purchaseType: "album",
         price: String(album.price),
-        currency: buyer.preferredCurrency || "usd",
+        currency: buyer.preferredCurrency || "gbp",
         stripeCheckoutSessionId: session.id as string,
         stripePaymentIntentId: session.payment_intent as string,
         stripeTransferId: null,
@@ -1977,7 +1976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { amount } = req.body;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
-        currency: "usd",
+        currency: "gbp",
       });
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
@@ -2194,7 +2193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `${tipper.fullName} sent you a tip of ${
             currency === "GBP"
               ? "£"
-              : currency === "USD"
+              : currency === "gbp"
               ? "$"
               : currency === "EUR"
               ? "€"
@@ -2697,10 +2696,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       "./modules/products/product.route"
     );
     const { registerStoreRoutes } = await import("./modules/store/store.route");
+    const { registerOrderRoutes } = await import("./modules/order/order.route");
     registerAdminRoutes(app);
     registerUploadRoutes(app);
     registerProductRoutes(app);
     registerStoreRoutes(app);
+    registerOrderRoutes(app);
   } catch (error) {
     console.error("Failed to register admin or upload routes:", error);
   }

@@ -2,25 +2,21 @@ import { ArrowUpRight, ShoppingCart } from "lucide-react";
 import React from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation } from "wouter";
+import { Product, ProductVariant } from "@shared/product.type";
+import { useCart } from "@/provider/cart-provider";
+import { Button } from "@/components/ui/button";
 
 interface ProductCardProps {
-  id: string;
-  image: string;
-  title: string;
-  price: string | number;
-  description: string;
+  product: Product;
+  defaultVariant: ProductVariant;
 }
 
-const ProductCard = ({
-  id,
-  image,
-  title,
-  price,
-  description,
-}: ProductCardProps) => {
+const ProductCard = ({ product, defaultVariant }: ProductCardProps) => {
   const [location] = useLocation();
+  const { add } = useCart();
+
   return (
-    <Link href={`${location}/product/${id}`}>
+    <Link href={`${location}/product/${product.id}`}>
       <motion.div
         className="relative rounded-2xl shadow overflow-hidden group cursor-pointer"
         initial={{ opacity: 0, y: 20 }}
@@ -28,8 +24,8 @@ const ProductCard = ({
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
         <img
-          src={image}
-          alt={title}
+          src={product?.images?.[0]}
+          alt={product?.title}
           className="aspect-square object-cover"
           loading="lazy"
         />
@@ -40,7 +36,7 @@ const ProductCard = ({
         rounded-full text-sm font-medium max-w-[70%] overflow-hidden 
         text-ellipsis whitespace-nowrap"
         >
-          {title}
+          {product?.title}
         </div>
         {/* Overlay */}
         <motion.div
@@ -51,22 +47,24 @@ const ProductCard = ({
         >
           {/* Description with ellipsis */}
           <div className="text-sm text-white/90 mb-2 line-clamp-2">
-            {description}
+            {product?.description}
           </div>
 
           <div className="flex justify-between w-full items-center">
-            <button
-              className="bg-black text-white px-5 py-2 rounded-full font-medium gap-3"
+            <Button
+              className="bg-black text-white px-5 py-2 rounded-full font-medium gap-3 hover:bg-white hover:text-black transition "
               onClick={(e) => {
                 e.stopPropagation(); // prevents link navigation
                 e.preventDefault(); // ensures browser doesn’t follow the link
+
+                add(product, defaultVariant, 1);
               }}
             >
               Add to Cart <ShoppingCart className="inline-block w-4 h-4" />
-            </button>
+            </Button>
 
             <div className="bg-black text-white px-3 py-1 rounded-full font-medium">
-              ${price}
+              ${defaultVariant?.price}
             </div>
           </div>
         </motion.div>

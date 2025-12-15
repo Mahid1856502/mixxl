@@ -293,7 +293,7 @@ function FeaturedSpotsList() {
                 </div>
                 <div>
                   <Label htmlFor="priceUSD" className="text-gray-300">
-                    Price (USD)
+                    Price (GBP)
                   </Label>
                   <Input
                     id="priceUSD"

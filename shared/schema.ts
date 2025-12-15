@@ -347,7 +347,7 @@ export const purchasedTracks = pgTable(
     purchaseType: purchaseTypeEnum("purchaseType").notNull().default("track"),
 
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-    currency: varchar("currency", { length: 10 }).notNull().default("usd"),
+    currency: varchar("currency", { length: 10 }).notNull().default("gbp"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
     stripeCheckoutSessionId: varchar("stripe_checkout_session_id", {
       length: 255,
@@ -1020,7 +1020,7 @@ export const productVariants = pgTable(
 
     sku: varchar("sku", { length: 100 }).notNull().unique(),
     title: varchar("title", { length: 150 }).notNull(), // e.g., "Black - Large"
-    priceCents: integer("price_cents").notNull(), // store in cents
+    price: integer("price").notNull(),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -1061,16 +1061,21 @@ export const orders = pgTable(
 
     buyerId: uuid("buyer_id").references(() => users.id), // fan or guest (nullable if using guest checkout)
 
-    totalCents: integer("total_cents").notNull(),
-    currency: varchar("currency", { length: 3 }).default("USD"),
+    totalAmount: integer("total_amount").notNull(),
+    currency: varchar("currency", { length: 3 }).default("GBP"),
 
-    status: varchar("status", { length: 50 }).notNull().default("pending"),
-    paymentStatus: varchar("payment_status", { length: 50 }).default("unpaid"),
+    paymentStatus: paymentStatusEnum("payment_status")
+      .notNull()
+      .default("pending"),
 
     shippingAddress: json("shipping_address"),
     billingAddress: json("billing_address"),
 
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 200 }),
+
+    customerEmailSend: boolean("customer_email_sent").default(false),
+    artistEmailSend: boolean("artist_email_sent").default(false),
+    refundEmailSend: boolean("refund_email_sent").default(false),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -1094,8 +1099,8 @@ export const orderLines = pgTable(
       .references(() => productVariants.id),
 
     quantity: integer("quantity").notNull(),
-    unitPriceCents: integer("unit_price_cents").notNull(),
-    lineTotalCents: integer("line_total_cents").notNull(),
+    unitPrice: integer("unit_price").notNull(),
+    lineTotal: integer("line_total").notNull(),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
   },

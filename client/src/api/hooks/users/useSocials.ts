@@ -3,7 +3,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DiscoverFilters } from "../artists/useArtists";
 import { Artist } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 
 export const useFollowUser = (
   userId: string,

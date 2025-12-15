@@ -19,7 +19,7 @@ export const updateProductSchema = insertProductSchema.partial();
 export const variantWithInventorySchema = z.object({
   sku: z.string(),
   title: z.string(),
-  priceCents: z.number().int(),
+  price: z.number().int(),
   stockQuantity: z.number().int().default(0),
 });
 

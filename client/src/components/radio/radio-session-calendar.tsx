@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { RadioSession } from "@shared/schema";
 import { useRadioSessions } from "@/api/hooks/radio/useRadioSession";
 import { useEndSession, useGoLive } from "@/api/hooks/radio/useSessionStatus";

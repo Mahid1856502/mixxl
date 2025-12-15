@@ -20,7 +20,7 @@ export const AlbumView = () => {
     const value = typeof p === "string" ? Number(p) : p;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "GBP",
     }).format(value);
   };
 

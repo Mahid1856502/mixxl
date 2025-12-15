@@ -11,7 +11,7 @@ import TrackCard from "@/components/music/track-card";
 import PlaylistCard from "@/components/music/playlist-card";
 import UserCard from "@/components/social/user-card";
 import TipModal from "@/components/modals/tip-modal";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   UserPlus,

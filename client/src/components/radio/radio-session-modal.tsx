@@ -22,7 +22,7 @@ import {
   useUpdateRadioSession,
 } from "@/api/hooks/radio/useRadioSession";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { RadioSession } from "@shared/schema";
 
 // Zod schema for validation

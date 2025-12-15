@@ -7,7 +7,7 @@ import { useRadioStatus } from "@/api/hooks/radio/useRadioStatus";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useEndSession } from "@/api/hooks/radio/useSessionStatus";
 import { Button } from "../ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 
 interface RadioCoPlayerProps {
   session?: RadioSession & {

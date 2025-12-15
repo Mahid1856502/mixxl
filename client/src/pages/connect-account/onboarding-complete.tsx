@@ -5,7 +5,7 @@ import {
   useStripeAccountStatus,
   useStripeAccount,
 } from "@/api/hooks/stripe/useStripeAccount";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 
 export default function OnboardingStatus() {
   const { user } = useAuth();

@@ -27,7 +27,7 @@ import {
   useCreatePlaylist,
   useUpdatePlaylist,
 } from "@/api/hooks/playlist/useCreatePlaylist";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useGetPlaylistById } from "@/api/hooks/playlist/usePlaylist";
 import { useEffect } from "react";

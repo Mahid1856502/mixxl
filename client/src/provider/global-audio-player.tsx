@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMusicPlayer } from "@/hooks/use-music-player";
+import { useMusicPlayer } from "@/provider/use-music-player";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";

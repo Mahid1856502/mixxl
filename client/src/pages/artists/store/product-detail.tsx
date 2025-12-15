@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams } from "wouter";
-import { ArrowLeft, Star } from "lucide-react";
-import ProductCard from "@/components/artist/store/ProductCard";
+import { useParams } from "wouter";
+import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProduct } from "@/api/hooks/products/useProducts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCart } from "@/provider/cart-provider";
 
 const ProductDetail = () => {
-  const { username, productId } = useParams();
+  const { add } = useCart();
+  const { productId } = useParams();
   const { data: product, isLoading, error } = useProduct(productId);
 
   // fake reviews
@@ -145,13 +146,13 @@ const ProductDetail = () => {
     product.variants.find((v) => v.id === selectedVariantId) ||
     product.variants[0];
 
-  const price = selectedVariant
-    ? (selectedVariant.priceCents / 100).toFixed(2)
-    : "0.00";
+  const price = selectedVariant ? selectedVariant.price.toFixed(2) : "0.00";
 
   const displayedReviews = showAllReviews
     ? fakeReviews
     : fakeReviews.slice(0, 2);
+
+  const outOfStock = selectedVariant.stockQuantity <= 0;
 
   return (
     <div className="px-4 md:px-10 lg:px-20 py-12 max-w-7xl mx-auto">
@@ -163,7 +164,7 @@ const ProductDetail = () => {
       </Link> */}
 
       {/* PRODUCT SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-14">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-14">
         {/* LEFT — IMAGES */}
         <div>
           <div className="rounded-2xl overflow-hidden shadow-md bg-white w-full">
@@ -239,10 +240,21 @@ const ProductDetail = () => {
 
           {/* CTA */}
           <div className="flex gap-4 mt-4">
-            <Button className="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-900 font-medium shadow">
-              Add to Cart
+            <Button
+              className="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-900 font-medium shadow"
+              disabled={!selectedVariant || outOfStock}
+              onClick={() => {
+                if (!selectedVariant || outOfStock) return;
+
+                add(product, selectedVariant, 1);
+              }}
+            >
+              {outOfStock ? "Out of Stock" : "Add to Cart"}
             </Button>
-            <Button className="border border-black px-6 py-3 rounded-xl font-medium">
+            <Button
+              className="border border-black px-6 py-3 rounded-xl font-medium"
+              disabled={!selectedVariant || outOfStock}
+            >
               Buy Now
             </Button>
           </div>
@@ -280,6 +292,7 @@ const ProductDetail = () => {
         {fakeReviews.length > 2 && (
           <div className="mt-6 text-center">
             <Button
+              variant={"outline"}
               onClick={() => setShowAllReviews(!showAllReviews)}
               className="px-6 py-2 rounded-lg border hover:bg-gray-100 transition font-medium"
             >
@@ -290,7 +303,7 @@ const ProductDetail = () => {
       </div>
 
       {/* RELEVANT PRODUCTS */}
-      <div className="mt-24">
+      {/* <div className="mt-24">
         <h2 className="text-3xl font-bold mb-8">Relevant Products</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {relevantProducts.map((p, idx) => (
@@ -304,7 +317,7 @@ const ProductDetail = () => {
             />
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

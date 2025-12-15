@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
-import { 
-  List, 
-  Plus, 
-  Loader2
-} from "lucide-react";
+import { useAuth } from "@/provider/use-auth";
+import { List, Plus, Loader2 } from "lucide-react";
 
 interface CreateMixxlistModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CreateMixxlistModal({ open, onOpenChange }: CreateMixxlistModalProps) {
+export default function CreateMixxlistModal({
+  open,
+  onOpenChange,
+}: CreateMixxlistModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -28,12 +32,17 @@ export default function CreateMixxlistModal({ open, onOpenChange }: CreateMixxli
 
   // Create mixxlist mutation
   const createMutation = useMutation({
-    mutationFn: async (mixxlistData: { name: string; description?: string }) => {
+    mutationFn: async (mixxlistData: {
+      name: string;
+      description?: string;
+    }) => {
       const response = await apiRequest("POST", "/api/mixxlists", mixxlistData);
       return response.json();
     },
     onSuccess: (newMixxlist) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "mixxlists"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/users", user?.id, "mixxlists"],
+      });
       toast({
         title: "Mixxlist Created!",
         description: `"${newMixxlist.name}" has been added to your collection.`,
@@ -45,7 +54,8 @@ export default function CreateMixxlistModal({ open, onOpenChange }: CreateMixxli
     onError: (error: any) => {
       toast({
         title: "Creation Failed",
-        description: error.message || "Failed to create Mixxlist. Please try again.",
+        description:
+          error.message || "Failed to create Mixxlist. Please try again.",
         variant: "destructive",
       });
     },
@@ -53,7 +63,7 @@ export default function CreateMixxlistModal({ open, onOpenChange }: CreateMixxli
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast({
         title: "Name Required",
@@ -130,9 +140,9 @@ export default function CreateMixxlistModal({ open, onOpenChange }: CreateMixxli
               )}
               Create Mixxlist
             </Button>
-            <Button 
+            <Button
               type="button"
-              variant="outline" 
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={createMutation.isPending}
               className="border-gray-600 text-gray-300"

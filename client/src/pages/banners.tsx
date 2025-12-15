@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, Trash2, Pencil } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useState } from "react";
 import { BannerMutateModal } from "@/components/modals/mutate-banner-modal";
 import { apiRequest, BASE_URL } from "@/lib/queryClient";

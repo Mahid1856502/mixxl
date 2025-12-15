@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Users, UserCheck, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFollowUser, useUnfollowUser } from "@/api/hooks/users/useSocials";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { DiscoverFilters } from "@/api/hooks/artists/useArtists";
 

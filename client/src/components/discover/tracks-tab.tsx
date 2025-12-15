@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import TrackCard from "@/components/music/track-card";
 import { Music, Shuffle, Lock, Unlock } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { Skeleton } from "../ui/skeleton";
 import { TrackExtended } from "@shared/schema";
 

@@ -230,7 +230,7 @@ const VariantList = ({
           key={v.id}
           className="bg-gray-700 text-white px-2 py-1 rounded text-xs"
         >
-          {v.title} — ${(v.priceCents / 100).toFixed(2)}
+          {v.title} — ${(v.price / 100).toFixed(2)}
         </span>
       ))}
 

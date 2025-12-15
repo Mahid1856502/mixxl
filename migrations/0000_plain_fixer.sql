@@ -282,7 +282,7 @@ CREATE TABLE "purchased_tracks" (
 	"track_id" uuid,
 	"album_id" uuid,
 	"price" numeric(10, 2) NOT NULL,
-	"currency" varchar(10) DEFAULT 'usd' NOT NULL,
+	"currency" varchar(10) DEFAULT 'gbp' NOT NULL,
 	"stripe_payment_intent_id" varchar(255),
 	"stripe_checkout_session_id" varchar(255),
 	"stripe_transfer_id" varchar(255),

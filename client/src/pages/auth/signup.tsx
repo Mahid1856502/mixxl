@@ -41,7 +41,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useStripeCountries } from "@/api/hooks/stripe/useStripeCountries";
 
 // Validation schema

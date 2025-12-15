@@ -2430,7 +2430,7 @@
           "type": "varchar(10)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'usd'"
+          "default": "'gbp'"
         },
         "stripe_payment_intent_id": {
           "name": "stripe_payment_intent_id",

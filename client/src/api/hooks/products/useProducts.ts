@@ -1,6 +1,7 @@
 // useProducts.ts
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { BuyProductInput } from "@shared/payment.type";
 import {
   CreateProductWithVariants,
   UpdateProduct,
@@ -144,6 +145,36 @@ export function useDeleteProduct() {
       toast({
         title: "Failed to delete product",
         description: "Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+type BuyProductResponse = {
+  clientSecret: string;
+  orderId: string;
+};
+
+// ---------------------------------------------------
+// Create Stripe Payment Intent
+// ---------------------------------------------------
+export function useBuyProductIntent() {
+  return useMutation<BuyProductResponse, Error, BuyProductInput>({
+    mutationFn: async (data) => {
+      const res = await apiRequest("POST", "/api/product/buy", data);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Failed to create payment intent");
+      }
+
+      return res.json();
+    },
+    onError: (error) => {
+      toast({
+        title: "Payment failed",
+        description: error.message,
         variant: "destructive",
       });
     },

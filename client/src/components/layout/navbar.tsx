@@ -9,13 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { Logo } from "@/components/ui/logo";
 import {
   Bell,
   User,
-  Settings,
   LogOut,
   Upload,
   Radio,
@@ -74,7 +73,6 @@ export default function Navbar() {
             },
           ],
         },
-        { name: "Profile", href: `/profile/${user.id}`, icon: User },
       ]
     : [];
 
@@ -97,7 +95,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 glass-effect">
+    <nav className="sticky top-0 z-40 border-b border-white/10 glass-effect">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20">
           {/* Logo and primary navigation */}

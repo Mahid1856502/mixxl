@@ -1,11 +1,21 @@
 import { and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import { products, productVariants, inventoryItems } from "@shared/schema";
+import {
+  products,
+  productVariants,
+  inventoryItems,
+  stores,
+  users,
+  orders,
+  orderLines,
+} from "@shared/schema";
 import {
   CreateProductWithVariants,
   ProductVariant,
   UpdateProductWithVariants,
 } from "@shared/product.type";
 import { db } from "server/db";
+import { BuyProductInput } from "@shared/payment.type";
+import { stripe } from "server/stripe";
 
 export const productService = {
   // ------------------------
@@ -52,7 +62,6 @@ export const productService = {
       };
     });
   },
-
   // ------------------------
   // Update product
   // ------------------------
@@ -83,7 +92,7 @@ export const productService = {
 
           if (v.title !== undefined) updateData.title = v.title;
           if (v.sku !== undefined) updateData.sku = v.sku;
-          if (v.priceCents !== undefined) updateData.priceCents = v.priceCents;
+          if (v.price !== undefined) updateData.price = v.price;
           updateData.updatedAt = new Date();
 
           const [updatedVariant] = await tx
@@ -95,9 +104,9 @@ export const productService = {
           variantRecords.push(updatedVariant);
         } else {
           // new variant -> insert
-          const { title, sku, priceCents } = v;
+          const { title, sku, price } = v;
 
-          if (!title || !sku || priceCents === undefined) {
+          if (!title || !sku || price === undefined) {
             throw new Error("Missing required variant fields");
           }
 
@@ -107,7 +116,7 @@ export const productService = {
               productId: id,
               title,
               sku,
-              priceCents,
+              price,
               updatedAt: sql`CURRENT_TIMESTAMP`,
             })
             .returning();
@@ -281,5 +290,107 @@ export const productService = {
   deleteProduct: async (id: string) => {
     await db.delete(products).where(eq(products.id, id));
     return { success: true };
+  },
+
+  buyProduct: async (userId: string | undefined, data: BuyProductInput) => {
+    return db.transaction(async (tx) => {
+      // 1. Store + artist
+      const [store] = await tx
+        .select()
+        .from(stores)
+        .where(eq(stores.id, data.storeId));
+
+      if (!store) throw new Error("Store not found");
+
+      const [artist] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, store.userId));
+
+      if (!artist?.stripeAccountId || !artist.stripeChargesEnabled) {
+        throw new Error("Artist cannot accept payments");
+      }
+
+      // 2. Variants
+      const variantIds = data.items.map((i) => i.variantId);
+
+      const variants = await tx
+        .select()
+        .from(productVariants)
+        .where(inArray(productVariants.id, variantIds));
+
+      if (variants.length !== variantIds.length) {
+        throw new Error("Invalid product variants");
+      }
+
+      // 3. Inventory + total
+      let totalAmount = 0;
+
+      for (const item of data.items) {
+        const variant = variants.find((v) => v.id === item.variantId)!;
+
+        const [inventory] = await tx
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.variantId, variant.id));
+
+        if (!inventory || inventory.stockQuantity < item.quantity) {
+          throw new Error(`Insufficient stock for ${variant.title}`);
+        }
+
+        totalAmount += variant.price * item.quantity;
+      }
+
+      // 4. Order
+      const [order] = await tx
+        .insert(orders)
+        .values({
+          storeId: data.storeId,
+          buyerId: userId,
+          totalAmount,
+          currency: "GBP",
+          shippingAddress: data.shippingAddress,
+          billingAddress: data.billingAddress,
+        })
+        .returning();
+
+      // 5. Order lines
+      await tx.insert(orderLines).values(
+        data.items.map((item) => {
+          const variant = variants.find((v) => v.id === item.variantId)!;
+          return {
+            orderId: order.id,
+            variantId: variant.id,
+            quantity: item.quantity,
+            unitPrice: variant.price,
+            lineTotal: variant.price * item.quantity,
+          };
+        })
+      );
+
+      // 6. PaymentIntent (DESTINATION CHARGE)
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: totalAmount,
+        currency: "gbp",
+        automatic_payment_methods: { enabled: true },
+        on_behalf_of: artist.stripeAccountId, // ✅ charge settles in artist's country
+        metadata: {
+          orderId: order.id,
+          storeId: store.id,
+          artistId: artist.id,
+        },
+      });
+
+      // 7. Persist PI
+      await tx
+        .update(orders)
+        .set({ stripePaymentIntentId: paymentIntent.id })
+        .where(eq(orders.id, order.id));
+
+      return {
+        orderId: order.id,
+        clientSecret: paymentIntent.client_secret!,
+      };
+    });
   },
 };

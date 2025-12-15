@@ -129,6 +129,6 @@ export const PURCHASE_COLUMNS: ColumnDef<any>[] = [
   {
     accessorKey: "price",
     header: "Price",
-    cell: ({ row }) => getCurrency(Number(row.original.price), "USD"),
+    cell: ({ row }) => getCurrency(Number(row.original.price), "GBP"),
   },
 ];

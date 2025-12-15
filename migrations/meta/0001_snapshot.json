@@ -1183,9 +1183,7 @@
         "discount_codes_code_unique": {
           "name": "discount_codes_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -1267,9 +1265,7 @@
         "email_verification_tokens_token_unique": {
           "name": "email_verification_tokens_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -2161,12 +2157,8 @@
           "name": "password_resets_user_id_users_id_fk",
           "tableFrom": "password_resets",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2438,7 +2430,7 @@
           "type": "varchar(10)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'usd'"
+          "default": "'gbp'"
         },
         "stripe_payment_intent_id": {
           "name": "stripe_payment_intent_id",
@@ -2532,12 +2524,8 @@
           "name": "purchased_tracks_track_id_tracks_id_fk",
           "tableFrom": "purchased_tracks",
           "tableTo": "tracks",
-          "columnsFrom": [
-            "track_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["track_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2545,12 +2533,8 @@
           "name": "purchased_tracks_album_id_albums_id_fk",
           "tableFrom": "purchased_tracks",
           "tableTo": "albums",
-          "columnsFrom": [
-            "album_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["album_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3198,12 +3182,8 @@
           "name": "tracks_artist_id_users_id_fk",
           "tableFrom": "tracks",
           "tableTo": "users",
-          "columnsFrom": [
-            "artist_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["artist_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3211,12 +3191,8 @@
           "name": "tracks_album_id_albums_id_fk",
           "tableFrom": "tracks",
           "tableTo": "albums",
-          "columnsFrom": [
-            "album_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["album_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3563,16 +3539,12 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         }
       },
       "policies": {},
@@ -3584,50 +3556,27 @@
     "public.badge_type": {
       "name": "badge_type",
       "schema": "public",
-      "values": [
-        "achievement",
-        "milestone",
-        "special"
-      ]
+      "values": ["achievement", "milestone", "special"]
     },
     "public.broadcast_status": {
       "name": "broadcast_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "scheduled",
-        "sent",
-        "failed"
-      ]
+      "values": ["draft", "scheduled", "sent", "failed"]
     },
     "public.broadcast_type": {
       "name": "broadcast_type",
       "schema": "public",
-      "values": [
-        "notification",
-        "email",
-        "both"
-      ]
+      "values": ["notification", "email", "both"]
     },
     "public.collaboration_status": {
       "name": "collaboration_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "accepted",
-        "rejected",
-        "completed"
-      ]
+      "values": ["pending", "accepted", "rejected", "completed"]
     },
     "public.collaboration_type": {
       "name": "collaboration_type",
       "schema": "public",
-      "values": [
-        "remix",
-        "feature",
-        "production",
-        "songwriting"
-      ]
+      "values": ["remix", "feature", "production", "songwriting"]
     },
     "public.currency": {
       "name": "currency",
@@ -3658,50 +3607,27 @@
     "public.discount_code_status": {
       "name": "discount_code_status",
       "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "expired",
-        "used_up"
-      ]
+      "values": ["active", "inactive", "expired", "used_up"]
     },
     "public.discount_code_type": {
       "name": "discount_code_type",
       "schema": "public",
-      "values": [
-        "free_subscription",
-        "percentage_off",
-        "fixed_amount"
-      ]
+      "values": ["free_subscription", "percentage_off", "fixed_amount"]
     },
     "public.featured_spot_status": {
       "name": "featured_spot_status",
       "schema": "public",
-      "values": [
-        "active",
-        "pending",
-        "expired",
-        "cancelled"
-      ]
+      "values": ["active", "pending", "expired", "cancelled"]
     },
     "public.live_stream_status": {
       "name": "live_stream_status",
       "schema": "public",
-      "values": [
-        "scheduled",
-        "live",
-        "ended",
-        "cancelled"
-      ]
+      "values": ["scheduled", "live", "ended", "cancelled"]
     },
     "public.message_type": {
       "name": "message_type",
       "schema": "public",
-      "values": [
-        "text",
-        "track",
-        "collaboration"
-      ]
+      "values": ["text", "track", "collaboration"]
     },
     "public.notification_type": {
       "name": "notification_type",
@@ -3723,40 +3649,22 @@
     "public.payment_status": {
       "name": "payment_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "succeeded",
-        "failed",
-        "refunded"
-      ]
+      "values": ["pending", "succeeded", "failed", "refunded"]
     },
     "public.radio_chat_message_type": {
       "name": "radio_chat_message_type",
       "schema": "public",
-      "values": [
-        "chat",
-        "reaction",
-        "system"
-      ]
+      "values": ["chat", "reaction", "system"]
     },
     "public.role": {
       "name": "role",
       "schema": "public",
-      "values": [
-        "fan",
-        "artist",
-        "admin",
-        "DJ"
-      ]
+      "values": ["fan", "artist", "admin", "DJ"]
     },
     "public.status": {
       "name": "status",
       "schema": "public",
-      "values": [
-        "pending",
-        "completed",
-        "failed"
-      ]
+      "values": ["pending", "completed", "failed"]
     },
     "public.subscription_status_enum": {
       "name": "subscription_status_enum",

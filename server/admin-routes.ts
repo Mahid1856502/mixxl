@@ -328,7 +328,7 @@ export function registerAdminRoutes(app: Express) {
 
         const paymentIntent = await stripe.paymentIntents.create({
           amount: Math.round(parseFloat(spot.priceUSD) * 100), // Convert to cents
-          currency: "usd",
+          currency: "gbp",
           metadata: {
             type: "featured_spot",
             spotId: spot.id,

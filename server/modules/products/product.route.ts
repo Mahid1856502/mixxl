@@ -10,6 +10,7 @@ import {
 import { productService } from "./product.service";
 import { authenticate } from "server/admin-routes";
 import { Store } from "@shared/store.type";
+import { buyProductSchema } from "@shared/payment.type";
 
 declare global {
   namespace Express {
@@ -163,6 +164,22 @@ export function registerProductRoutes(app: Express) {
         res.json({ success: true });
       } catch (err) {
         res.status(400).json({ error: (err as Error).message });
+      }
+    }
+  );
+
+  app.post(
+    "/api/product/buy",
+    authenticate,
+    async (req: Request, res: Response) => {
+      try {
+        const data = buyProductSchema.parse(req.body);
+        const result = await productService.buyProduct(req.user?.id, data);
+        res.status(201).json(result);
+      } catch (err) {
+        res.status(400).json({
+          error: (err as Error).message,
+        });
       }
     }
   );

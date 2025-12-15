@@ -34,7 +34,7 @@ import {
   Bug,
   Lightbulb,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 
 const contactSchema = z.object({
   name: z

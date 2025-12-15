@@ -3,7 +3,7 @@ import ProductCard from "@/components/artist/store/ProductCard";
 import ArtistBanner from "@/components/artist/store/ArtistBanner";
 
 import { useParams, useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/provider/use-auth";
 import { useStoreByUser } from "@/api/hooks/store/useStore";
 import { useProductsByStore } from "@/api/hooks/products/useProducts";
 import { useUser } from "@/api/hooks/users/useUser";
@@ -118,22 +118,10 @@ const Store = () => {
           ))
         ) : productsData?.products.length ? (
           productsData.products.map((product) => {
-            const lowestVariantPrice = product.variants?.length
-              ? Math.min(...product.variants.map((v) => v.priceCents))
-              : null;
-
             return (
               <ProductCard
-                key={product.id}
-                id={product.id}
-                image={product.images?.[0] ?? ""}
-                title={product.title}
-                price={
-                  lowestVariantPrice !== null
-                    ? (lowestVariantPrice / 100).toFixed(2)
-                    : "N/A"
-                }
-                description={product.description || ""}
+                defaultVariant={product?.variants?.[0]}
+                product={product}
               />
             );
           })

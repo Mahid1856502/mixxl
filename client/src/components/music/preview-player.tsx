@@ -14,7 +14,11 @@ import {
   ListMusic,
 } from "lucide-react";
 import { TrackExtended } from "@shared/schema";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../provider/tooltip";
 
 interface PreviewPlayerProps {
   handleOpen: () => void;

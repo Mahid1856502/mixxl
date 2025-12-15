@@ -57,6 +57,8 @@ import ProductDetail from "@/pages/artists/store/product-detail";
 import ManageStore from "@/pages/artists/store/manage-store";
 import ManageProducts from "@/pages/artists/store/manage-products";
 import MutateProduct from "@/pages/artists/store/mutate-product";
+import Payment from "@/pages/artists/store/payment";
+import OrderConfirmation from "@/pages/artists/store/order-confirmation";
 
 export interface AppRoute {
   path: string;
@@ -157,6 +159,16 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/store/:username/product/:productId",
     component: ProductDetail,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/store/order/checkout",
+    component: Payment,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/store/order/success",
+    component: OrderConfirmation,
     roles: ["fan", "artist", "admin", "DJ"],
   },
 
