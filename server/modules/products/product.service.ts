@@ -302,6 +302,10 @@ export const productService = {
 
       if (!store) throw new Error("Store not found");
 
+      if (userId && store.userId === userId) {
+        throw new Error("Artists cannot purchase their own products");
+      }
+
       const [artist] = await tx
         .select()
         .from(users)
