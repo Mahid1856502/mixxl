@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProduct } from "@/api/hooks/products/useProducts";
@@ -8,8 +8,9 @@ import { useCart } from "@/provider/cart-provider";
 
 const ProductDetail = () => {
   const { add } = useCart();
-  const { productId } = useParams();
+  const { productId, username } = useParams();
   const { data: product, isLoading, error } = useProduct(productId);
+  const [, setLocation] = useLocation();
 
   // fake reviews
   const fakeReviews = [
@@ -146,7 +147,9 @@ const ProductDetail = () => {
     product.variants.find((v) => v.id === selectedVariantId) ||
     product.variants[0];
 
-  const price = selectedVariant ? selectedVariant.price.toFixed(2) : "0.00";
+  const price = selectedVariant?.price
+    ? Number(selectedVariant.price).toFixed(2)
+    : "0.00";
 
   const displayedReviews = showAllReviews
     ? fakeReviews
@@ -252,6 +255,13 @@ const ProductDetail = () => {
               {outOfStock ? "Out of Stock" : "Add to Cart"}
             </Button>
             <Button
+              onClick={() =>
+                setLocation(
+                  `/store/${username}/checkout?variantId=${
+                    selectedVariant?.id
+                  }&productId=${product?.id}&quantity=${1}`
+                )
+              }
               className="border border-black px-6 py-3 rounded-xl font-medium"
               disabled={!selectedVariant || outOfStock}
             >

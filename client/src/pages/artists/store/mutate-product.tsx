@@ -22,8 +22,8 @@ import { VariantWithInventory } from "@shared/product.type";
 const variantSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(1, "Variant title is required"),
-  sku: z.string().min(1, "SKU is required"),
-  price: z.number().min(0, "Price is required"),
+  sku: z.string().optional(),
+  price: z.string().min(1, "Price is required"),
   stockQuantity: z.number().min(0, "Stock is required"),
 });
 
@@ -81,7 +81,7 @@ const MutateProduct = () => {
         {
           title: "",
           sku: "",
-          price: 0,
+          price: "0",
           stockQuantity: 0,
         },
       ],
@@ -365,12 +365,11 @@ const MutateProduct = () => {
               </div>
 
               <div className="sm:col-span-1">
-                <label className="block mb-1 text-sm">Price ($)</label>
+                <label className="block mb-1 text-sm">Price (£)</label>
                 <Input
                   type="number"
-                  {...register(`variants.${index}.price` as const, {
-                    valueAsNumber: true,
-                  })}
+                  step={"any"}
+                  {...register(`variants.${index}.price` as const)}
                   className="bg-white/5 border-white/10"
                 />
                 {errors.variants?.[index]?.price && (
@@ -418,7 +417,7 @@ const MutateProduct = () => {
               append({
                 title: "",
                 sku: "",
-                price: 0,
+                price: "0",
                 stockQuantity: 0,
               })
             }

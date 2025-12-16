@@ -60,7 +60,7 @@ function addToCart(
       variantId: variant.id,
       title: product.title,
       variantTitle: variant.title,
-      price: variant.price,
+      price: Number(variant.price),
       quantity: qty,
       image: product?.images?.[0] ?? null,
     });

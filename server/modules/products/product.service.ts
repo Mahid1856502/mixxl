@@ -39,6 +39,7 @@ export const productService = {
       const variantRecords = data.variants.map((v) => ({
         ...v,
         productId: product.id,
+        sku: v.sku || "",
       }));
 
       const createdVariants = await tx
@@ -106,7 +107,7 @@ export const productService = {
           // new variant -> insert
           const { title, sku, price } = v;
 
-          if (!title || !sku || price === undefined) {
+          if (!title || price === undefined) {
             throw new Error("Missing required variant fields");
           }
 
@@ -342,7 +343,13 @@ export const productService = {
           throw new Error(`Insufficient stock for ${variant.title}`);
         }
 
-        totalAmount += variant.price * item.quantity;
+        // Validate price
+        const unitPrice = Number(variant.price);
+        if (variant.price == null || isNaN(unitPrice)) {
+          throw new Error(`Invalid price for variant "${variant.title}"`);
+        }
+
+        totalAmount += unitPrice * item.quantity;
       }
 
       // 4. Order
@@ -351,7 +358,7 @@ export const productService = {
         .values({
           storeId: data.storeId,
           buyerId: userId,
-          totalAmount,
+          totalAmount: totalAmount?.toString(),
           currency: "GBP",
           shippingAddress: data.shippingAddress,
           billingAddress: data.billingAddress,
@@ -362,22 +369,25 @@ export const productService = {
       await tx.insert(orderLines).values(
         data.items.map((item) => {
           const variant = variants.find((v) => v.id === item.variantId)!;
+          const unitPrice = Number(variant.price); // already validated above
           return {
             orderId: order.id,
             variantId: variant.id,
             quantity: item.quantity,
-            unitPrice: variant.price,
-            lineTotal: variant.price * item.quantity,
+            unitPrice: unitPrice?.toString(),
+            lineTotal: (unitPrice * item.quantity)?.toString(),
           };
         })
       );
 
       // 6. PaymentIntent (DESTINATION CHARGE)
+      const amountInPence = Math.round(totalAmount * 100);
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalAmount,
+        amount: amountInPence,
         currency: "gbp",
         automatic_payment_methods: { enabled: true },
-        on_behalf_of: artist.stripeAccountId, // ✅ charge settles in artist's country
+        on_behalf_of: artist.stripeAccountId,
         metadata: {
           orderId: order.id,
           storeId: store.id,
@@ -396,5 +406,17 @@ export const productService = {
         clientSecret: paymentIntent.client_secret!,
       };
     });
+  },
+
+  getProductVariant: async (id: string) => {
+    const [variant] = await db
+      .select()
+      .from(productVariants)
+      .where(eq(productVariants.id, id))
+      .limit(1);
+
+    if (!variant) return null;
+
+    return variant;
   },
 };

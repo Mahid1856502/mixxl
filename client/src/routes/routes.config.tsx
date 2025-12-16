@@ -162,7 +162,7 @@ export const appRoutes: AppRoute[] = [
     roles: ["fan", "artist", "admin", "DJ"],
   },
   {
-    path: "/store/order/checkout",
+    path: "/store/:username/checkout",
     component: Payment,
     roles: ["fan", "artist", "admin", "DJ"],
   },

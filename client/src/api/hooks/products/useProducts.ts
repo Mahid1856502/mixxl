@@ -6,6 +6,7 @@ import {
   CreateProductWithVariants,
   UpdateProduct,
   ProductWithVariants,
+  ProductVariant,
 } from "@shared/product.type";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -177,6 +178,22 @@ export function useBuyProductIntent() {
         description: error.message,
         variant: "destructive",
       });
+    },
+    retry: 0,
+  });
+}
+
+// ---------------------------------------------------
+// Get Product variant
+// ---------------------------------------------------
+export function useProductVariant(id: string | null) {
+  return useQuery<ProductVariant, Error>({
+    queryKey: ["product-variant", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/product-variant/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch product variant");
+      return res.json();
     },
   });
 }

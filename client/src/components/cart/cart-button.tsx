@@ -43,7 +43,7 @@ const CartButton = () => {
             <p className="text-gray-400">Your cart is empty.</p>
           ) : (
             <>
-              <ul className="space-y-4 h-[calc(100vh-180px)] overflow-y-auto pr-4">
+              <ul className="space-y-4 h-[calc(100vh-200px)] overflow-y-auto pr-4">
                 {cart.map((item) => (
                   <li
                     key={item.variantId}
@@ -78,7 +78,7 @@ const CartButton = () => {
               </div>
 
               <Link
-                href="/store/order/checkout"
+                href={`/store/${location.split("/")[2]}/checkout`}
                 className="w-full bg-primary rounded-lg py-2 px-4 flex flex-1 items-center justify-center"
               >
                 Checkout

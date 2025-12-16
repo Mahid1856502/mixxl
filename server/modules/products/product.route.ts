@@ -183,4 +183,19 @@ export function registerProductRoutes(app: Express) {
       }
     }
   );
+
+  app.get("/api/product-variant/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const result = await productService.getProductVariant(id);
+
+      if (!result) {
+        return res.status(404).json({ error: "Variant not found" });
+      }
+
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
 }

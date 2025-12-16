@@ -14,6 +14,7 @@ import {
   bigint,
   check,
   unique,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1018,9 +1019,9 @@ export const productVariants = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
 
-    sku: varchar("sku", { length: 100 }).notNull().unique(),
+    sku: varchar("sku", { length: 100 }).unique(),
     title: varchar("title", { length: 150 }).notNull(), // e.g., "Black - Large"
-    price: integer("price").notNull(),
+    price: numeric("price", { precision: 10, scale: 2 }).notNull(),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -1061,7 +1062,7 @@ export const orders = pgTable(
 
     buyerId: uuid("buyer_id").references(() => users.id), // fan or guest (nullable if using guest checkout)
 
-    totalAmount: integer("total_amount").notNull(),
+    totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
     currency: varchar("currency", { length: 3 }).default("GBP"),
 
     paymentStatus: paymentStatusEnum("payment_status")
@@ -1099,8 +1100,8 @@ export const orderLines = pgTable(
       .references(() => productVariants.id),
 
     quantity: integer("quantity").notNull(),
-    unitPrice: integer("unit_price").notNull(),
-    lineTotal: integer("line_total").notNull(),
+    unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
+    lineTotal: numeric("line_total", { precision: 10, scale: 2 }).notNull(),
 
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
   },
