@@ -1019,7 +1019,7 @@ export const productVariants = pgTable(
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
 
-    sku: varchar("sku", { length: 100 }).unique(),
+    sku: varchar("sku", { length: 100 }),
     title: varchar("title", { length: 150 }).notNull(), // e.g., "Black - Large"
     price: numeric("price", { precision: 10, scale: 2 }).notNull(),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
