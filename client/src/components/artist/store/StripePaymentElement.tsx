@@ -57,7 +57,7 @@ const StripePaymentElement: React.FC<Props> = ({ amount }) => {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <Button type="submit" className="w-full" disabled={!stripe || loading}>
-        {loading ? "Processing…" : `Pay $${amount.toFixed(2)}`}
+        {loading ? "Processing…" : `Pay £${amount.toFixed(2)}`}
       </Button>
     </form>
   );
