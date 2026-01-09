@@ -64,7 +64,7 @@ const ProductCard = ({ product, defaultVariant }: ProductCardProps) => {
             </Button>
 
             <div className="bg-black text-white px-3 py-1 rounded-full font-medium">
-              ${defaultVariant?.price}
+              £{defaultVariant?.price}
             </div>
           </div>
         </motion.div>

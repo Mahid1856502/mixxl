@@ -24,6 +24,7 @@ import {
   Wallet,
   Music,
   Store,
+  CalendarDays,
 } from "lucide-react";
 import { useUnreadNotificationCount } from "@/api/hooks/notifications/useNotifications";
 import { useEffect, useState } from "react";
@@ -349,6 +350,16 @@ export default function Navbar() {
                           >
                             <Wallet className="w-4 h-4" />
                             <span>Earnings</span>
+                          </Link>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/events/dashboard`}
+                            className="flex items-center space-x-2"
+                          >
+                            <CalendarDays className="w-4 h-4" />
+                            <span>Manage Events</span>
                           </Link>
                         </DropdownMenuItem>
 

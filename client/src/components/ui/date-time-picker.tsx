@@ -67,7 +67,7 @@ export function DateTimePicker({
 
   return (
     <div
-      className={`flex gap-4 items-center justify-between${
+      className={`w-full flex gap-4 items-center justify-between${
         !showTimePicker ? "w-full" : ""
       }`}
     >
@@ -80,9 +80,7 @@ export function DateTimePicker({
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className={`justify-between font-normal ${
-                showTimePicker ? "w-40" : "w-full"
-              }`}
+              className={`justify-between font-normal w-full`}
             >
               {value ? value.toLocaleDateString() : "Select date"}
               <ChevronDownIcon />

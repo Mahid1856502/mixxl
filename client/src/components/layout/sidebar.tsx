@@ -120,7 +120,7 @@ export default function Sidebar() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col h-full w-64 glass-effect border-r border-white/10">
+    <div className="fixed flex flex-col h-full w-64 glass-effect border-r border-white/10">
       <div className="p-6">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg mixxl-gradient flex items-center justify-center">
@@ -162,41 +162,6 @@ export default function Sidebar() {
             );
           })}
         </div>
-
-        {/* User Playlists */}
-        {playlists.length > 0 && (
-          <>
-            <Separator className="my-6 bg-white/10" />
-            <div className="space-y-2">
-              <h3 className="px-3 text-sm font-medium text-muted-foreground">
-                Your Playlists
-              </h3>
-              <div className="space-y-1">
-                {playlists.slice(0, 5).map((playlist: any) => (
-                  <Link key={playlist.id} href={`/playlist/${playlist.id}`}>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start h-9 text-sm hover:bg-white/5"
-                    >
-                      <ListMusic className="w-4 h-4 mr-3" />
-                      <span className="truncate">{playlist.name}</span>
-                    </Button>
-                  </Link>
-                ))}
-                {playlists.length > 5 && (
-                  <Link href="/playlists">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start h-9 text-sm text-muted-foreground"
-                    >
-                      View all playlists
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Admin Navigation */}
         {user.role === "admin" && (

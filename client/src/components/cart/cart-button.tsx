@@ -3,11 +3,13 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/provider/cart-provider";
 import { Link, useLocation } from "wouter"; // useLocation hook
+import { useMusicPlayer } from "@/provider/use-music-player";
 
 const CartButton = () => {
   const { cart, subtotal, totalItems, remove } = useCart();
   const [open, setOpen] = useState(false);
   const [location] = useLocation();
+  const { isPlayerVisible } = useMusicPlayer();
 
   // Close dialog whenever the route changes
   useEffect(() => {
@@ -18,7 +20,15 @@ const CartButton = () => {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       {/* Floating Button */}
       <Dialog.Trigger asChild>
-        <button className="fixed bottom-5 right-5 z-50 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4 rounded-full shadow-lg transition-colors">
+        <button
+          className={`
+    fixed right-5 z-50
+    bg-gradient-to-br from-purple-500 to-pink-500
+    text-white p-4 rounded-full shadow-lg
+    transition-all duration-300
+    ${isPlayerVisible ? "bottom-28" : "bottom-5"}
+  `}
+        >
           <ShoppingCart className="w-6 h-6" />
 
           {totalItems > 0 && (

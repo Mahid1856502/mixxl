@@ -59,6 +59,10 @@ import ManageProducts from "@/pages/artists/store/manage-products";
 import MutateProduct from "@/pages/artists/store/mutate-product";
 import Payment from "@/pages/artists/store/payment";
 import OrderConfirmation from "@/pages/artists/store/order-confirmation";
+import Events from "@/pages/artists/events";
+import EventDetails from "@/pages/artists/events/event-detail";
+import ManageEvent from "@/pages/artists/events/mange-event";
+import EventTicketDashboard from "@/pages/artists/events/event-dashboard";
 
 export interface AppRoute {
   path: string;
@@ -169,6 +173,28 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/store/order/success",
     component: OrderConfirmation,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+
+  // ==================== Online Store ====================
+  {
+    path: "/events/dashboard",
+    component: EventTicketDashboard,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/events/:username",
+    component: Events,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/events/:username/manage",
+    component: ManageEvent,
+    roles: ["fan", "artist", "admin", "DJ"],
+  },
+  {
+    path: "/events/:username/:eventId",
+    component: EventDetails,
     roles: ["fan", "artist", "admin", "DJ"],
   },
 

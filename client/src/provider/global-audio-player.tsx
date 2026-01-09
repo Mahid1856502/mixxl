@@ -34,6 +34,7 @@ export default function GlobalAudioPlayer() {
     currentPlaylist,
     pause,
     audioState,
+    setCurrentTrack,
   } = useMusicPlayer();
 
   const [isClosed, setIsClosed] = useState(false);
@@ -68,16 +69,17 @@ export default function GlobalAudioPlayer() {
   const handleClose = () => {
     pause();
     setIsClosed(true);
+    setCurrentTrack(null);
   };
 
   // ✅ Minimized Floating Player
   if (isMinimized) {
     return (
-      <Card className="fixed bottom-3 inset-x-3 md:bottom-4 md:right-4 md:left-auto md:w-80 z-50 w-full max-w-xs mx-auto rounded-2xl shadow-lg border border-white/10 glass-effect">
+      <Card className="fixed bottom-3 inset-x-3 md:bottom-4 md:right-4 md:left-auto md:w-96 z-50 w-full max-w-sm mx-auto rounded-2xl shadow-lg border border-white/10 glass-effect">
         <CardContent className="p-2 flex items-center justify-between">
           {/* Track Info */}
           <div className="flex items-center space-x-2 min-w-0">
-            <div className="w-9 h-9 rounded-md bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center overflow-hidden">
+            <div className="w-14 h-14 rounded-md bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center overflow-hidden">
               {currentTrack.coverImage ? (
                 <img
                   src={currentTrack.coverImage}
@@ -89,17 +91,17 @@ export default function GlobalAudioPlayer() {
               )}
             </div>
             <div className="min-w-0">
-              <h4 className="font-medium text-xs truncate">
+              <h4 className="font-medium text-sm truncate mb-1">
                 {currentTrack.title}
               </h4>
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {currentTrack.artistName || "Artist"}
               </p>
             </div>
           </div>
 
           {/* Play/Pause + Expand */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <Button
               size="icon"
               onClick={togglePlayPause}

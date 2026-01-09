@@ -26,6 +26,7 @@ interface MusicPlayerContextType {
   audioUrl: string;
   maxDuration: number;
   audioState: "loading" | "ready" | "error";
+  isPlayerVisible: boolean;
 
   // Actions
   playTrack: (track: TrackExtended) => void;
@@ -38,6 +39,7 @@ interface MusicPlayerContextType {
   seekTo: (time: number) => void;
   pause: () => void;
   stop: () => void;
+  setCurrentTrack: (track: TrackExtended | null) => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(
@@ -56,6 +58,10 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [audioState, setAudioState] = useState<"loading" | "ready" | "error">(
     "loading"
   );
+
+  const isPlayerVisible = useMemo(() => {
+    return !!currentTrack;
+  }, [currentTrack]);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const { user } = useAuth();
@@ -264,6 +270,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       hasFullAccess,
       audioUrl,
       maxDuration,
+      isPlayerVisible,
       playTrack,
       playPlaylist,
       togglePlayPause,
@@ -274,6 +281,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       seekTo,
       pause,
       stop,
+      setCurrentTrack,
       audioState,
     }),
     [
@@ -289,6 +297,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       audioUrl,
       maxDuration,
       audioState,
+      isPlayerVisible,
     ]
   );
 
