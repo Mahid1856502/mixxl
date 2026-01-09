@@ -296,7 +296,11 @@ export default function UserCard({
                   disabled={
                     followMutation.isPending || unfollowMutation.isPending
                   }
-                  className="px-3"
+                  className={`px-3 ${
+                    isFollowing
+                      ? ""
+                      : "bg-primary hover:bg-purple-700 text-white hover:text-white"
+                  }`}
                 >
                   {isFollowing ? (
                     <UserCheck className="w-4 h-4 mr-1" />

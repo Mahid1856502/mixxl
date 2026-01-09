@@ -46,6 +46,7 @@ import {
 import { AlbumsList } from "@/components/music/album-list";
 import SocialModal from "@/components/modals/social-modal";
 import { useUser } from "@/api/hooks/users/useUser";
+import { ProfileSkeleton } from "@/components/profile/profile-skeleton";
 
 export default function Profile() {
   const { id } = useParams();
@@ -114,6 +115,8 @@ export default function Profile() {
     },
   });
 
+  console.log("isFollowing", isFollowing);
+
   const followMutation = useFollowUser(profileUserId, user?.username);
 
   const unfollowMutation = useUnfollowUser(profileUserId, user?.username);
@@ -179,10 +182,6 @@ export default function Profile() {
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
   const getTotalPlays = () => {
     return userTracks.reduce(
       (sum: number, track: any) => sum + (track.playCount || 0),
@@ -208,6 +207,8 @@ export default function Profile() {
     }
     setShowTipModal(true);
   };
+
+  if (!user) return <ProfileSkeleton />;
 
   return (
     <div className="min-h-screen">
@@ -279,7 +280,7 @@ export default function Profile() {
                     @{user?.username}
                   </p>
 
-                  <div className="flex items-center space-x-4 mt-2">
+                  <div className="flex flex-wrap items-center gap-4 mt-2">
                     <Badge
                       className={`capitalize ${
                         user?.role === "artist"
@@ -305,7 +306,12 @@ export default function Profile() {
                     )}
                     <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      <span>Joined {formatDate(user?.createdAt)}</span>
+                      <span>
+                        Joined{" "}
+                        {user?.createdAt
+                          ? new Date(user?.createdAt).toLocaleDateString()
+                          : "--"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -382,52 +388,80 @@ export default function Profile() {
                 </div>
 
                 {/* Action Buttons */}
-                {!isOwnProfile && currentUser && (
-                  <div className="flex items-center space-x-3">
-                    <Button
-                      onClick={handleFollow}
-                      disabled={
-                        followMutation.isPending || unfollowMutation.isPending
-                      }
-                      className={isFollowing ? "" : "mixxl-gradient text-white"}
-                      variant={isFollowing ? "outline" : "default"}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <UserCheck className="w-4 h-4 mr-2" />
-                          Following
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Follow
-                        </>
-                      )}
-                    </Button>
-                    <Button variant="outline" onClick={handleMessage}>
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Message
-                    </Button>
-                    {user?.role === "artist" && (
-                      <Button variant="outline" onClick={handleTip}>
-                        <Euro className="w-4 h-4 mr-2" />
-                        Tip Artist
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  {!isOwnProfile && currentUser && (
+                    <>
+                      {/* Follow */}
+                      <Button
+                        onClick={handleFollow}
+                        disabled={
+                          followMutation.isPending || unfollowMutation.isPending
+                        }
+                        className={
+                          isFollowing ? "" : "mixxl-gradient text-white"
+                        }
+                        variant={isFollowing ? "outline" : "default"}
+                        aria-label={isFollowing ? "Following" : "Follow"}
+                        title={isFollowing ? "Following" : "Follow"}
+                      >
+                        {isFollowing ? (
+                          <>
+                            <UserCheck className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Following</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Follow</span>
+                          </>
+                        )}
                       </Button>
-                    )}
-                  </div>
-                )}
 
-                {isOwnProfile && (
-                  <div className="flex items-center space-x-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setLocation("/profile-settings")}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  </div>
-                )}
+                      {/* Message */}
+                      <Button
+                        variant="outline"
+                        onClick={handleMessage}
+                        aria-label="Message"
+                        title="Message"
+                      >
+                        <MessageCircle className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Message</span>
+                      </Button>
+
+                      {/* Tip Artist */}
+                      {user?.role === "artist" && (
+                        <Button
+                          variant="outline"
+                          onClick={handleTip}
+                          aria-label="Tip Artist"
+                          title="Tip Artist"
+                        >
+                          <Euro className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Tip</span>
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  {isOwnProfile && (
+                    <div className="flex items-center space-x-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setLocation("/profile-settings")}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </div>
+                  )}
+                  {/* Events */}
+                  <Link
+                    href={`/events/${user?.username}`}
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium  border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                  >
+                    <Calendar className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Upcoming Events</span>
+                  </Link>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -440,7 +474,7 @@ export default function Profile() {
           defaultValue="music"
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger
               value="music"
               className="flex items-center space-x-2 text-xs md:text-sm"

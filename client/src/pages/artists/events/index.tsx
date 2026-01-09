@@ -44,7 +44,7 @@ const Events = () => {
   const { user } = useAuth();
   const isOwnProfile = currUser?.id === user?.id;
   return (
-    <div className="min-h-screen bg-neutral-950 text-white px-6 py-12">
+    <div className="min-h-screen text-white px-6 py-12">
       <div className="max-w-7xl mx-auto">
         <header className="mb-12 flex flex-col gap-6">
           <div className="flex items-start justify-between gap-6">

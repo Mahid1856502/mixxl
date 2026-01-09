@@ -7,7 +7,7 @@ import { useAuth } from "@/provider/use-auth";
 
 export const useFollowUser = (
   userId: string,
-  username: string,
+  username?: string,
   filters?: DiscoverFilters
 ) => {
   const { user: currentUser } = useAuth();
@@ -78,7 +78,7 @@ export const useFollowUser = (
 
 export const useUnfollowUser = (
   userId: string,
-  username: string,
+  username?: string,
   filters?: DiscoverFilters
 ) => {
   const { user: currentUser } = useAuth();

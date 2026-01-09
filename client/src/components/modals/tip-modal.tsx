@@ -37,7 +37,7 @@ interface TipModalProps {
   artist: {
     id: string;
     artistName: string;
-    profileImage?: string;
+    profileImage?: string | null;
   };
   track?: {
     id: string;
@@ -219,7 +219,7 @@ export default function TipModal({
             </DialogTitle>
           </div>
         </DialogHeader>
-        <div className="h-[600px] overflow-y-auto overflow-x-hidden">
+        <div className="overflow-y-auto overflow-x-hidden">
           {/* If clientSecret exists → render Elements with TipForm */}
           {clientSecret ? (
             <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -238,7 +238,7 @@ export default function TipModal({
               <div className="flex items-center space-x-3">
                 <Avatar className="h-12 w-12">
                   <AvatarImage
-                    src={artist.profileImage}
+                    src={artist.profileImage || ""}
                     className="object-cover"
                   />
                   <AvatarFallback>{artist?.artistName?.[0]}</AvatarFallback>
