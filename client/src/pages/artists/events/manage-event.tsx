@@ -4,53 +4,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Plus, Trash2, Ticket } from "lucide-react";
-import { Link, useParams } from "wouter";
+import { ArrowLeft, Save, Plus, Trash2, Ticket, Loader2 } from "lucide-react";
+import { Link, useLocation, useParams } from "wouter";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-
-/* ---------------- Types ---------------- */
-type TicketTypeForm = {
-  name: string;
-  price: number;
-  capacity: number;
-  description?: string;
-};
-
-type ManageEventForm = {
-  title: string;
-  genre: string;
-  description: string;
-  dateTime: Date;
-  venue: string;
-  location: string;
-  tickets: TicketTypeForm[];
-};
+import { CreateEvent } from "@shared/schema";
+import {
+  useCreateEvent,
+  useGetEventById,
+  useUpdateEvent,
+} from "@/api/hooks/events/useEvent";
+import { numbersOnly } from "@/lib/helper";
+import { GENRES } from "@/lib/constants";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 const ManageEvent = () => {
-  const { username } = useParams();
+  const { username, eventId } = useParams();
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const { progress, fileName } = useUploadFile();
+  const [, navigate] = useLocation();
+  const { uploadFile, isUploading, progress, fileName } = useUploadFile();
+  const { mutate: createEvent, isPending: isCreatingEvent } = useCreateEvent();
+  const { mutate: updateEvent, isPending: isUpdatingEvent } = useUpdateEvent();
+  const { data: eventToEdit } = useGetEventById(eventId); // New line to fetch event data for editing
 
   /* ---------------- React Hook Form ---------------- */
   const {
     control,
     register,
     handleSubmit,
+    reset,
+    setValue,
     formState: { errors },
-  } = useForm<ManageEventForm>({
+  } = useForm<CreateEvent>({
     defaultValues: {
       title: "",
-      genre: "",
+      genre: [],
       description: "",
-      dateTime: new Date(),
+      startDateTime: new Date(),
       venue: "",
+      coverImageUrl: "",
       location: "",
       tickets: [
         {
           name: "General Admission",
-          price: 0,
+          price: "0",
           capacity: 250,
           description: "Free entry for all fans",
         },
@@ -58,13 +56,73 @@ const ManageEvent = () => {
     },
   });
 
+  const handleRemoveBanner = (file: File | null) => {
+    if (!file) {
+      setValue("coverImageUrl", "");
+    }
+    setCoverFile(file);
+  };
+
+  useEffect(() => {
+    if (!eventToEdit) return;
+
+    reset({
+      title: eventToEdit.title,
+      genre: eventToEdit.genre ?? [],
+      description: eventToEdit.description,
+      startDateTime: new Date(eventToEdit.startDateTime),
+      venue: eventToEdit.venue,
+      location: eventToEdit.location,
+      coverImageUrl: eventToEdit.coverImageUrl || undefined,
+      tickets:
+        eventToEdit.tickets?.length > 0
+          ? eventToEdit.tickets.map((ticket) => ({
+              name: ticket.name,
+              price: ticket.price,
+              capacity: ticket.capacity,
+              description: ticket.description ?? "",
+            }))
+          : [
+              {
+                name: "General Admission",
+                price: "0",
+                capacity: 250,
+                description: "",
+              },
+            ],
+    });
+  }, [eventToEdit, reset]);
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "tickets",
   });
 
-  const onSubmit = (data: ManageEventForm) => {
-    console.log("EVENT DATA:", data);
+  const onSubmit = async (data: CreateEvent) => {
+    if (coverFile) {
+      const uploadedUrl = await uploadFile(coverFile);
+      data.coverImageUrl = uploadedUrl;
+    }
+
+    const payload: CreateEvent = {
+      ...data,
+      startDateTime: new Date(data.startDateTime),
+      tickets: data.tickets,
+    };
+
+    if (eventToEdit) {
+      // Update existing event
+      updateEvent(
+        { eventId: eventToEdit.id, data: payload },
+        {
+          onSuccess: () => navigate(`/events/${username}`),
+        }
+      );
+      return;
+    }
+    createEvent(payload, {
+      onSuccess: () => navigate(`/events/${username}`),
+    });
   };
 
   const errorClass = "border-red-500 focus-visible:ring-red-500";
@@ -96,9 +154,9 @@ const ManageEvent = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Cover */}
           <CoverUploader
-            coverUrl={null}
+            coverUrl={eventToEdit?.coverImageUrl || null}
             coverFile={coverFile}
-            setCoverFile={setCoverFile}
+            setCoverFile={handleRemoveBanner}
             title="Event Cover Image"
             progress={fileName === coverFile?.name ? progress : 0}
           />
@@ -111,8 +169,15 @@ const ManageEvent = () => {
             <CardContent className="space-y-4">
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
+                  <label
+                    htmlFor="title"
+                    className="block mb-1 text-sm font-medium"
+                  >
+                    Event Title
+                  </label>
                   <Input
-                    placeholder="Event Title"
+                    id="title"
+                    placeholder="Enter a catchy title for your event"
                     {...register("title", {
                       required: "Event title is required",
                     })}
@@ -125,13 +190,54 @@ const ManageEvent = () => {
                   )}
                 </div>
 
-                <Input placeholder="Genre" {...register("genre")} />
+                <div>
+                  {/* <Input
+                    id="genre"
+                    placeholder="E.g., Rock, Jazz, Podcast, Workshop"
+                    {...register("genre")}
+                  /> */}
+                  <Controller
+                    control={control}
+                    name="genre"
+                    render={({ field }) => (
+                      <div>
+                        <label
+                          htmlFor="genre"
+                          className="block mb-1 text-sm font-medium"
+                        >
+                          Genre
+                        </label>
+                        <MultiSelect
+                          options={GENRES.map((genre) => ({
+                            label: genre,
+                            value: genre,
+                          }))}
+                          value={field.value || []} // controlled value
+                          onValueChange={(val: string[]) => field.onChange(val)}
+                          placeholder="Select genres..."
+                        />
+                        {errors.genre && (
+                          <p className="text-sm text-red-400 mt-1">
+                            {errors.genre.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
+                </div>
               </div>
 
               <div>
+                <label
+                  htmlFor="description"
+                  className="block mb-1 text-sm font-medium"
+                >
+                  Description
+                </label>
                 <Textarea
+                  id="description"
                   rows={5}
-                  placeholder="Describe your event..."
+                  placeholder="Give a detailed description to attract attendees"
                   {...register("description", {
                     required: "Event description is required",
                   })}
@@ -153,7 +259,7 @@ const ManageEvent = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <Controller
-                name="dateTime"
+                name="startDateTime"
                 control={control}
                 rules={{ required: "Date & time is required" }}
                 render={({ field }) => (
@@ -165,16 +271,23 @@ const ManageEvent = () => {
                   />
                 )}
               />
-              {errors.dateTime && (
+              {errors.startDateTime && (
                 <p className="text-sm text-red-400">
-                  {errors.dateTime.message}
+                  {errors.startDateTime.message}
                 </p>
               )}
 
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
+                  <label
+                    htmlFor="venue"
+                    className="block mb-1 text-sm font-medium"
+                  >
+                    Venue
+                  </label>
                   <Input
-                    placeholder="Venue"
+                    id="venue"
+                    placeholder="E.g., Madison Square Garden, London Hall"
                     {...register("venue", { required: "Venue is required" })}
                     className={errors.venue ? errorClass : ""}
                   />
@@ -186,8 +299,15 @@ const ManageEvent = () => {
                 </div>
 
                 <div>
+                  <label
+                    htmlFor="location"
+                    className="block mb-1 text-sm font-medium"
+                  >
+                    City & Location
+                  </label>
                   <Input
-                    placeholder="City & Location"
+                    id="location"
+                    placeholder="City and specific location (street/area)"
                     {...register("location", {
                       required: "Location is required",
                     })}
@@ -217,12 +337,7 @@ const ManageEvent = () => {
                 type="button"
                 variant="outline"
                 onClick={() =>
-                  append({
-                    name: "",
-                    price: 0,
-                    capacity: 0,
-                    description: "",
-                  })
+                  append({ name: "", price: "0", capacity: 0, description: "" })
                 }
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
               >
@@ -249,8 +364,11 @@ const ManageEvent = () => {
 
                     <div className="grid gap-6 sm:grid-cols-2">
                       <div>
+                        <label className="block mb-1 text-sm font-medium">
+                          Ticket Name
+                        </label>
                         <Input
-                          placeholder="Ticket Name"
+                          placeholder="E.g., VIP, General Admission, Early Bird"
                           {...register(`tickets.${index}.name`, {
                             required: "Ticket name is required",
                           })}
@@ -265,21 +383,40 @@ const ManageEvent = () => {
                         )}
                       </div>
 
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="Price ($)"
-                        {...register(`tickets.${index}.price`, {
-                          valueAsNumber: true,
-                        })}
-                      />
+                      <div>
+                        <label className="block mb-1 text-sm font-medium">
+                          Price (£)
+                        </label>
+                        <Controller
+                          control={control}
+                          name={`tickets.${index}.price`}
+                          render={({ field }) => (
+                            <Input
+                              type="text"
+                              placeholder="Set ticket price in GBP"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(numbersOnly(e.target.value))
+                              }
+                            />
+                          )}
+                        />
+                        {errors.tickets?.[index]?.price && (
+                          <p className="text-red-600 text-sm mt-1">
+                            {errors.tickets[index]?.price?.message}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div>
+                      <label className="block mb-1 text-sm font-medium">
+                        Capacity
+                      </label>
                       <Input
                         type="number"
                         min={1}
-                        placeholder="Capacity"
+                        placeholder="Maximum number of attendees"
                         {...register(`tickets.${index}.capacity`, {
                           required: "Capacity is required",
                           valueAsNumber: true,
@@ -295,11 +432,16 @@ const ManageEvent = () => {
                       )}
                     </div>
 
-                    <Textarea
-                      rows={3}
-                      placeholder="Description / Perks"
-                      {...register(`tickets.${index}.description`)}
-                    />
+                    <div>
+                      <label className="block mb-1 text-sm font-medium">
+                        Description / Perks
+                      </label>
+                      <Textarea
+                        rows={3}
+                        placeholder="List perks, benefits, or details for this ticket type"
+                        {...register(`tickets.${index}.description`)}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -308,16 +450,29 @@ const ManageEvent = () => {
 
           {/* Actions */}
           <div className="flex justify-end gap-4">
-            <Button type="button" variant={"outline"}>
-              Save Draft
+            <Button
+              onClick={() => navigate(`/events/${username}`)}
+              type="button"
+              variant="outline"
+            >
+              Cancel
             </Button>
 
             <Button
               type="submit"
-              className="flex items-center gap-2 font-medium"
+              disabled={isUploading || isCreatingEvent || isUpdatingEvent}
+              className={`flex items-center gap-2 font-medium ${
+                isUploading || isCreatingEvent || isUpdatingEvent
+                  ? "opacity-70"
+                  : ""
+              }`}
             >
-              <Save className="w-4 h-4" />
-              Publish Event
+              {isCreatingEvent || isUpdatingEvent ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {eventToEdit ? "Update Event" : "Publish Event"}
             </Button>
           </div>
         </form>

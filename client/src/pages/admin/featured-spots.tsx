@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Music, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getCurrency } from "@/lib/currency";
 import { AddFeaturedSpotModal } from "@/components/modals/mutate-featured-modal";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
@@ -220,7 +221,7 @@ function FeaturedSpotsList() {
                     <p className="text-gray-400 text-sm">{spot.description}</p>
                     <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                       <span>Artist: {spot.artist?.username || "Unknown"}</span>
-                      <span>Price: ${spot.priceUSD}</span>
+                      <span>Price: {getCurrency(Math.round(spot.priceUSD * 100), "GBP")}</span>
                       <Badge
                         variant={
                           spot.status === "active" ? "default" : "secondary"

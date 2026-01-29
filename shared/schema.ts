@@ -123,7 +123,7 @@ export const emailVerificationTokens = pgTable(
   (table) => ({
     userIdx: index("email_verification_tokens_user_idx").on(table.userId),
     tokenIdx: index("email_verification_tokens_token_idx").on(table.token),
-  })
+  }),
 );
 // user subscription_status
 export const subscriptionStatusEnum = pgEnum("subscription_status_enum", [
@@ -180,7 +180,7 @@ export const users = pgTable(
     stripeCustomerId: varchar("stripe_customer_id", { length: 100 }),
     stripeSubscriptionId: varchar("stripe_subscription_id", { length: 100 }),
     subscriptionStatus: subscriptionStatusEnum("subscription_status").default(
-      "incomplete"
+      "incomplete",
     ),
     trialEndsAt: timestamp("trial_ends_at"),
     hasUsedTrial: boolean("has_used_trial").default(false),
@@ -205,7 +205,7 @@ export const users = pgTable(
     emailIdx: index("email_idx").on(table.email),
     usernameIdx: index("username_idx").on(table.username),
     roleIdx: index("role_idx").on(table.role),
-  })
+  }),
 );
 
 // Playlists/Mixxlists table (used for both artist playlists and fan Mixxlists)
@@ -228,7 +228,7 @@ export const playlists = pgTable(
     creatorIdx: index("playlists_creator_idx").on(table.creatorId),
     publicIdx: index("playlists_public_idx").on(table.isPublic),
     typeIdx: index("playlists_type_idx").on(table.type),
-  })
+  }),
 );
 
 // Playlist tracks junction table
@@ -246,7 +246,7 @@ export const playlistTracks = pgTable(
   (table) => ({
     playlistIdx: index("playlist_tracks_playlist_idx").on(table.playlistId),
     trackIdx: index("playlist_tracks_track_idx").on(table.trackId),
-  })
+  }),
 );
 
 // Follows table for user relationships
@@ -261,7 +261,7 @@ export const follows = pgTable(
   (table) => ({
     followerIdx: index("follows_follower_idx").on(table.followerId),
     followingIdx: index("follows_following_idx").on(table.followingId),
-  })
+  }),
 );
 
 export const albums = pgTable(
@@ -286,7 +286,7 @@ export const albums = pgTable(
   (table) => ({
     artistIdx: index("albums_artist_idx").on(table.artistId),
     createdIdx: index("albums_created_idx").on(table.createdAt),
-  })
+  }),
 );
 
 // Tracks table
@@ -334,7 +334,7 @@ export const tracks = pgTable(
     createdIdx: index("tracks_created_idx").on(table.createdAt),
     previewIdx: index("tracks_preview_idx").on(table.hasPreviewOnly),
     deletedIdx: index("tracks_deleted_idx").on(table.deletedAt),
-  })
+  }),
 );
 
 // Purchased tracks table
@@ -364,14 +364,14 @@ export const purchasedTracks = pgTable(
     trackIdx: index("purchased_tracks_track_idx").on(table.trackId),
     userTrackIdx: index("purchased_tracks_user_track_idx").on(
       table.userId,
-      table.trackId
+      table.trackId,
     ),
     // Add check constraint
     oneNonNull: check(
       "track_or_album_not_null",
-      sql`(track_id IS NOT NULL OR album_id IS NOT NULL)`
+      sql`(track_id IS NOT NULL OR album_id IS NOT NULL)`,
     ),
-  })
+  }),
 );
 
 // Tips table
@@ -394,7 +394,7 @@ export const tips = pgTable(
     toUserIdx: index("tips_to_user_idx").on(table.toUserId),
     trackIdx: index("tips_track_idx").on(table.trackId),
     liveStreamIdx: index("tips_live_stream_idx").on(table.liveStreamId),
-  })
+  }),
 );
 
 // Radio sessions table
@@ -419,7 +419,7 @@ export const radioSessions = pgTable(
     hostIdx: index("host_idx").on(table.hostId),
     liveIdx: index("live_idx").on(table.isLive),
     scheduledIdx: index("scheduled_idx").on(table.scheduledStart),
-  })
+  }),
 );
 
 // Radio chat message type enum
@@ -444,7 +444,7 @@ export const radioChat = pgTable(
     sessionIdx: index("session_idx").on(table.sessionId),
     userIdx: index("user_idx").on(table.userId),
     typeIdx: index("type_idx").on(table.messageType),
-  })
+  }),
 );
 
 // Collaborations table
@@ -465,7 +465,7 @@ export const collaborations = pgTable(
     requesterIdx: index("requester_idx").on(table.requesterId),
     targetIdx: index("target_idx").on(table.targetId),
     statusIdx: index("status_idx").on(table.status),
-  })
+  }),
 );
 
 // Badges table
@@ -492,7 +492,7 @@ export const userBadges = pgTable(
   (table) => ({
     userIdx: index("user_badges_user_idx").on(table.userId),
     badgeIdx: index("user_badges_badge_idx").on(table.badgeId),
-  })
+  }),
 );
 
 // Live Streams table
@@ -510,7 +510,7 @@ export const liveStreams = pgTable(
     viewerCount: integer("viewer_count").default(0),
     maxViewers: integer("max_viewers").default(0),
     totalTips: decimal("total_tips", { precision: 10, scale: 2 }).default(
-      "0.00"
+      "0.00",
     ),
     streamKey: varchar("stream_key", { length: 255 }),
     thumbnailUrl: varchar("thumbnail_url", { length: 500 }),
@@ -521,7 +521,7 @@ export const liveStreams = pgTable(
   (table) => ({
     artistIdx: index("artist_stream_idx").on(table.artistId),
     statusIdx: index("stream_status_idx").on(table.status),
-  })
+  }),
 );
 
 // Live Stream Viewers table
@@ -537,7 +537,7 @@ export const liveStreamViewers = pgTable(
   (table) => ({
     streamIdx: index("stream_viewers_idx").on(table.streamId),
     userIdx: index("viewer_user_idx").on(table.userId),
-  })
+  }),
 );
 
 // Live Stream Messages/Chat table
@@ -555,7 +555,7 @@ export const liveStreamMessages = pgTable(
   (table) => ({
     streamIdx: index("stream_messages_idx").on(table.streamId),
     createdAtIdx: index("stream_messages_time_idx").on(table.createdAt),
-  })
+  }),
 );
 
 // Conversations table for direct messaging
@@ -573,7 +573,7 @@ export const conversations = pgTable(
     participant1Idx: index("conversations_p1_idx").on(table.participant1Id),
     participant2Idx: index("conversations_p2_idx").on(table.participant2Id),
     lastMessageIdx: index("conversations_last_msg_idx").on(table.lastMessageAt),
-  })
+  }),
 );
 
 // Messages table for direct messaging
@@ -592,11 +592,11 @@ export const messages = pgTable(
   },
   (table) => ({
     conversationIdx: index("messages_conversation_idx").on(
-      table.conversationId
+      table.conversationId,
     ),
     senderIdx: index("messages_sender_idx").on(table.senderId),
     createdAtIdx: index("messages_time_idx").on(table.createdAt),
-  })
+  }),
 );
 
 // Banners table to manage from admin dashboard
@@ -621,7 +621,7 @@ export const banners = pgTable(
   (table) => ({
     activeIdx: index("banners_active_idx").on(table.active),
     createdByIdx: index("banners_created_by_idx").on(table.createdBy),
-  })
+  }),
 );
 
 // Insert Banners schema
@@ -717,7 +717,7 @@ export const updateRadioSessionSchema = insertRadioSessionSchema
   .partial(); // make all fields optional for PATCH
 
 export const insertCollaborationSchema = createInsertSchema(
-  collaborations
+  collaborations,
 ).omit({
   id: true,
   createdAt: true,
@@ -735,7 +735,7 @@ export const insertLiveStreamSchema = createInsertSchema(liveStreams).omit({
 });
 
 export const insertLiveStreamMessageSchema = createInsertSchema(
-  liveStreamMessages
+  liveStreamMessages,
 ).omit({
   id: true,
   createdAt: true,
@@ -754,7 +754,7 @@ export const insertConversationSchema = createInsertSchema(conversations).omit({
 });
 
 export const insertContactSubmission = createInsertSchema(
-  contactSubmissions
+  contactSubmissions,
 ).omit({
   id: true,
   createdAt: true,
@@ -796,7 +796,7 @@ export const notifications = pgTable(
     typeIdx: index("notifications_type_idx").on(table.type),
     readIdx: index("notifications_read_idx").on(table.isRead),
     createdAtIdx: index("notifications_time_idx").on(table.createdAt),
-  })
+  }),
 );
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
@@ -807,14 +807,14 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 });
 
 export const insertPurchasedTrackSchema = createInsertSchema(
-  purchasedTracks
+  purchasedTracks,
 ).omit({
   id: true,
   purchasedAt: true,
 });
 
 export const insertEmailVerificationTokenSchema = createInsertSchema(
-  emailVerificationTokens
+  emailVerificationTokens,
 ).omit({
   id: true,
   createdAt: true,
@@ -831,7 +831,7 @@ export const featuredSpots = pgTable(
     imageUrl: varchar("image_url", { length: 500 }),
     videoUrl: varchar("video_url", { length: 500 }),
     buttonText: varchar("button_text", { length: 100 }).default(
-      "Visit Profile"
+      "Visit Profile",
     ),
     buttonUrl: varchar("button_url", { length: 500 }),
     sortOrder: integer("sort_order").default(0),
@@ -849,10 +849,10 @@ export const featuredSpots = pgTable(
     statusIdx: index("featured_spots_status_idx").on(table.status),
     dateIdx: index("featured_spots_date_idx").on(
       table.startDate,
-      table.endDate
+      table.endDate,
     ),
     sortIdx: index("featured_spots_sort_idx").on(table.sortOrder),
-  })
+  }),
 );
 
 // Admin broadcasts table - site-wide notifications and emails
@@ -881,9 +881,9 @@ export const adminBroadcasts = pgTable(
     typeIdx: index("admin_broadcasts_type_idx").on(table.type),
     targetIdx: index("admin_broadcasts_target_idx").on(table.targetAudience),
     scheduledIdx: index("admin_broadcasts_scheduled_idx").on(
-      table.scheduledFor
+      table.scheduledFor,
     ),
-  })
+  }),
 );
 
 // Admin broadcast recipients table - tracking individual delivery
@@ -903,11 +903,11 @@ export const broadcastRecipients = pgTable(
   },
   (table) => ({
     broadcastIdx: index("broadcast_recipients_broadcast_idx").on(
-      table.broadcastId
+      table.broadcastId,
     ),
     userIdx: index("broadcast_recipients_user_idx").on(table.userId),
     statusIdx: index("broadcast_recipients_status_idx").on(table.status),
-  })
+  }),
 );
 
 // Discount codes table - for free artist profiles and other discounts
@@ -937,10 +937,10 @@ export const discountCodes = pgTable(
     typeIdx: index("discount_codes_type_idx").on(table.type),
     validityIdx: index("discount_codes_validity_idx").on(
       table.validFrom,
-      table.validUntil
+      table.validUntil,
     ),
     createdByIdx: index("discount_codes_creator_idx").on(table.createdBy),
-  })
+  }),
 );
 
 // Discount code usage tracking
@@ -962,7 +962,7 @@ export const discountCodeUsage = pgTable(
     codeIdx: index("discount_code_usage_code_idx").on(table.codeId),
     userIdx: index("discount_code_usage_user_idx").on(table.userId),
     orderIdx: index("discount_code_usage_order_idx").on(table.orderId),
-  })
+  }),
 );
 
 // Store
@@ -983,7 +983,7 @@ export const stores = pgTable(
   },
   (table) => ({
     userUnique: unique("user_store_unique").on(table.userId),
-  })
+  }),
 );
 
 export const products = pgTable(
@@ -1007,7 +1007,7 @@ export const products = pgTable(
   },
   (table) => ({
     storeIdx: index("products_store_idx").on(table.storeId),
-  })
+  }),
 );
 
 export const productVariants = pgTable(
@@ -1028,7 +1028,7 @@ export const productVariants = pgTable(
   (table) => ({
     productIdx: index("variants_product_idx").on(table.productId),
     skuIdx: index("variants_sku_idx").on(table.sku),
-  })
+  }),
 );
 
 export const inventoryItems = pgTable(
@@ -1048,7 +1048,7 @@ export const inventoryItems = pgTable(
   },
   (table) => ({
     variantUnique: unique("inventory_variant_unique").on(table.variantId),
-  })
+  }),
 );
 
 export const orders = pgTable(
@@ -1083,7 +1083,7 @@ export const orders = pgTable(
   (table) => ({
     storeIdx: index("orders_store_idx").on(table.storeId),
     buyerIdx: index("orders_buyer_idx").on(table.buyerId),
-  })
+  }),
 );
 
 export const orderLines = pgTable(
@@ -1108,8 +1108,220 @@ export const orderLines = pgTable(
   (table) => ({
     orderIdx: index("order_lines_order_idx").on(table.orderId),
     variantIdx: index("order_lines_variant_idx").on(table.variantId),
-  })
+  }),
 );
+
+export const eventStatusEnum = pgEnum("event_status", [
+  "draft",
+  "published",
+  "cancelled",
+]);
+
+// Events table
+export const events = pgTable("events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  hostUserId: uuid("host_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  deletedAt: timestamp("deleted_at"),
+
+  title: text("title").notNull(),
+  genre: text("genre").array(),
+  description: text("description").notNull(),
+
+  startDateTime: timestamp("start_datetime", {
+    withTimezone: true,
+  }).notNull(),
+
+  venue: text("venue").notNull(),
+  location: text("location").notNull(),
+
+  coverImageUrl: text("cover_image_url"),
+
+  status: eventStatusEnum("status").default("draft"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const eventTicketTypes = pgTable("event_ticket_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+
+  name: text("name").notNull(),
+  description: text("description"),
+
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  capacity: integer("capacity").notNull(),
+  soldCount: integer("sold_count").notNull().default(0),
+
+  isActive: boolean("is_active").notNull().default(true),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const ticketOrderStatusEnum = pgEnum("order_status", [
+  "pending",
+  "paid",
+  "cancelled",
+  "refunded",
+]);
+
+export const ticketOrders = pgTable("ticket_orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  // Snapshot of attendee info at time of purchase
+  attendeeName: varchar("attendee_name", { length: 200 }),
+  attendeeEmail: varchar("attendee_email", { length: 255 }),
+
+  // totalAmount: integer("total_amount").notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("gbp"),
+  quantity: integer("quantity").default(0).notNull(),
+
+  status: ticketOrderStatusEnum("status").default("pending"),
+
+  paymentProvider: text("payment_provider"), // "stripe"
+  paymentIntentId: text("payment_intent_id"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const ticketStatusEnum = pgEnum("ticket_status", [
+  "active",
+  "used",
+  "cancelled",
+]);
+
+export const issuedTickets = pgTable("issued_tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => ticketOrders.id, { onDelete: "cascade" }),
+
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+
+  ticketTypeId: uuid("ticket_type_id")
+    .notNull()
+    .references(() => eventTicketTypes.id, { onDelete: "restrict" }),
+
+  ownerUserId: uuid("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  status: ticketStatusEnum("status").default("active"),
+
+  checkedInAt: timestamp("checked_in_at"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const eventSchema = createInsertSchema(events).extend({
+  id: z.string().uuid(),
+  soldCount: z.number().int().nonnegative(),
+  capacity: z.number().int().positive(),
+  lowestTicketPrice: z.number().nonnegative(),
+  hostName: z.string().optional(),
+});
+
+export const baseEventSchema = createInsertSchema(events);
+export const baseTicketTypeSchema = createInsertSchema(eventTicketTypes);
+
+export const createEventFormSchema = baseEventSchema
+  .omit({
+    id: true,
+    hostUserId: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // stronger UI rules
+    title: z.string().min(3, "Event title is required"),
+    description: z.string().min(10, "Description is required"),
+    genres: z.array(z.string()).optional(),
+
+    startDateTime: z.date(),
+    coverImageUrl: z.string().optional(),
+
+    venue: z.string().min(2, "Venue is required"),
+    location: z.string().min(2, "Location is required"),
+
+    tickets: z
+      .array(
+        baseTicketTypeSchema
+          .omit({
+            id: true,
+            eventId: true,
+            soldCount: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          })
+          .extend({
+            name: z.string().min(1, "Ticket name is required"),
+            capacity: z.number().min(1, "Capacity must be at least 1"),
+            price: z.string().min(1, "Price is required"),
+          }),
+      )
+      .min(1, "At least one ticket type is required"),
+  });
+
+// shared/schema.ts
+
+export const updateEventFormSchema = createEventFormSchema.partial().extend({
+  tickets: z
+    .array(
+      baseTicketTypeSchema
+        .omit({
+          id: true,
+          eventId: true,
+          soldCount: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        })
+        .extend({
+          name: z.string().min(1),
+          capacity: z.number().min(1),
+          price: z.string().min(1),
+        }),
+    )
+    .optional(),
+});
+
+export const eventWithTicketsSchema = eventSchema.extend({
+  tickets: z.array(
+    baseTicketTypeSchema.extend({
+      id: z.string().uuid(),
+      soldCount: z.number().int().nonnegative(),
+      isActive: z.boolean(),
+    }),
+  ),
+  revenue: z.number().optional(),
+});
+
+export type EventWithTickets = z.infer<typeof eventWithTicketsSchema>;
+export type CreateEvent = z.infer<typeof createEventFormSchema>;
+export type UpdateEvent = z.infer<typeof updateEventFormSchema>;
+export type Event = z.infer<typeof eventSchema>;
 
 export const insertFeaturedSpotSchema = createInsertSchema(featuredSpots).omit({
   id: true,
@@ -1138,7 +1350,7 @@ export const insertAdminBroadcastSchema = createInsertSchema(adminBroadcasts)
   });
 
 export const insertBroadcastRecipientSchema = createInsertSchema(
-  broadcastRecipients
+  broadcastRecipients,
 ).omit({
   id: true,
   createdAt: true,
@@ -1152,7 +1364,7 @@ export const insertDiscountCodeSchema = createInsertSchema(discountCodes).omit({
 });
 
 export const insertDiscountCodeUsageSchema = createInsertSchema(
-  discountCodeUsage
+  discountCodeUsage,
 ).omit({
   id: true,
   usedAt: true,

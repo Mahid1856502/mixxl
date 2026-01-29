@@ -110,7 +110,7 @@ const MutateProduct = () => {
         variants: product.variants.map((v) => ({
           id: v.id,
           title: v.title,
-          sku: v.sku,
+          sku: v.sku || undefined,
           price: v.price,
           stockQuantity: v.stockQuantity ?? 0,
         })),

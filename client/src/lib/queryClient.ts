@@ -7,8 +7,13 @@ export const BASE_URL =
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let error;
+    try {
+      error = await res.json();
+    } catch {
+      throw new Error(res.statusText);
+    }
+    throw error;
   }
 }
 

@@ -8,8 +8,11 @@ interface CoverUploaderProps {
   title?: string;
   coverFile?: File | null;
   setCoverFile?: (coverFile: File | null) => void;
-  progress?: number; // Upload progress (0–100)
-  coverUrl?: string | null; // 👈 new prop for existing cover from backend
+  progress?: number;
+  coverUrl?: string | null;
+
+  required?: boolean; // 👈 NEW
+  submitted?: boolean; // 👈 parent-controlled validation trigger
 }
 
 export default function CoverUploader({
@@ -17,9 +20,13 @@ export default function CoverUploader({
   setCoverFile,
   progress,
   coverUrl,
-  title = "Cover Art (Optional)",
+  required = false,
+  submitted = false,
+  title = "Cover Art",
 }: CoverUploaderProps) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  const isMissing = required && !coverFile && !coverUrl;
 
   // 👇 keep preview in sync with file or existing coverUrl
   useEffect(() => {
@@ -54,8 +61,9 @@ export default function CoverUploader({
   return (
     <Card className="glass-effect border-white/10">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+        <CardTitle className="flex items-center space-x-1">
           <span>{title}</span>
+          {required && <span className="text-red-500">*</span>}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -120,6 +128,11 @@ export default function CoverUploader({
               </p>
             )}
           </div>
+        )}
+        {submitted && isMissing && (
+          <p className="text-xs md:text-sm text-red-500 text-center mt-3">
+            {title} is required.
+          </p>
         )}
       </CardContent>
     </Card>

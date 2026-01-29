@@ -635,4 +635,33 @@ export function registerWebhooksRoutes(app: Express) {
       }
     }
   );
+
+  // TICKETS WEBHOOK
+  app.post(
+    "/api/tickets/webhook",
+    express.raw({ type: "application/json" }),
+    async (req, res) => {
+      const sig = req.headers["stripe-signature"] as string;
+      let event: Stripe.Event;
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_TICKETS_WEBHOOK_SECRET!
+        );
+      } catch (err) {
+        return res.status(400).send("Webhook signature verification failed");
+      }
+
+      try {
+        const { ticketService } = await import("./modules/tickets/tickets.service");
+        await ticketService.handleStripeWebhook(event);
+        res.json({ received: true });
+      } catch (err) {
+        console.error("Tickets webhook handler error:", err);
+        res.status(500).send("Webhook handler failed");
+      }
+    }
+  );
 }

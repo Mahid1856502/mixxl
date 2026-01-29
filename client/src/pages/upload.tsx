@@ -47,7 +47,7 @@ const uploadSchema = z.object({
     .optional(),
   genre: z.string().min(1, "Genre is required"),
   mood: z.string().optional(),
-  price: z.number().min(0).max(1000).optional(),
+  price: z.number().min(0).optional(),
   isPublic: z.boolean().default(true),
   isExplicit: z.boolean().default(false),
   submitToRadio: z.boolean().default(false),

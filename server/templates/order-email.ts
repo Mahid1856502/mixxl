@@ -170,3 +170,97 @@ Amount: ${formatMoney(order.totalAmount)}
 
   return { subject, html, text };
 }
+
+export function generateTicketConfirmationEmail(
+  order: any,
+  event: any,
+  tickets: Array<{
+    id: string;
+    ticketTypeName: string;
+    ticketTypePrice: string;
+  }>
+) {
+  const subject = `Your tickets for ${event.title}`;
+  
+  const formatDate = (date: Date | string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString("en-GB", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatPrice = (price: string | number) => {
+    const num = typeof price === "string" ? parseFloat(price) : price;
+    return `£${num.toFixed(2)}`;
+  };
+
+  const ticketsHtml = tickets
+    .map(
+      (ticket) => `
+        <tr>
+          <td>${ticket.ticketTypeName}</td>
+          <td align="right">${formatPrice(ticket.ticketTypePrice)}</td>
+          <td align="center">${ticket.id.substring(0, 8)}...</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const html = `
+    <h2>Your tickets are confirmed!</h2>
+    <p>Thank you for your purchase. Your tickets for <strong>${event.title}</strong> are ready.</p>
+
+    <h3>Event Details</h3>
+    <p>
+      <strong>Event:</strong> ${event.title}<br/>
+      <strong>Date & Time:</strong> ${formatDate(event.startDateTime)}<br/>
+      <strong>Venue:</strong> ${event.venue}<br/>
+      <strong>Location:</strong> ${event.location}
+    </p>
+
+    <h3>Your Tickets</h3>
+    <table width="100%" cellpadding="8" cellspacing="0" border="1">
+      <thead>
+        <tr>
+          <th align="left">Ticket Type</th>
+          <th align="right">Price</th>
+          <th align="center">Ticket ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${ticketsHtml}
+      </tbody>
+    </table>
+
+    <p><strong>Order ID:</strong> ${order.id}</p>
+    <p><strong>Total Paid:</strong> ${formatPrice(order.totalAmount)}</p>
+
+    <p>Please bring a valid ID and this confirmation email to the event. Your tickets will be checked at the venue.</p>
+    
+    <p>If you have any questions, please contact the event organizer or reply to this email.</p>
+  `;
+
+  const text = `
+Your tickets are confirmed!
+
+Event: ${event.title}
+Date & Time: ${formatDate(event.startDateTime)}
+Venue: ${event.venue}
+Location: ${event.location}
+
+Your Tickets:
+${tickets.map(t => `- ${t.ticketTypeName} (${formatPrice(t.ticketTypePrice)}) - Ticket ID: ${t.id.substring(0, 8)}...`).join("\n")}
+
+Order ID: ${order.id}
+Total Paid: ${formatPrice(order.totalAmount)}
+
+Please bring a valid ID and this confirmation to the event.
+  `.trim();
+
+  return { subject, html, text };
+}

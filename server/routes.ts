@@ -2697,11 +2697,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     const { registerStoreRoutes } = await import("./modules/store/store.route");
     const { registerOrderRoutes } = await import("./modules/order/order.route");
+    const { registerEventRoutes } = await import(
+      "./modules/events/events.route"
+    );
+    const { registerTicketRoutes } = await import(
+      "./modules/tickets/tickets.route"
+    );
     registerAdminRoutes(app);
     registerUploadRoutes(app);
     registerProductRoutes(app);
     registerStoreRoutes(app);
     registerOrderRoutes(app);
+    registerEventRoutes(app);
+    registerTicketRoutes(app);
   } catch (error) {
     console.error("Failed to register admin or upload routes:", error);
   }

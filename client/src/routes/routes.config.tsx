@@ -61,7 +61,7 @@ import Payment from "@/pages/artists/store/payment";
 import OrderConfirmation from "@/pages/artists/store/order-confirmation";
 import Events from "@/pages/artists/events";
 import EventDetails from "@/pages/artists/events/event-detail";
-import ManageEvent from "@/pages/artists/events/mange-event";
+import ManageEvent from "@/pages/artists/events/manage-event";
 import EventTicketDashboard from "@/pages/artists/events/event-dashboard";
 
 export interface AppRoute {
@@ -188,7 +188,7 @@ export const appRoutes: AppRoute[] = [
     roles: ["fan", "artist", "admin", "DJ"],
   },
   {
-    path: "/events/:username/manage",
+    path: "/events/:username/manage/:eventId?",
     component: ManageEvent,
     roles: ["fan", "artist", "admin", "DJ"],
   },

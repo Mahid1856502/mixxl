@@ -62,6 +62,8 @@ export default function Discover() {
       mood: mood !== "all" ? mood : undefined,
     });
 
+    console.log("featuredArtists",featuredArtists);
+
   const { data: radioSession } = useRadioSession();
 
   return (

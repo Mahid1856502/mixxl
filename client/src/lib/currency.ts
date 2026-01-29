@@ -55,7 +55,7 @@ export const getCurrencyFlag = (currencyCode: string): string => {
 // Format currency amount
 export const formatCurrency = (
   amount: number,
-  currencyCode: string = DEFAULT_CURRENCY
+  currencyCode: string = DEFAULT_CURRENCY,
 ): string => {
   const symbol = getCurrencySymbol(currencyCode);
 
@@ -86,7 +86,7 @@ export const formatCurrency = (
 export const convertCurrency = (
   amount: number,
   fromCurrency: string,
-  toCurrency: string
+  toCurrency: string,
 ): number => {
   // Simplified conversion rates (in production, use live exchange rates API)
   const exchangeRates: { [key: string]: number } = {
@@ -136,7 +136,7 @@ export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((currency) => ({
 }));
 
 export const getCurrency = (amount: number, currency: string) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat(currency === "GBP" ? "en-GB" : "en-US", {
     style: "currency",
     currency,
   }).format(amount / 100);

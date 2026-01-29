@@ -18,7 +18,7 @@ export const AlbumView = () => {
   const fmtPrice = (p?: string | number | null) => {
     if (p == null || p === "" || Number.isNaN(Number(p))) return "Free";
     const value = typeof p === "string" ? Number(p) : p;
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-GB", {
       style: "currency",
       currency: "GBP",
     }).format(value);
