@@ -7,6 +7,7 @@ import {
   insertAdminBroadcastSchema,
   insertDiscountCodeSchema,
   insertBannerSchema,
+  insertTrackSchema,
   User,
   InsertBanner,
   Banner,
@@ -251,6 +252,38 @@ export function registerAdminRoutes(app: Express) {
         res.json(updated);
       } catch (error: any) {
         console.error("Update demo status error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // ========== ADMIN UPLOAD FOR ARTIST ==========
+
+  app.post(
+    "/api/admin/tracks",
+    authenticate,
+    requireAdmin,
+    async (req: any, res) => {
+      try {
+        const trackData = req.body;
+        const validatedData = insertTrackSchema.parse(trackData);
+
+        // Verify artist exists and has artist role
+        const artist = await storage.getUser(validatedData.artistId);
+        if (!artist) {
+          return res.status(404).json({ error: "Artist not found" });
+        }
+        if (artist.role !== "artist") {
+          return res.status(400).json({ error: "User must be an artist to receive track uploads" });
+        }
+
+        const track = await storage.createTrack(validatedData);
+        res.json(track);
+      } catch (error: any) {
+        if (error.name === "ZodError") {
+          return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        }
+        console.error("Admin track upload error:", error);
         res.status(500).json({ error: error.message });
       }
     }

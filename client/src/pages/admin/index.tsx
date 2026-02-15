@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Users, Star, Mail, TrendingUp, Crown, Euro, Music } from "lucide-react";
+import { Users, Star, Mail, TrendingUp, Crown, Euro, Music, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/provider/use-auth";
 import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
@@ -303,6 +303,27 @@ export default function AdminDashboard() {
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
                 <Link href="/admin/demo-submissions">View Submissions</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Upload for Artist */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Upload className="h-5 w-5 text-purple-400" />
+                Upload for Artist
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Upload tracks on behalf of artists to their profile
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Link href="/admin/upload-for-artist">Upload Track</Link>
               </Button>
             </CardContent>
           </Card>
