@@ -9,7 +9,7 @@ import {
 } from "@shared/schema";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { stripe } from "server/stripe";
-import { sendEmail } from "server/email";
+import { sendEmail, EMAIL_FROM } from "server/email";
 import { generateTicketConfirmationEmail } from "server/templates/order-email";
 
 interface CreateCheckoutParams {
@@ -301,7 +301,7 @@ export const ticketService = {
             // Send email asynchronously (don't block transaction)
             sendEmail({
               to: recipientEmail,
-              from: "noreply@mixxl.fm",
+              from: EMAIL_FROM,
               subject: emailContent.subject,
               html: emailContent.html,
               text: emailContent.text,

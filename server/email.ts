@@ -1,5 +1,7 @@
 import { MailService } from "@sendgrid/mail";
 
+export const EMAIL_FROM = "noreply@mixxl.fm";
+
 const mailService = new MailService();
 
 // Initialize SendGrid if API key is available

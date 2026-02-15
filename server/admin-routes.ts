@@ -11,7 +11,7 @@ import {
   InsertBanner,
   Banner,
 } from "@shared/schema";
-import { sendEmail } from "./email";
+import { sendEmail, EMAIL_FROM } from "./email";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import fs from "fs";
@@ -212,6 +212,46 @@ export function registerAdminRoutes(app: Express) {
         return res
           .status(500)
           .json({ message: "Failed to update user status" });
+      }
+    }
+  );
+
+  // ========== DEMO SUBMISSIONS (Label A&R) ==========
+
+  app.get(
+    "/api/admin/demo-submissions",
+    authenticate,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const submissions = await storage.getDemoSubmissionsWithDetails();
+        res.json(submissions);
+      } catch (error: any) {
+        console.error("Demo submissions error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/admin/demo-submissions/:id/status",
+    authenticate,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { status } = req.body;
+        if (!status || !["pending", "approved", "rejected", "contacted"].includes(status)) {
+          return res.status(400).json({ error: "Invalid status. Use: pending, approved, rejected, contacted" });
+        }
+        const updated = await storage.updateDemoSubmissionStatus(id, status);
+        if (!updated) {
+          return res.status(404).json({ error: "Demo submission not found" });
+        }
+        res.json(updated);
+      } catch (error: any) {
+        console.error("Update demo status error:", error);
+        res.status(500).json({ error: error.message });
       }
     }
   );
@@ -544,7 +584,7 @@ export function registerAdminRoutes(app: Express) {
 
             const emailSent = await sendEmail({
               to: user.email,
-              from: "noreply@mixxl.fm",
+              from: EMAIL_FROM,
               subject: emailContent.subject,
               html: emailContent.html,
               text: emailContent.text,

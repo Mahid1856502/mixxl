@@ -148,6 +148,47 @@ export const contactSubmissions = pgTable("contact_submissions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Demo submissions to Mixxl Media Records (label A&R)
+export const demoSubmissions = pgTable(
+  "demo_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    message: text("message"),
+    agreedToTerms: boolean("agreed_to_terms").notNull().default(true),
+    subscribedToNewsletter: boolean("subscribed_to_newsletter").default(false),
+    status: varchar("status", { length: 50 }).default("pending"), // pending, reviewed, contacted
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    userIdx: index("demo_submissions_user_idx").on(table.userId),
+    statusIdx: index("demo_submissions_status_idx").on(table.status),
+  })
+);
+
+// Demo submission tracks (uploaded files for A&R review)
+export const demoSubmissionTracks = pgTable(
+  "demo_submission_tracks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    demoSubmissionId: uuid("demo_submission_id")
+      .notNull()
+      .references(() => demoSubmissions.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    fileUrl: varchar("file_url", { length: 500 }).notNull(),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    submissionIdx: index("demo_submission_tracks_submission_idx").on(
+      table.demoSubmissionId
+    ),
+  })
+);
+
 export const passwordResets = pgTable("password_resets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -755,6 +796,21 @@ export const insertConversationSchema = createInsertSchema(conversations).omit({
 
 export const insertContactSubmission = createInsertSchema(
   contactSubmissions,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDemoSubmissionSchema = createInsertSchema(
+  demoSubmissions,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDemoSubmissionTrackSchema = createInsertSchema(
+  demoSubmissionTracks,
 ).omit({
   id: true,
   createdAt: true,
@@ -1459,6 +1515,12 @@ export type PasswordResetInsert = typeof passwordResets.$inferInsert;
 export type PasswordReset = typeof passwordResets.$inferSelect;
 export type Contact = typeof contactSubmissions.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSubmission>;
+export type DemoSubmission = typeof demoSubmissions.$inferSelect;
+export type InsertDemoSubmission = z.infer<typeof insertDemoSubmissionSchema>;
+export type DemoSubmissionTrack = typeof demoSubmissionTracks.$inferSelect;
+export type InsertDemoSubmissionTrack = z.infer<
+  typeof insertDemoSubmissionTrackSchema
+>;
 export type FeaturedArtistFilters = {
   search?: string;
   genre?: string;

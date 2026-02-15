@@ -14,6 +14,19 @@ declare global {
   }
 }
 
+const MAX_DEMO_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_AUDIO_TYPES = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/wave",
+  "audio/x-wav",
+  "audio/flac",
+  "audio/aac",
+  "audio/ogg",
+  "audio/webm",
+];
+
 export const s3 = new S3Client({
   region: process.env.AWS_REGION!,
   credentials: {
@@ -23,6 +36,39 @@ export const s3 = new S3Client({
 });
 
 export function registerUploadRoutes(app: Express) {
+  // Demo submission upload - no auth required (for artists submitting before account creation)
+  app.post("/api/demo-upload-url", async (req: any, res) => {
+    try {
+      const { fileName, fileType, fileSize } = req.body;
+      if (!fileName || !fileType || !fileSize) {
+        return res.status(400).json({ error: "Missing fileName, fileType, or fileSize" });
+      }
+      if (fileSize > MAX_DEMO_FILE_SIZE) {
+        return res.status(400).json({ error: "File too large (max 50MB)" });
+      }
+      if (!ALLOWED_AUDIO_TYPES.includes(fileType)) {
+        return res.status(400).json({ error: "Only audio files are allowed" });
+      }
+
+      const fileId = randomUUID();
+      const key = `demos/${fileId}-${fileName}`;
+
+      const command = new PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME!,
+        Key: key,
+        ContentType: fileType,
+      });
+      const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 1000 });
+
+      const fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+      res.json({ uploadUrl, key, fileUrl });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  });
+
   app.post("/api/upload-url", authenticate, async (req: any, res) => {
     try {
       const { fileName, fileType, fileSize } = req.body;

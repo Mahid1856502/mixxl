@@ -49,6 +49,7 @@ import SubscriptionSuccess from "@/pages/subscription/success";
 import SubscriptionCancel from "@/pages/subscription/cancel";
 import ForgetPassword from "@/pages/auth/forget-password";
 import Feedback from "@/pages/admin/feedback";
+import DemoSubmissionsAdmin from "@/pages/admin/demo-submissions";
 import Earnings from "@/pages/earnings";
 import ManageAlbum from "@/pages/album/manage-album";
 import { AlbumView } from "@/pages/album/view-album";
@@ -232,6 +233,11 @@ export const appRoutes: AppRoute[] = [
   {
     path: "/admin/feedback",
     component: Feedback,
+    roles: ["admin"],
+  },
+  {
+    path: "/admin/demo-submissions",
+    component: DemoSubmissionsAdmin,
     roles: ["admin"],
   },
   {

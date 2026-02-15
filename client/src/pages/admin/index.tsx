@@ -5,11 +5,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Users, Star, Mail, TrendingUp, Crown, Euro } from "lucide-react";
+import { Users, Star, Mail, TrendingUp, Crown, Euro, Music } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/provider/use-auth";
 import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
+import { useDemoSubmissions } from "@/api/hooks/admin/useDemoSubmissions";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -32,6 +34,10 @@ export default function AdminDashboard() {
   }
 
   const { data: stats, isLoading } = useAdminStats();
+  const { data: demoSubmissions = [] } = useDemoSubmissions();
+  const pendingDemoCount = demoSubmissions.filter(
+    (s) => s.status === "pending"
+  ).length;
 
   if (isLoading) {
     return (
@@ -76,6 +82,31 @@ export default function AdminDashboard() {
       </div>
 
       <div className="p-6">
+        {pendingDemoCount > 0 && (
+          <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+            <Music className="h-4 w-4 text-yellow-500" />
+            <AlertDescription className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <div className="font-medium text-yellow-200">
+                  {pendingDemoCount} demo submission{pendingDemoCount !== 1 ? "s" : ""}{" "}
+                  awaiting review
+                </div>
+                <div className="text-sm text-yellow-300/80 mt-1">
+                  Listen to tracks and approve or reject submissions
+                </div>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="flex-shrink-0 border-yellow-500/50 text-yellow-200 hover:bg-yellow-500/20"
+              >
+                <Link href="/admin/demo-submissions">Review now</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gray-900 border-gray-800">
@@ -255,6 +286,27 @@ export default function AdminDashboard() {
               </Button>
             </CardContent>
           </Card>
+          {/* Demo Submissions */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Music className="h-5 w-5 text-emerald-400" />
+                Demo Submissions
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Review artist demo tracks, listen and approve or reject
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Link href="/admin/demo-submissions">View Submissions</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Complaints & Suggestions - NEW */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader>

@@ -22,6 +22,39 @@ import {
   insertAlbumSchema,
   updateAlbumSchema,
 } from "@shared/schema";
+import { z } from "zod";
+
+const demoSubmissionSchema = z.object({
+  account: z.object({
+    artistName: z.string().min(2),
+    realName: z.string().min(2),
+    email: z.string().email(),
+    password: z.string().min(6),
+  }),
+  tracks: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        fileUrl: z.string().url(),
+      })
+    )
+    .min(1)
+    .max(5),
+  artistSocials: z
+    .object({
+      twitter: z.string().optional(),
+      facebook: z.string().optional(),
+      instagram: z.string().optional(),
+      soundcloud: z.string().optional(),
+    })
+    .optional(),
+  message: z.string().optional(),
+  final: z.object({
+    agreedToTerms: z.boolean(),
+    subscribedToNewsletter: z.boolean().optional(),
+  }),
+});
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { ZodError } from "zod";
@@ -29,6 +62,7 @@ import {
   sendEmail,
   generateVerificationEmail,
   generateContactEmail,
+  EMAIL_FROM,
 } from "./email";
 // import {
 //   generateVerificationToken,
@@ -121,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await sendEmail({
         to: newUser.email,
-        from: "noreply@mixxl.fm",
+        from: EMAIL_FROM,
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
@@ -139,6 +173,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Signup error:", error);
+      if (error instanceof ZodError) {
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({
+        message: "Server error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  // Demo submission to Mixxl Media Records (creates user + demo submission)
+  app.post("/api/demo-submission", async (req, res) => {
+    try {
+      const data = demoSubmissionSchema.parse(req.body);
+
+      const existingUser = await storage.getUserByEmail(data.account.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+
+      // Generate unique username from artist name
+      const baseUsername = data.account.artistName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "artist";
+      let username = baseUsername;
+      let suffix = 0;
+      while (await storage.getUserByUsername(username)) {
+        suffix++;
+        username = `${baseUsername}-${suffix}`;
+      }
+
+      const newUser = await storage.createUser({
+        email: data.account.email,
+        username,
+        password: data.account.password,
+        fullName: data.account.realName,
+        role: "artist",
+        bio: data.message || undefined,
+        socialMedia: data.artistSocials
+          ? {
+              twitter: data.artistSocials.twitter || undefined,
+              facebook: data.artistSocials.facebook || undefined,
+              instagram: data.artistSocials.instagram || undefined,
+              soundcloud: data.artistSocials.soundcloud || undefined,
+            }
+          : undefined,
+        emailVerified: false,
+      });
+
+      const lifetimeFreeCount = await storage.countLifetimeFreeArtists();
+      if (lifetimeFreeCount < 31) {
+        await storage.updateUser(newUser.id, {
+          subscriptionStatus: "lifetime_free",
+          trialEndsAt: null,
+          hasUsedTrial: true,
+        });
+      }
+
+      const demoSubmission = await storage.createDemoSubmission({
+        userId: newUser.id,
+        message: data.message || null,
+        agreedToTerms: data.final.agreedToTerms,
+        subscribedToNewsletter: data.final.subscribedToNewsletter ?? false,
+      });
+
+      for (let i = 0; i < data.tracks.length; i++) {
+        await storage.createDemoSubmissionTrack({
+          demoSubmissionId: demoSubmission.id,
+          title: data.tracks[i].title,
+          fileUrl: data.tracks[i].fileUrl,
+          sortOrder: i,
+        });
+      }
+
+      const verificationToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+      const emailContent = generateVerificationEmail(
+        verificationUrl,
+        newUser.fullName || "User"
+      );
+      await sendEmail({
+        to: newUser.email,
+        from: EMAIL_FROM,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
+
+      const jwtToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      res.json({
+        message: "Demo submitted successfully. Verification email sent.",
+        user: { ...newUser, password: undefined },
+        token: jwtToken,
+      });
+    } catch (error) {
+      console.error("Demo submission error:", error);
       if (error instanceof ZodError) {
         return res
           .status(400)
@@ -222,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await sendEmail({
         to: user.email,
-        from: "noreply@mixxl.fm",
+        from: EMAIL_FROM,
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
@@ -578,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await sendEmail({
         to: email,
-        from: "noreply@mixxl.fm",
+        from: EMAIL_FROM,
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
@@ -2811,12 +2949,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await Promise.all([
         sendEmail({
           to: "hello@mixxl.fm",
-          from: "noreply@mixxl.fm",
+          from: EMAIL_FROM,
           ...supportEmail,
         }),
         sendEmail({
           to: email,
-          from: "noreply@mixxl.fm",
+          from: EMAIL_FROM,
           ...confirmationEmail,
         }),
       ]);

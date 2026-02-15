@@ -85,6 +85,12 @@ import {
   Contact,
   contactSubmissions,
   InsertContact,
+  demoSubmissions,
+  demoSubmissionTracks,
+  type DemoSubmission,
+  type InsertDemoSubmission,
+  type DemoSubmissionTrack,
+  type InsertDemoSubmissionTrack,
   PurchasedTrack,
   InsertAlbum,
   Album,
@@ -366,6 +372,17 @@ export interface IStorage {
 
   submitContact(data: Contact): Promise<Contact>;
   getAllSubmissions(): Promise<Contact[]>;
+  createDemoSubmission(data: InsertDemoSubmission): Promise<DemoSubmission>;
+  createDemoSubmissionTrack(
+    data: InsertDemoSubmissionTrack
+  ): Promise<DemoSubmissionTrack>;
+  getDemoSubmissionsWithDetails(): Promise<
+    (DemoSubmission & { user: User; tracks: DemoSubmissionTrack[] })[]
+  >;
+  updateDemoSubmissionStatus(
+    id: string,
+    status: string
+  ): Promise<DemoSubmission | null>;
 }
 
 export class MySQLStorage implements IStorage {
@@ -2798,6 +2815,77 @@ export class MySQLStorage implements IStorage {
 
   async getAllSubmissions() {
     return db.select().from(contactSubmissions);
+  }
+
+  async createDemoSubmission(data: InsertDemoSubmission): Promise<DemoSubmission> {
+    const [submission] = await db
+      .insert(demoSubmissions)
+      .values(data)
+      .returning();
+    if (!submission) throw new Error("Failed to create demo submission");
+    return submission;
+  }
+
+  async createDemoSubmissionTrack(
+    data: InsertDemoSubmissionTrack
+  ): Promise<DemoSubmissionTrack> {
+    const [track] = await db
+      .insert(demoSubmissionTracks)
+      .values(data)
+      .returning();
+    if (!track) throw new Error("Failed to create demo submission track");
+    return track;
+  }
+
+  async getDemoSubmissionsWithDetails(): Promise<
+    (DemoSubmission & { user: User; tracks: DemoSubmissionTrack[] })[]
+  > {
+    const rows = await db
+      .select({
+        submission: getTableColumns(demoSubmissions),
+        user: getTableColumns(users),
+      })
+      .from(demoSubmissions)
+      .innerJoin(users, eq(demoSubmissions.userId, users.id))
+      .orderBy(desc(demoSubmissions.createdAt));
+
+    const submissionIds = rows.map((r) => r.submission.id);
+    const tracks =
+      submissionIds.length > 0
+        ? await db
+            .select()
+            .from(demoSubmissionTracks)
+            .where(inArray(demoSubmissionTracks.demoSubmissionId, submissionIds))
+            .orderBy(asc(demoSubmissionTracks.sortOrder))
+        : [];
+
+    const tracksBySubmission = tracks.reduce(
+      (acc, t) => {
+        const id = t.demoSubmissionId;
+        if (!acc[id]) acc[id] = [];
+        acc[id].push(t);
+        return acc;
+      },
+      {} as Record<string, DemoSubmissionTrack[]>
+    );
+
+    return rows.map((row) => ({
+      ...row.submission,
+      user: row.user,
+      tracks: tracksBySubmission[row.submission.id] ?? [],
+    }));
+  }
+
+  async updateDemoSubmissionStatus(
+    id: string,
+    status: string
+  ): Promise<DemoSubmission | null> {
+    const [updated] = await db
+      .update(demoSubmissions)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(demoSubmissions.id, id))
+      .returning();
+    return updated ?? null;
   }
 }
 

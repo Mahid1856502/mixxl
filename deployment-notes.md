@@ -9,7 +9,7 @@ root@159.198.74.49's password: Mixxl1234$
 git stash
 git pull
 # nano .env   # uncomment if you need to update env each time
-pm2 delete mixxl-api || true
+    pm2 delete mixxl-api || true
 npm run build
 pm2 start dist/index.js --name mixxl-api
 pm2 startup systemd

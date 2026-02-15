@@ -9,7 +9,7 @@ import { randomUUID } from "crypto";
 import { getStripeAccountStatus } from "./utils";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { sendEmail } from "./email";
+import { sendEmail, EMAIL_FROM } from "./email";
 import {
   generateArtistOrderEmail,
   generateCustomerOrderEmail,
@@ -477,7 +477,7 @@ export function registerWebhooksRoutes(app: Express) {
               const email = generateCustomerOrderEmail(order);
               await sendEmail({
                 to: buyerEmail,
-                from: "noreply@mixxl.fm",
+                from: EMAIL_FROM,
                 subject: email.subject,
                 html: email.html,
                 text: email.text,
@@ -498,7 +498,7 @@ export function registerWebhooksRoutes(app: Express) {
 
               await sendEmail({
                 to: artist.email,
-                from: "noreply@mixxl.fm",
+                from: EMAIL_FROM,
                 subject: email.subject,
                 html: email.html,
                 text: email.text,
@@ -539,7 +539,7 @@ export function registerWebhooksRoutes(app: Express) {
                 const email = generatePaymentFailedEmail(order);
                 await sendEmail({
                   to: buyer.email,
-                  from: "noreply@mixxl.fm",
+                  from: EMAIL_FROM,
                   subject: email.subject,
                   html: email.html,
                   text: email.text,
@@ -593,7 +593,7 @@ export function registerWebhooksRoutes(app: Express) {
                 const email = generateRefundEmail(order, false);
                 await sendEmail({
                   to: buyer.email,
-                  from: "noreply@mixxl.fm",
+                  from: EMAIL_FROM,
                   subject: email.subject,
                   html: email.html,
                   text: email.text,
@@ -606,7 +606,7 @@ export function registerWebhooksRoutes(app: Express) {
               const email = generateRefundEmail(order, true);
               await sendEmail({
                 to: artist.email,
-                from: "noreply@mixxl.fm",
+                from: EMAIL_FROM,
                 subject: email.subject,
                 html: email.html,
                 text: email.text,
