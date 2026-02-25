@@ -174,7 +174,7 @@ export default function DemoSubmissionsAdmin() {
                           </span>
                           <Badge
                             variant={
-                              sub.status === "approved"
+                              sub.status === "accepted" || sub.status === "active"
                                 ? "default"
                                 : sub.status === "rejected"
                                   ? "destructive"
@@ -271,12 +271,12 @@ export default function DemoSubmissionsAdmin() {
                             className="bg-green-600 hover:bg-green-700"
                             disabled={
                               updateStatus.isPending ||
-                              sub.status === "approved"
+                              sub.status === "accepted"
                             }
                             onClick={() =>
                               updateStatus.mutate({
                                 id: sub.id,
-                                status: "approved",
+                                status: "accepted",
                               })
                             }
                           >
@@ -303,20 +303,38 @@ export default function DemoSubmissionsAdmin() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-gray-600"
+                            className="border-amber-500/50 text-amber-400"
                             disabled={
                               updateStatus.isPending ||
-                              sub.status === "contacted"
+                              sub.status === "awaiting_payment"
                             }
                             onClick={() =>
                               updateStatus.mutate({
                                 id: sub.id,
-                                status: "contacted",
+                                status: "awaiting_payment",
                               })
                             }
                           >
                             <Mail className="w-4 h-4 mr-1" />
-                            Mark Contacted
+                            Awaiting Payment
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-500/50 text-green-400"
+                            disabled={
+                              updateStatus.isPending ||
+                              sub.status === "active"
+                            }
+                            onClick={() =>
+                              updateStatus.mutate({
+                                id: sub.id,
+                                status: "active",
+                              })
+                            }
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Activate
                           </Button>
                         </div>
                       </div>

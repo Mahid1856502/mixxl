@@ -10,7 +10,8 @@
     "check": "tsc",
     "worker:broadcast": "node --import ts-node/register/esm server/workers/broadcastWorker.ts",
     "worker:test": "node --import ts-node/register/esm server/workers/testWorker.ts",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:migrate-demo-status": "node scripts/run-demo-status-migration.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.879.0",

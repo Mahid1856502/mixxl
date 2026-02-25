@@ -5,12 +5,16 @@ import { storage } from "./storage";
 import {
   insertFeaturedSpotSchema,
   insertAdminBroadcastSchema,
+  insertCompetitionSchema,
+  insertCompetitionEntrySchema,
   insertDiscountCodeSchema,
   insertBannerSchema,
   insertTrackSchema,
+  updateTrackSchema,
   User,
   InsertBanner,
   Banner,
+  DEFAULT_PRIZE_TEXT,
 } from "@shared/schema";
 import { sendEmail, EMAIL_FROM } from "./email";
 import jwt from "jsonwebtoken";
@@ -57,6 +61,36 @@ export const uploadBanner = multer({
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
   fileFilter: (req, file, cb) => {
     if (file.fieldname === "image" && !file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files are allowed"));
+    }
+    cb(null, true);
+  },
+});
+
+const competitionBannerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads", "competition-banners");
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (err) {
+      return cb(err as Error, uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
+});
+
+export const uploadCompetitionBanner = multer({
+  storage: competitionBannerStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === "banner" && !file.mimetype.startsWith("image/")) {
       return cb(new Error("Only image files are allowed"));
     }
     cb(null, true);
@@ -242,8 +276,8 @@ export function registerAdminRoutes(app: Express) {
       try {
         const { id } = req.params;
         const { status } = req.body;
-        if (!status || !["pending", "approved", "rejected", "contacted"].includes(status)) {
-          return res.status(400).json({ error: "Invalid status. Use: pending, approved, rejected, contacted" });
+        if (!status || !["pending", "accepted", "rejected", "awaiting_payment", "active"].includes(status)) {
+          return res.status(400).json({ error: "Invalid status. Use: pending, accepted, rejected, awaiting_payment, active" });
         }
         const updated = await storage.updateDemoSubmissionStatus(id, status);
         if (!updated) {
@@ -284,6 +318,50 @@ export function registerAdminRoutes(app: Express) {
           return res.status(400).json({ message: "Invalid data", errors: error.errors });
         }
         console.error("Admin track upload error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/admin/tracks/:id",
+    authenticate,
+    requireAdmin,
+    async (req: any, res) => {
+      try {
+        const track = await storage.getTrack(req.params.id);
+        if (!track) {
+          return res.status(404).json({ error: "Track not found" });
+        }
+        res.json(track);
+      } catch (error: any) {
+        console.error("Admin get track error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.put(
+    "/api/admin/tracks/:id",
+    authenticate,
+    requireAdmin,
+    async (req: any, res) => {
+      try {
+        const { id } = req.params;
+        const validatedUpdates = updateTrackSchema.parse(req.body);
+
+        const existingTrack = await storage.getTrack(id);
+        if (!existingTrack) {
+          return res.status(404).json({ error: "Track not found" });
+        }
+
+        const updatedTrack = await storage.updateTrack(id, validatedUpdates);
+        res.json(updatedTrack);
+      } catch (error: any) {
+        if (error.name === "ZodError") {
+          return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        }
+        console.error("Admin track update error:", error);
         res.status(500).json({ error: error.message });
       }
     }
@@ -447,6 +525,318 @@ export function registerAdminRoutes(app: Express) {
         } else {
           res.status(400).json({ error: "Payment not completed" });
         }
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // ========== COMPETITION MANAGEMENT ==========
+
+  // ========== PUBLIC VOTING ROUTES ==========
+
+  // List competitions for voting (public - voting_live or accepting_demos)
+  app.get("/api/voting/competitions", async (req, res) => {
+    try {
+      const list = await storage.getCompetitions();
+      const forVoting = list.filter(
+        (c: any) =>
+          c.status === "voting_live" || c.status === "accepting_demos"
+      );
+      res.json(forVoting);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get competition with entries (public)
+  app.get("/api/voting/competitions/:id", async (req, res) => {
+    try {
+      const competition = await storage.getCompetition(req.params.id);
+      if (!competition) {
+        return res.status(404).json({ error: "Competition not found" });
+      }
+      const entries = await storage.getCompetitionEntries(req.params.id);
+      const voteCounts =
+        competition.showVoteCount !== false
+          ? await storage.getVoteCountByEntry(req.params.id)
+          : {};
+      res.json({ ...competition, entries, voteCounts });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cast vote (requires auth, fan role)
+  app.post("/api/voting/vote", authenticate, async (req: any, res) => {
+    try {
+      if (req.user.role !== "fan") {
+        return res.status(403).json({
+          error: "Only fans can vote. Sign up as a fan to participate.",
+        });
+      }
+      const { competitionId, entryId } = req.body;
+      if (!competitionId || !entryId) {
+        return res.status(400).json({ error: "competitionId and entryId required" });
+      }
+      const alreadyVoted = await storage.hasUserVotedForEntry(
+        req.user.id,
+        entryId
+      );
+      if (alreadyVoted) {
+        return res.status(400).json({ error: "You have already voted for this entry" });
+      }
+      const competition = await storage.getCompetition(competitionId);
+      if (!competition || competition.status !== "voting_live") {
+        return res.status(400).json({ error: "Voting is not open for this competition" });
+      }
+      const vote = await storage.createCompetitionVote({
+        fanUserId: req.user.id,
+        competitionId,
+        entryId,
+      });
+      res.json(vote);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's voted entry IDs for a competition (requires auth)
+  app.get(
+    "/api/voting/competitions/:id/my-votes",
+    authenticate,
+    async (req: any, res) => {
+      try {
+        const votes = await storage.getVotesForCompetition(req.params.id);
+        const myVotes = votes
+          .filter((v: any) => v.fanUserId === req.user.id)
+          .map((v: any) => v.entryId);
+        res.json({ entryIds: myVotes });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // ========== ADMIN COMPETITION MANAGEMENT ==========
+
+  // Get default prize text
+  app.get("/api/admin/competitions/default-prize", requireAdmin, (req, res) => {
+    res.json({ prizeDescription: DEFAULT_PRIZE_TEXT });
+  });
+
+  // Get all competitions (optionally grouped by city)
+  app.get("/api/admin/competitions", requireAdmin, async (req, res) => {
+    try {
+      const { status, grouped } = req.query;
+      if (grouped === "true") {
+        const groupedByCity = await storage.getCompetitionsGroupedByCity();
+        return res.json(groupedByCity);
+      }
+      const list = await storage.getCompetitions(status as string);
+      res.json(list);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single competition
+  app.get("/api/admin/competitions/:id", requireAdmin, async (req, res) => {
+    try {
+      const competition = await storage.getCompetition(req.params.id);
+      if (!competition) {
+        return res.status(404).json({ error: "Competition not found" });
+      }
+      res.json(competition);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create competition
+  app.post("/api/admin/competitions", requireAdmin, async (req, res) => {
+    try {
+      const bodyWithDates = {
+        ...req.body,
+        startDate: new Date(req.body.startDate),
+        endDate: new Date(req.body.endDate),
+        maxFinalists: req.body.maxFinalists ?? 20,
+        prizeDescription: req.body.prizeDescription ?? DEFAULT_PRIZE_TEXT,
+      };
+      const validatedData = insertCompetitionSchema.parse(bodyWithDates);
+      const competition = await storage.createCompetition(validatedData);
+      res.status(201).json(competition);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ error: "Validation error", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update competition
+  app.put("/api/admin/competitions/:id", requireAdmin, async (req, res) => {
+    try {
+      const updates = { ...req.body };
+      if (updates.startDate && typeof updates.startDate === "string") {
+        updates.startDate = new Date(updates.startDate);
+      }
+      if (updates.endDate && typeof updates.endDate === "string") {
+        updates.endDate = new Date(updates.endDate);
+      }
+      const competition = await storage.updateCompetition(req.params.id, updates);
+      res.json(competition);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete competition
+  app.delete("/api/admin/competitions/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteCompetition(req.params.id);
+      res.json({ message: "Competition deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload competition banner
+  app.put(
+    "/api/admin/competitions/:id/banner",
+    requireAdmin,
+    uploadCompetitionBanner.single("banner"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Banner image is required" });
+        }
+        const updated = await storage.updateCompetition(req.params.id, {
+          bannerImage: `/uploads/competition-banners/${req.file.filename}`,
+        });
+        res.json(updated);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Competition entries CRUD
+  app.get(
+    "/api/admin/competitions/:id/entries",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const entries = await storage.getCompetitionEntries(req.params.id);
+        res.json(entries);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.post(
+    "/api/admin/competitions/:id/entries",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const validated = insertCompetitionEntrySchema.parse({
+          ...req.body,
+          competitionId: req.params.id,
+        });
+        const entry = await storage.createCompetitionEntry(validated);
+        res.status(201).json(entry);
+      } catch (error: any) {
+        if (error instanceof z.ZodError) {
+          return res
+            .status(400)
+            .json({ error: "Validation error", details: error.errors });
+        }
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.put(
+    "/api/admin/competitions/:competitionId/entries/:entryId",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const { entryId } = req.params;
+        const updates = req.body;
+        const entry = await storage.updateCompetitionEntry(entryId, updates);
+        res.json(entry);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/admin/competitions/:competitionId/entries/:entryId",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        await storage.deleteCompetitionEntry(req.params.entryId);
+        res.json({ message: "Entry deleted successfully" });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Competition votes admin - leaderboard
+  app.get(
+    "/api/admin/competitions/:id/leaderboard",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const leaderboard = await storage.getLeaderboard(req.params.id);
+        res.json(leaderboard);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // Competition votes admin - export CSV
+  app.get(
+    "/api/admin/competitions/:id/votes/export",
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const votes = await storage.getVotesForCompetition(req.params.id);
+        const entries = await storage.getCompetitionEntries(req.params.id);
+        const entryMap = Object.fromEntries(entries.map((e: any) => [e.id, e]));
+        const fanIds = [...new Set(votes.map((v: any) => v.fanUserId))];
+        const fans = await Promise.all(
+          fanIds.map((id) => storage.getUser(id))
+        );
+        const fanMap = Object.fromEntries(
+          fans.filter(Boolean).map((u: any) => [u.id, u])
+        );
+        const escape = (s: string) => `"${String(s || "").replace(/"/g, '""')}"`;
+        const header =
+          "fan_user_id,fan_email,fan_name,competition_id,entry_id,entry_song_title,artist_name,timestamp\n";
+        const rows = votes.map((v: any) => {
+          const entry = entryMap[v.entryId];
+          const fan = fanMap[v.fanUserId];
+          const artistName =
+            entry?.artist?.fullName || entry?.artist?.username || "";
+          const songTitle = entry?.songTitle || "";
+          const fanEmail = fan?.email || "";
+          const fanName = fan?.fullName || fan?.username || "";
+          return `${v.fanUserId},${escape(fanEmail)},${escape(fanName)},${v.competitionId},${v.entryId},${escape(songTitle)},${escape(artistName)},${v.createdAt}`;
+        });
+        const csv = header + rows.join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="votes-${req.params.id}.csv"`
+        );
+        res.send(csv);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }

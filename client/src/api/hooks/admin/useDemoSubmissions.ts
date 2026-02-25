@@ -49,7 +49,7 @@ export function useUpdateDemoSubmissionStatus() {
       status,
     }: {
       id: string;
-      status: "pending" | "approved" | "rejected" | "contacted";
+      status: "pending" | "accepted" | "rejected" | "awaiting_payment" | "active";
     }) => {
       const res = await apiRequest("PATCH", `/api/admin/demo-submissions/${id}/status`, {
         status,

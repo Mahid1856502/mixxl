@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Users, Star, Mail, TrendingUp, Crown, Euro, Music, Upload } from "lucide-react";
+import { Users, Star, Mail, TrendingUp, Crown, Euro, Music, Upload, Trophy } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/provider/use-auth";
 import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
@@ -286,6 +286,27 @@ export default function AdminDashboard() {
               </Button>
             </CardContent>
           </Card>
+          {/* Competition Management */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Trophy className="h-5 w-5 text-amber-400" />
+                Competition Management
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Create and manage city-based demo competitions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Link href="/admin/competitions">Manage Competitions</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Demo Submissions */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader>

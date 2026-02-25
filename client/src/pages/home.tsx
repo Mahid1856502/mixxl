@@ -19,6 +19,8 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronLeft,
+  Mic2,
+  Vote,
 } from "lucide-react";
 import { AdvertisingBanner } from "@/components/home/AdvertisingBanners";
 import { apiRequest } from "@/lib/queryClient";
@@ -84,7 +86,7 @@ export default function Home() {
     setCurrentSlide(
       (prev) =>
         (prev - 1 + featuredArtistsFromSpots.length) %
-        featuredArtistsFromSpots.length
+        featuredArtistsFromSpots.length,
     );
   };
 
@@ -141,6 +143,31 @@ export default function Home() {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Mixxl Record Label CTA */}
+      <section className="py-20 px-6 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-pink-500/10 border-y border-white/5">
+        <div className="max-w-4xl mx-auto text-center">
+          <Badge className="mb-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+            Mixxl Record Label
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Submit Your Demo to Mixxl Media Records
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Got a track that deserves to be heard? Submit your demo to our label
+            for a chance to get discovered, promoted, and supported by Mixxl.
+          </p>
+          <Link href="/onboarding">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-8 py-4 text-lg font-semibold"
+            >
+              <Mic2 className="w-5 h-5 mr-2" />
+              Submit Your Demo
+            </Button>
+          </Link>
         </div>
       </section>
 
@@ -202,7 +229,17 @@ export default function Home() {
             </Card>
           </div>
 
-          <div className="text-center">
+          <div className="text-center flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/voting">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-purple-500 text-purple-400 hover:bg-purple-500/10 px-8 py-4"
+              >
+                <Vote className="w-5 h-5 mr-2" />
+                Vote in Competitions
+              </Button>
+            </Link>
             <Link href="/why-fans-choose-mixxl">
               <Button
                 size="lg"

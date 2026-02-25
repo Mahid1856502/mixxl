@@ -1338,7 +1338,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not authenticated" });
       }
 
-      const targetUser = await storage.getUser(targetUserId);
+      // Support both UUID and username (profile URLs use username)
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          targetUserId
+        );
+      const targetUser = isUUID
+        ? await storage.getUser(targetUserId)
+        : await storage.getUserByUsername(targetUserId);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
       }

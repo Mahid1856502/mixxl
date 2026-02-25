@@ -68,6 +68,19 @@ export const broadcastStatusEnum = pgEnum("broadcast_status", [
   "sent",
   "failed",
 ]);
+export const competitionStatusEnum = pgEnum("competition_status", [
+  "draft",
+  "accepting_demos",
+  "voting_live",
+  "closed",
+]);
+export const demoSubmissionStatusEnum = pgEnum("demo_submission_status", [
+  "pending",
+  "accepted",
+  "rejected",
+  "awaiting_payment",
+  "active",
+]);
 export const discountCodeTypeEnum = pgEnum("discount_code_type", [
   "free_subscription",
   "percentage_off",
@@ -159,7 +172,7 @@ export const demoSubmissions = pgTable(
     message: text("message"),
     agreedToTerms: boolean("agreed_to_terms").notNull().default(true),
     subscribedToNewsletter: boolean("subscribed_to_newsletter").default(false),
-    status: varchar("status", { length: 50 }).default("pending"), // pending, reviewed, contacted
+    status: demoSubmissionStatusEnum("status").default("pending"),
     createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
   },
@@ -942,6 +955,93 @@ export const adminBroadcasts = pgTable(
   }),
 );
 
+// Competitions table - city-based demo competitions
+export const DEFAULT_PRIZE_TEXT = `£1000 cash prize (sponsored by Radio Wigwam)
+Song recorded and released via Mixxl Media Records
+Lifetime free Mixxl subscription`;
+
+export const competitions = pgTable(
+  "competitions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 255 }).notNull(),
+    city: varchar("city", { length: 100 }).notNull(),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }).notNull(),
+    maxFinalists: integer("max_finalists").default(20).notNull(),
+    prizeDescription: text("prize_description").default(DEFAULT_PRIZE_TEXT),
+    status: competitionStatusEnum("status").default("draft"),
+    bannerImage: varchar("banner_image", { length: 500 }),
+    showVoteCount: boolean("show_vote_count").default(true),
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    cityIdx: index("competitions_city_idx").on(table.city),
+    statusIdx: index("competitions_status_idx").on(table.status),
+    dateIdx: index("competitions_date_idx").on(
+      table.startDate,
+      table.endDate,
+    ),
+  }),
+);
+
+// Competition entries (finalists) - videos submitted by artists
+export const competitionEntries = pgTable(
+  "competition_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => competitions.id, { onDelete: "cascade" }),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    videoUrl: varchar("video_url", { length: 500 }).notNull(),
+    songTitle: varchar("song_title", { length: 255 }).notNull(),
+    artistCity: varchar("artist_city", { length: 100 }),
+    shortDescription: text("short_description"),
+    sortOrder: integer("sort_order").default(0),
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    competitionIdx: index("competition_entries_competition_idx").on(
+      table.competitionId
+    ),
+    artistIdx: index("competition_entries_artist_idx").on(table.artistId),
+  }),
+);
+
+// Competition votes - one vote per fan per entry per competition
+export const competitionVotes = pgTable(
+  "competition_votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fanUserId: uuid("fan_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => competitions.id, { onDelete: "cascade" }),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => competitionEntries.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    fanIdx: index("competition_votes_fan_idx").on(table.fanUserId),
+    competitionIdx: index("competition_votes_competition_idx").on(
+      table.competitionId
+    ),
+    entryIdx: index("competition_votes_entry_idx").on(table.entryId),
+    uniqueFanEntry: unique("competition_votes_fan_entry_unique").on(
+      table.fanUserId,
+      table.entryId
+    ),
+  }),
+);
+
 // Admin broadcast recipients table - tracking individual delivery
 export const broadcastRecipients = pgTable(
   "broadcast_recipients",
@@ -1405,6 +1505,27 @@ export const insertAdminBroadcastSchema = createInsertSchema(adminBroadcasts)
       .nullable(),
   });
 
+export const insertCompetitionSchema = createInsertSchema(competitions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCompetitionEntrySchema = createInsertSchema(
+  competitionEntries,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCompetitionVoteSchema = createInsertSchema(
+  competitionVotes,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertBroadcastRecipientSchema = createInsertSchema(
   broadcastRecipients,
 ).omit({
@@ -1505,6 +1626,16 @@ export type InsertDiscountCodeUsage = z.infer<
 >;
 export type AdminBroadcast = typeof adminBroadcasts.$inferSelect;
 export type InsertAdminBroadcast = z.infer<typeof insertAdminBroadcastSchema>;
+export type Competition = typeof competitions.$inferSelect;
+export type InsertCompetition = z.infer<typeof insertCompetitionSchema>;
+export type CompetitionEntry = typeof competitionEntries.$inferSelect;
+export type InsertCompetitionEntry = z.infer<
+  typeof insertCompetitionEntrySchema
+>;
+export type CompetitionVote = typeof competitionVotes.$inferSelect;
+export type InsertCompetitionVote = z.infer<
+  typeof insertCompetitionVoteSchema
+>;
 export type BroadcastRecipient = typeof broadcastRecipients.$inferSelect;
 export type InsertBroadcastRecipient = z.infer<
   typeof insertBroadcastRecipientSchema

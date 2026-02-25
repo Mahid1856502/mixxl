@@ -38,6 +38,9 @@ import {
   featuredSpots,
   adminBroadcasts,
   broadcastRecipients,
+  competitions,
+  competitionEntries,
+  competitionVotes,
   discountCodes,
   discountCodeUsage,
   type User,
@@ -68,6 +71,12 @@ import {
   type InsertFeaturedSpot,
   type AdminBroadcast,
   type InsertAdminBroadcast,
+  type Competition,
+  type InsertCompetition,
+  type CompetitionEntry,
+  type InsertCompetitionEntry,
+  type CompetitionVote,
+  type InsertCompetitionVote,
   type BroadcastRecipient,
   type InsertBroadcastRecipient,
   type DiscountCode,
@@ -315,6 +324,34 @@ export interface IStorage {
   ): Promise<FeaturedSpot>;
   deleteFeaturedSpot(id: string): Promise<void>;
   getActiveFeaturedSpots(): Promise<FeaturedSpot[]>;
+
+  // Admin operations - Competitions
+  createCompetition(competition: InsertCompetition): Promise<Competition>;
+  getCompetition(id: string): Promise<Competition | undefined>;
+  getCompetitions(status?: string): Promise<Competition[]>;
+  getCompetitionsGroupedByCity(): Promise<Record<string, Competition[]>>;
+  updateCompetition(
+    id: string,
+    updates: Partial<Competition>
+  ): Promise<Competition>;
+  deleteCompetition(id: string): Promise<void>;
+
+  // Competition entries
+  createCompetitionEntry(entry: InsertCompetitionEntry): Promise<CompetitionEntry>;
+  getCompetitionEntry(id: string): Promise<CompetitionEntry | undefined>;
+  getCompetitionEntries(competitionId: string): Promise<any[]>;
+  updateCompetitionEntry(
+    id: string,
+    updates: Partial<CompetitionEntry>
+  ): Promise<CompetitionEntry>;
+  deleteCompetitionEntry(id: string): Promise<void>;
+
+  // Competition votes
+  createCompetitionVote(vote: InsertCompetitionVote): Promise<CompetitionVote>;
+  hasUserVotedForEntry(fanUserId: string, entryId: string): Promise<boolean>;
+  getVoteCountByEntry(competitionId: string): Promise<Record<string, number>>;
+  getVotesForCompetition(competitionId: string): Promise<any[]>;
+  getLeaderboard(competitionId: string): Promise<any[]>;
 
   // Admin operations - Broadcasts
   createAdminBroadcast(
@@ -2475,6 +2512,204 @@ export class MySQLStorage implements IStorage {
 
   async deleteFeaturedSpot(id: string): Promise<void> {
     await db.delete(featuredSpots).where(eq(featuredSpots.id, id));
+  }
+
+  // Admin operations - Competitions
+  async createCompetition(competition: any): Promise<any> {
+    const id = randomUUID();
+    const [newCompetition] = await db
+      .insert(competitions)
+      .values({ ...competition, id })
+      .returning();
+    return newCompetition;
+  }
+
+  async getCompetition(id: string): Promise<any | undefined> {
+    const [c] = await db
+      .select()
+      .from(competitions)
+      .where(eq(competitions.id, id))
+      .limit(1);
+    return c || undefined;
+  }
+
+  async getCompetitions(status?: string): Promise<any[]> {
+    if (status) {
+      return await db
+        .select()
+        .from(competitions)
+        .where(
+          eq(
+            competitions.status,
+            status as "draft" | "accepting_demos" | "voting_live" | "closed"
+          )
+        )
+        .orderBy(asc(competitions.city), desc(competitions.startDate));
+    }
+    return await db
+      .select()
+      .from(competitions)
+      .orderBy(asc(competitions.city), desc(competitions.startDate));
+  }
+
+  async getCompetitionsGroupedByCity(): Promise<Record<string, any[]>> {
+    const all = await this.getCompetitions();
+    const grouped: Record<string, any[]> = {};
+    for (const c of all) {
+      const city = c.city || "Other";
+      if (!grouped[city]) grouped[city] = [];
+      grouped[city].push(c);
+    }
+    return grouped;
+  }
+
+  async updateCompetition(id: string, updates: any): Promise<any> {
+    await db.update(competitions).set(updates).where(eq(competitions.id, id));
+    return await this.getCompetition(id);
+  }
+
+  async deleteCompetition(id: string): Promise<void> {
+    await db.delete(competitions).where(eq(competitions.id, id));
+  }
+
+  // Competition entries
+  async createCompetitionEntry(entry: any): Promise<any> {
+    const id = randomUUID();
+    const [newEntry] = await db
+      .insert(competitionEntries)
+      .values({ ...entry, id })
+      .returning();
+    return newEntry;
+  }
+
+  async getCompetitionEntry(id: string): Promise<any | undefined> {
+    const [e] = await db
+      .select()
+      .from(competitionEntries)
+      .where(eq(competitionEntries.id, id))
+      .limit(1);
+    return e || undefined;
+  }
+
+  async getCompetitionEntries(competitionId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: competitionEntries.id,
+        competitionId: competitionEntries.competitionId,
+        artistId: competitionEntries.artistId,
+        videoUrl: competitionEntries.videoUrl,
+        songTitle: competitionEntries.songTitle,
+        artistCity: competitionEntries.artistCity,
+        shortDescription: competitionEntries.shortDescription,
+        sortOrder: competitionEntries.sortOrder,
+        createdAt: competitionEntries.createdAt,
+        artist: {
+          id: users.id,
+          username: users.username,
+          fullName: users.fullName,
+          profileImage: users.profileImage,
+        },
+      })
+      .from(competitionEntries)
+      .leftJoin(users, eq(competitionEntries.artistId, users.id))
+      .where(eq(competitionEntries.competitionId, competitionId))
+      .orderBy(asc(competitionEntries.sortOrder), asc(competitionEntries.createdAt));
+  }
+
+  async updateCompetitionEntry(id: string, updates: any): Promise<any> {
+    await db
+      .update(competitionEntries)
+      .set(updates)
+      .where(eq(competitionEntries.id, id));
+    return await this.getCompetitionEntry(id);
+  }
+
+  async deleteCompetitionEntry(id: string): Promise<void> {
+    await db.delete(competitionEntries).where(eq(competitionEntries.id, id));
+  }
+
+  // Competition votes
+  async createCompetitionVote(vote: any): Promise<any> {
+    const id = randomUUID();
+    const [newVote] = await db
+      .insert(competitionVotes)
+      .values({ ...vote, id })
+      .returning();
+    return newVote;
+  }
+
+  async hasUserVotedForEntry(fanUserId: string, entryId: string): Promise<boolean> {
+    const [v] = await db
+      .select()
+      .from(competitionVotes)
+      .where(
+        and(
+          eq(competitionVotes.fanUserId, fanUserId),
+          eq(competitionVotes.entryId, entryId)
+        )
+      )
+      .limit(1);
+    return !!v;
+  }
+
+  async getVoteCountByEntry(competitionId: string): Promise<Record<string, number>> {
+    const votes = await db
+      .select({
+        entryId: competitionVotes.entryId,
+        count: count(),
+      })
+      .from(competitionVotes)
+      .where(eq(competitionVotes.competitionId, competitionId))
+      .groupBy(competitionVotes.entryId);
+    const result: Record<string, number> = {};
+    for (const v of votes) {
+      result[v.entryId] = Number(v.count);
+    }
+    return result;
+  }
+
+  async getVotesForCompetition(competitionId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(competitionVotes)
+      .where(eq(competitionVotes.competitionId, competitionId))
+      .orderBy(desc(competitionVotes.createdAt));
+  }
+
+  async getLeaderboard(competitionId: string): Promise<any[]> {
+    const voteCounts = await db
+      .select({
+        entryId: competitionVotes.entryId,
+        count: count(),
+      })
+      .from(competitionVotes)
+      .where(eq(competitionVotes.competitionId, competitionId))
+      .groupBy(competitionVotes.entryId);
+    const entryIds = voteCounts.map((v) => v.entryId);
+    if (entryIds.length === 0) return [];
+    const entries = await db
+      .select({
+        id: competitionEntries.id,
+        songTitle: competitionEntries.songTitle,
+        artistCity: competitionEntries.artistCity,
+        artist: {
+          id: users.id,
+          username: users.username,
+          fullName: users.fullName,
+        },
+      })
+      .from(competitionEntries)
+      .leftJoin(users, eq(competitionEntries.artistId, users.id))
+      .where(inArray(competitionEntries.id, entryIds));
+    const countMap = Object.fromEntries(
+      voteCounts.map((v) => [v.entryId, Number(v.count)])
+    );
+    return entries
+      .map((e) => ({
+        ...e,
+        voteCount: countMap[e.id] || 0,
+      }))
+      .sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
   }
 
   // Admin operations - Broadcasts

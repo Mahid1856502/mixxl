@@ -457,9 +457,9 @@ export default function TrackCard({
                 )}
                 {track.id === currentTrack?.id && isPlaying ? "Pause" : "Play"}
               </Button>
-              {track.artistId === user?.id && (
+              {(track.artistId === user?.id || user?.role === "admin") && (
                 <>
-                  <Link href={`/upload/${track.id}`}>
+                  <Link href={user?.role === "admin" ? `/admin/upload-for-artist/${track.id}` : `/upload/${track.id}`}>
                     <Button
                       size="sm"
                       variant="outline"
@@ -469,21 +469,23 @@ export default function TrackCard({
                       Edit
                     </Button>
                   </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs px-3 border border-red-700 hover:border-red-500 bg-red-950 hover:bg-red-900 hover:text-white"
-                    onClick={() => {
-                      setDeletingTrack(track);
-                      setDeleteOpen(true);
-                    }}
-                  >
-                    {isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash />
-                    )}
-                  </Button>
+                  {track.artistId === user?.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs px-3 border border-red-700 hover:border-red-500 bg-red-950 hover:bg-red-900 hover:text-white"
+                      onClick={() => {
+                        setDeletingTrack(track);
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      {isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash />
+                      )}
+                    </Button>
+                  )}
                 </>
               )}
             </div>

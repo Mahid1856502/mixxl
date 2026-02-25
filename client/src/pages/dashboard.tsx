@@ -19,12 +19,15 @@ import {
   MessageCircle,
   Euro,
   Play,
+  Trophy,
+  Vote,
 } from "lucide-react";
 import { useUserTracks } from "@/api/hooks/tracks/useMyTracks";
 import { useState } from "react";
 import { CreatePlaylistModal } from "@/components/modals/create-playlist-modal";
 import { useUserPlaylists } from "@/api/hooks/playlist/usePlaylist";
 import { useQueryParams } from "@/hooks/use-query-params";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const [params, setParams] = useQueryParams({
@@ -58,6 +61,20 @@ export default function Dashboard() {
     queryKey: ["/api/users", user?.id, "following"],
     enabled: !!user,
   });
+
+  const { data: competitions = [] } = useQuery({
+    queryKey: ["/api/voting/competitions"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/voting/competitions");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: user?.role === "fan",
+  });
+
+  const liveCompetitions = Array.isArray(competitions)
+    ? competitions.filter((c: any) => c.status === "voting_live")
+    : [];
 
   // Type guards for better TypeScript support
   const tracks = Array.isArray(userTracks) ? userTracks : [];
@@ -165,6 +182,39 @@ export default function Dashboard() {
             );
           })}
         </div>
+
+        {/* Competition banner for fans */}
+        {user.role === "fan" && liveCompetitions.length > 0 && (
+          <Card className="glass-effect border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full bg-purple-500/20 p-3">
+                    <Trophy className="w-8 h-8 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {liveCompetitions.length === 1
+                        ? "Competition voting is live!"
+                        : `${liveCompetitions.length} competitions – vote now!`}
+                    </h3>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      {liveCompetitions.length === 1
+                        ? `Vote for your favourite in ${liveCompetitions[0].name}`
+                        : "Support your favourite artists in our demo competitions"}
+                    </p>
+                  </div>
+                </div>
+                <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shrink-0">
+                  <Link href="/voting">
+                    <Vote className="w-4 h-4 mr-2" />
+                    Vote now
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Subscription Status for Artists */}
         {user.role === "artist" &&

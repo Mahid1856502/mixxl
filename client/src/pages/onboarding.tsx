@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,8 +27,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Sparkles,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import TrackUploadStep from "@/components/onboarding/track-upload-step";
+import { useSubmitDemo } from "@/api/hooks/onboarding/useSubmitDemo";
 
 // Welcome Step Schema
 const welcomeSchema = z.object({
@@ -80,6 +82,16 @@ type MessageData = z.infer<typeof messageSchema>;
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const submitDemo = useSubmitDemo({
+    onSuccess: () => setCurrentStep(5),
+    onError: (error) => {
+      const msg =
+        error?.message || "Failed to submit demo. Please try again.";
+      toast.error(msg);
+    },
+  });
   // Form data storage
   const [formData, setFormData] = useState<{
     welcome?: WelcomeData;
@@ -198,35 +210,17 @@ export default function Onboarding() {
       return;
     }
 
-    try {
-      const res = await apiRequest("POST", "/api/demo-submission", {
-        account,
-        tracks: tracks.tracks.map((t) => ({
-          id: t.id,
-          title: t.title,
-          fileUrl: t.fileUrl,
-        })),
-        artistSocials,
-        message: messageData.message,
-        final: { agreedToTerms: true, subscribedToNewsletter: false },
-      });
-
-      const data = await res.json();
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userId", data.user?.id);
-        localStorage.setItem("email", data.user?.email);
-      }
-      setCurrentStep(totalSteps);
-    } catch (error: unknown) {
-      console.error("Error completing onboarding:", error);
-      const msg =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message: string }).message)
-          : "Failed to submit demo. Please try again.";
-      toast.error(msg);
-      throw error;
-    }
+    await submitDemo.mutateAsync({
+      account,
+      tracks: tracks.tracks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        fileUrl: t.fileUrl,
+      })),
+      artistSocials,
+      message: messageData.message,
+      final: { agreedToTerms: true, subscribedToNewsletter: false },
+    });
   };
 
   const getStepTitle = () => {
@@ -441,12 +435,27 @@ export default function Onboarding() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="Create a password"
-                          {...field}
-                          className="bg-white/5 border-white/10"
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Create a password"
+                            {...field}
+                            className="bg-white/5 border-white/10 pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -654,10 +663,17 @@ export default function Onboarding() {
                   onClick={
                     currentStep === totalSteps - 1 ? handleComplete : nextStep
                   }
+                  disabled={
+                    currentStep === totalSteps - 1 && submitDemo.isPending
+                  }
                   className="flex items-center space-x-2 mixxl-gradient"
                 >
                   <span>
-                    {currentStep === totalSteps - 1 ? "Complete Setup" : "Next"}
+                    {currentStep === totalSteps - 1
+                      ? submitDemo.isPending
+                        ? "Submitting..."
+                        : "Complete Setup"
+                      : "Next"}
                   </span>
                   {currentStep !== totalSteps - 1 && (
                     <ArrowRight className="w-4 h-4" />

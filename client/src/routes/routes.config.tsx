@@ -50,7 +50,12 @@ import SubscriptionCancel from "@/pages/subscription/cancel";
 import ForgetPassword from "@/pages/auth/forget-password";
 import Feedback from "@/pages/admin/feedback";
 import DemoSubmissionsAdmin from "@/pages/admin/demo-submissions";
+import CompetitionsAdmin from "@/pages/admin/competitions";
+import CompetitionVotesAdmin from "@/pages/admin/competition-votes";
+import CompetitionManageAdmin from "@/pages/admin/competition-manage";
 import UploadForArtist from "@/pages/admin/upload-for-artist";
+import VotingLanding from "@/pages/voting";
+import VotingCompetitionDetail from "@/pages/voting/competition-detail";
 import Earnings from "@/pages/earnings";
 import ManageAlbum from "@/pages/album/manage-album";
 import { AlbumView } from "@/pages/album/view-album";
@@ -88,6 +93,8 @@ export const PUBLIC_ROUTES: AppRoute[] = [
   { path: "/blog", component: Blog },
   { path: "/contact", component: Contact },
   { path: "/faq", component: FAQ },
+  { path: "/voting", component: VotingLanding },
+  { path: "/voting/:id", component: VotingCompetitionDetail },
   // Unauthorized
   { path: "/unauthorized", component: Unauthorized },
   // keep fallback here if you want it public
@@ -242,7 +249,27 @@ export const appRoutes: AppRoute[] = [
     roles: ["admin"],
   },
   {
+    path: "/admin/competitions",
+    component: CompetitionsAdmin,
+    roles: ["admin"],
+  },
+  {
+    path: "/admin/competitions/:id/votes",
+    component: CompetitionVotesAdmin,
+    roles: ["admin"],
+  },
+  {
+    path: "/admin/competitions/:id/manage",
+    component: CompetitionManageAdmin,
+    roles: ["admin"],
+  },
+  {
     path: "/admin/upload-for-artist",
+    component: UploadForArtist,
+    roles: ["admin"],
+  },
+  {
+    path: "/admin/upload-for-artist/:trackId",
     component: UploadForArtist,
     roles: ["admin"],
   },

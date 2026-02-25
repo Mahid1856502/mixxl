@@ -27,11 +27,14 @@ export function ProtectedRoute({
     return <Redirect to="/login" />;
   }
 
-  // If user exists but email is not verified → always send back to login
+  // If user exists but email is not verified → send back to login (except fans)
+  // Fans can use the app without email verification
+
   const allowedPaths = PUBLIC_ROUTES.map((r) => r.path);
   if (
     user &&
     user.emailVerified === false &&
+    user.role !== "fan" &&
     !allowedPaths.includes(location)
   ) {
     return <Redirect to="/login" />;
@@ -42,12 +45,8 @@ export function ProtectedRoute({
     return <Redirect to="/unauthorized" />;
   }
 
-  // ✅ NEW: prevent verified users from hitting /login or /signup
-  if (
-    user &&
-    user.emailVerified &&
-    (location === "/login" || location === "/signup")
-  ) {
+  // Prevent logged-in users from hitting /login or /signup
+  if (user && (location === "/login" || location === "/signup")) {
     return <Redirect to="/dashboard" />;
   }
 
