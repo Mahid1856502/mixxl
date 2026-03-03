@@ -14,7 +14,7 @@ import {
   Music,
   Mic2,
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, BASE_URL } from "@/lib/queryClient";
 import { useAuth } from "@/provider/use-auth";
 import { FanSignupModal } from "@/components/voting/FanSignupModal";
 import { useToast } from "@/hooks/use-toast";
@@ -171,7 +171,11 @@ export default function VotingCompetitionDetail() {
             {competition.bannerImage && (
               <div className="w-full md:w-64 aspect-video rounded-lg overflow-hidden bg-gray-800">
                 <img
-                  src={competition.bannerImage}
+                  src={
+                    competition.bannerImage.startsWith("http")
+                      ? competition.bannerImage
+                      : `${BASE_URL}${competition.bannerImage}`
+                  }
                   alt={competition.name}
                   className="w-full h-full object-cover"
                 />

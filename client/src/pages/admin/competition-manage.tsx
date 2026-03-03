@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -27,20 +27,17 @@ import {
 } from "@/components/ui/popover";
 import {
   ArrowLeft,
-  Upload,
   Plus,
   Trash2,
   ExternalLink,
   BarChart3,
-  Image,
   Check,
   ChevronsUpDown,
 } from "lucide-react";
-import { apiRequest, BASE_URL } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/common/ConfirmPopup";
 import { useDemoSubmissions } from "@/api/hooks/admin/useDemoSubmissions";
-import { useUploadFile } from "@/api/hooks/s3/useUploadFile";
 import { cn } from "@/lib/utils";
 
 export default function CompetitionManageAdmin() {
@@ -48,7 +45,6 @@ export default function CompetitionManageAdmin() {
   const id = params?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const bannerInputRef = useRef<HTMLInputElement>(null);
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
 
   const { data: competition, isLoading } = useQuery({
@@ -60,8 +56,6 @@ export default function CompetitionManageAdmin() {
     },
     enabled: !!id,
   });
-
-  console.log("competition", competition);
 
   const { data: entries = [] } = useQuery({
     queryKey: ["/api/admin/competitions", id, "entries"],
@@ -76,9 +70,6 @@ export default function CompetitionManageAdmin() {
     enabled: !!id,
   });
 
-  const { uploadFile: uploadBannerFile, isUploading: isBannerUploading } =
-    useUploadFile();
-
   const updateMutation = useMutation({
     mutationFn: async (updates: any) => {
       return apiRequest("PUT", `/api/admin/competitions/${id}`, updates);
@@ -90,21 +81,6 @@ export default function CompetitionManageAdmin() {
       toast({ title: "Updated!" });
     },
   });
-
-  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      toast({ title: "Please select an image file", variant: "destructive" });
-      return;
-    }
-    e.target.value = "";
-    try {
-      const fileUrl = await uploadBannerFile(file);
-      await updateMutation.mutateAsync({ bannerImage: fileUrl });
-    } catch {
-      // Error handled by useUploadFile toast
-    }
-  };
 
   if (isLoading || !competition) {
     return (
@@ -135,51 +111,6 @@ export default function CompetitionManageAdmin() {
       </div>
 
       <div className="p-6 max-w-4xl space-y-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Image className="h-5 w-5" />
-              Banner image
-            </CardTitle>
-            <p className="text-gray-400 text-sm">
-              Shown on the voting landing page
-            </p>
-          </CardHeader>
-          <CardContent>
-            <input
-              ref={bannerInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleBannerChange}
-            />
-            <div className="flex items-center gap-4">
-              {competition.bannerImage ? (
-                <img
-                  src={
-                    competition.bannerImage.startsWith("http")
-                      ? competition.bannerImage
-                      : `${BASE_URL}${competition.bannerImage}`
-                  }
-                  alt="Banner"
-                  className="w-48 h-28 object-cover rounded-lg"
-                />
-              ) : (
-                <div className="w-48 h-28 bg-gray-800 rounded-lg flex items-center justify-center">
-                  <Image className="h-8 w-8 text-gray-600" />
-                </div>
-              )}
-              <Button
-                onClick={() => bannerInputRef.current?.click()}
-                disabled={isBannerUploading || updateMutation.isPending}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {competition.bannerImage ? "Replace" : "Upload"} banner
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
             <div className="flex items-center justify-between">

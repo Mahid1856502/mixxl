@@ -53,6 +53,7 @@ import DemoSubmissionsAdmin from "@/pages/admin/demo-submissions";
 import CompetitionsAdmin from "@/pages/admin/competitions";
 import CompetitionVotesAdmin from "@/pages/admin/competition-votes";
 import CompetitionManageAdmin from "@/pages/admin/competition-manage";
+import TracksExportAdmin from "@/pages/admin/tracks-export";
 import UploadForArtist from "@/pages/admin/upload-for-artist";
 import VotingLanding from "@/pages/voting";
 import VotingCompetitionDetail from "@/pages/voting/competition-detail";
@@ -238,6 +239,11 @@ export const appRoutes: AppRoute[] = [
     roles: ["admin"],
   },
   { path: "/admin/users", component: UsersAdmin, roles: ["admin"] },
+  {
+    path: "/admin/tracks-export",
+    component: TracksExportAdmin,
+    roles: ["admin"],
+  },
   {
     path: "/admin/feedback",
     component: Feedback,

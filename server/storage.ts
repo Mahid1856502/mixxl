@@ -160,6 +160,7 @@ export interface IStorage {
   getTrack(id: string, artistId?: string): Promise<Track | undefined>;
   getTracksByArtist(artistId: string, userId: string): Promise<Track[]>;
   getTracks(filters: FeaturedArtistFilters): Promise<any[]>;
+  getAllTracksWithArtists(): Promise<any[]>;
   // searchTracks(query: string): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
   updateTrack(id: string, updates: Partial<Track>): Promise<Track>;
@@ -1123,6 +1124,39 @@ export class MySQLStorage implements IStorage {
       .orderBy(desc(tracks.createdAt));
 
     return result;
+  }
+
+  async getAllTracksWithArtists(): Promise<any[]> {
+    return await db
+      .select({
+        trackId: tracks.id,
+        trackTitle: tracks.title,
+        trackDescription: tracks.description,
+        genre: tracks.genre,
+        mood: tracks.mood,
+        duration: tracks.duration,
+        fileUrl: tracks.fileUrl,
+        coverImage: tracks.coverImage,
+        price: tracks.price,
+        isPublic: tracks.isPublic,
+        isExplicit: tracks.isExplicit,
+        playCount: tracks.playCount,
+        likesCount: tracks.likesCount,
+        downloadCount: tracks.downloadCount,
+        trackCreatedAt: tracks.createdAt,
+        trackUpdatedAt: tracks.updatedAt,
+        artistId: users.id,
+        artistUsername: users.username,
+        artistFullName: users.fullName,
+        artistEmail: users.email,
+        artistCountry: users.country,
+        artistLocation: users.location,
+        artistWebsite: users.website,
+      })
+      .from(tracks)
+      .innerJoin(users, eq(tracks.artistId, users.id))
+      .where(isNull(tracks.deletedAt))
+      .orderBy(desc(tracks.createdAt));
   }
 
   async createTrack(insertTrack: InsertTrack): Promise<Track> {

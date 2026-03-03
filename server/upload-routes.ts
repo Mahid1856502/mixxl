@@ -33,6 +33,10 @@ export const s3 = new S3Client({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
+  // Disable automatic checksum - presigned URLs are used by browser XHR which
+  // doesn't send checksums; SDK default CRC32 causes 403 on client uploads
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export function registerUploadRoutes(app: Express) {

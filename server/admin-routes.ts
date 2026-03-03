@@ -21,6 +21,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import archiver from "archiver";
 import { log } from "./vite";
 import { stripe } from "./stripe";
 
@@ -322,6 +323,136 @@ export function registerAdminRoutes(app: Express) {
       }
     }
   );
+
+  // List all tracks with artist data (for admin selection UI)
+  app.get("/api/admin/tracks/list", requireAdmin, async (req, res) => {
+    try {
+      const rows = await storage.getAllTracksWithArtists();
+      res.json(rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk download selected tracks and cover images as ZIP (must be before /:id)
+  app.post("/api/admin/tracks/export-zip", requireAdmin, async (req, res) => {
+    try {
+      const { trackIds } = req.body || {};
+      let rows = await storage.getAllTracksWithArtists();
+      if (Array.isArray(trackIds) && trackIds.length > 0) {
+        const idSet = new Set(trackIds);
+        rows = rows.filter((r: any) => idSet.has(r.trackId));
+      }
+      if (rows.length === 0) {
+        return res.status(400).json({ error: "No tracks selected" });
+      }
+
+      const sanitize = (s: string) =>
+        String(s || "unknown").replace(/[<>:"/\\|?*]/g, "_").slice(0, 80);
+
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="tracks-export-${new Date().toISOString().slice(0, 10)}.zip"`
+      );
+
+      const archive = archiver("zip", { zlib: { level: 6 } });
+      archive.pipe(res);
+
+      const getBuffer = async (urlOrPath: string): Promise<Buffer | null> => {
+        if (!urlOrPath) return null;
+        try {
+          if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) {
+            const resp = await fetch(urlOrPath);
+            if (!resp.ok) return null;
+            const ab = await resp.arrayBuffer();
+            return Buffer.from(ab);
+          }
+          const localPath = path.join(process.cwd(), urlOrPath.replace(/^\//, ""));
+          if (fs.existsSync(localPath)) {
+            return fs.readFileSync(localPath);
+          }
+        } catch {
+          /* ignore */
+        }
+        return null;
+      };
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const dirName = `${r.artistId}_${sanitize(r.artistUsername || "artist")}`;
+        const titleSlug = sanitize(r.trackTitle || "track");
+
+        if (r.fileUrl) {
+          const buf = await getBuffer(r.fileUrl);
+          if (buf) {
+            const ext = path.extname(r.fileUrl.split("?")[0]) || ".mp3";
+            archive.append(buf, { name: `${dirName}/${titleSlug}${ext}` });
+          }
+        }
+        if (r.coverImage) {
+          const buf = await getBuffer(r.coverImage);
+          if (buf) {
+            const ext = path.extname(r.coverImage.split("?")[0]) || ".jpg";
+            archive.append(buf, { name: `${dirName}/${titleSlug}_cover${ext}` });
+          }
+        }
+      }
+
+      await archive.finalize();
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  });
+
+  // Bulk export all tracks with artist data as CSV (must be before /:id)
+  app.get("/api/admin/tracks/export", requireAdmin, async (req, res) => {
+    try {
+      const rows = await storage.getAllTracksWithArtists();
+      const escape = (s: string) =>
+        `"${String(s ?? "").replace(/"/g, '""')}"`;
+      const header =
+        "track_id,track_title,track_description,genre,mood,duration,file_url,cover_image,price,is_public,is_explicit,play_count,likes_count,download_count,track_created_at,track_updated_at,artist_id,artist_username,artist_full_name,artist_email,artist_country,artist_location,artist_website\n";
+      const csvRows = rows.map((r: any) =>
+        [
+          r.trackId,
+          escape(r.trackTitle || ""),
+          escape((r.trackDescription || "").replace(/\n/g, " ")),
+          escape(r.genre || ""),
+          escape(r.mood || ""),
+          r.duration ?? "",
+          escape(r.fileUrl || ""),
+          escape(r.coverImage || ""),
+          r.price ?? "",
+          r.isPublic ? "true" : "false",
+          r.isExplicit ? "true" : "false",
+          r.playCount ?? 0,
+          r.likesCount ?? 0,
+          r.downloadCount ?? 0,
+          r.trackCreatedAt || "",
+          r.trackUpdatedAt || "",
+          r.artistId,
+          escape(r.artistUsername || ""),
+          escape(r.artistFullName || ""),
+          escape(r.artistEmail || ""),
+          escape(r.artistCountry || ""),
+          escape(r.artistLocation || ""),
+          escape(r.artistWebsite || ""),
+        ].join(",")
+      );
+      const csv = header + csvRows.join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="tracks-export-${new Date().toISOString().slice(0, 10)}.csv"`
+      );
+      res.send(csv);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   app.get(
     "/api/admin/tracks/:id",

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, MapPin, Vote } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, BASE_URL } from "@/lib/queryClient";
 import { format } from "date-fns";
 
 export default function VotingLandingPage() {
@@ -35,7 +35,7 @@ export default function VotingLandingPage() {
                 Mixxl Competitions
               </h1>
               <p className="text-gray-400 mt-1">
-                Vote for your favourite artists and win amazing prizes
+                Vote for your favourite artists
               </p>
             </div>
             <Button asChild variant="outline" className="border-purple-500 text-purple-400">
@@ -82,7 +82,11 @@ function CompetitionCard({ competition }: { competition: any }) {
           <div className="aspect-video bg-gray-800 relative overflow-hidden">
             {competition.bannerImage ? (
               <img
-                src={competition.bannerImage}
+                src={
+                  competition.bannerImage.startsWith("http")
+                    ? competition.bannerImage
+                    : `${BASE_URL}${competition.bannerImage}`
+                }
                 alt={competition.name}
                 className="w-full h-full object-cover"
               />

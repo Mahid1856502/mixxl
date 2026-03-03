@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Users, Star, Mail, TrendingUp, Crown, Euro, Music, Upload, Trophy } from "lucide-react";
+import { Users, Star, Mail, TrendingUp, Crown, Euro, Music, Upload, Trophy, Download } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/provider/use-auth";
 import { useAdminStats } from "@/api/hooks/admin/useAdminStats";
@@ -242,6 +242,27 @@ export default function AdminDashboard() {
               >
                 <Link href="/admin/analytics">View Analytics</Link>
               </Button> */}
+            </CardContent>
+          </Card>
+
+          {/* Bulk Export Tracks */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Download className="h-5 w-5 text-emerald-400" />
+                Bulk Export Tracks
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Export all tracks with artist data to CSV
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Link href="/admin/tracks-export">Export All Tracks</Link>
+              </Button>
             </CardContent>
           </Card>
 

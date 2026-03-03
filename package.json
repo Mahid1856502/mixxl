@@ -60,6 +60,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "archiver": "^7.0.1",
     "audiobuffer-to-wav": "^1.0.0",
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^6.0.0",
