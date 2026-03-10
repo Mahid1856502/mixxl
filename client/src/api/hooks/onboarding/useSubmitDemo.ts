@@ -28,6 +28,7 @@ export type SubmitDemoPayload = {
 
 export type SubmitDemoResponse = {
   message: string;
+  existingUser?: boolean;
   user: { id: string; email?: string; [key: string]: unknown };
   token: string;
 };

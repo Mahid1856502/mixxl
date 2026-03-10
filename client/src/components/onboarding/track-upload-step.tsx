@@ -109,8 +109,17 @@ export default function TrackUploadStep({ form }: Props) {
   // File Upload (upload to S3, store fileUrl)
   // --------------------
 
+  const AUDIO_TYPES = /^audio\//;
+  const AUDIO_EXTS = /\.(mp3|wav|m4a|aac|ogg|flac|aiff?|wma)$/i;
+
   const handleFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const rawFiles = Array.from(e.target.files || []);
+    const files = rawFiles.filter(
+      (f) => AUDIO_TYPES.test(f.type) || AUDIO_EXTS.test(f.name)
+    );
+    if (files.length === 0 && rawFiles.length > 0) {
+      return; // All selected files were non-audio, ignore
+    }
     const existing = form.getValues("tracks") ?? [];
 
     if (existing.length + files.length > 5) {
@@ -185,7 +194,7 @@ export default function TrackUploadStep({ form }: Props) {
       <Input
         type="file"
         multiple
-        accept="audio/*"
+        accept="*/*"
         onChange={handleFiles}
         disabled={isUploading}
         className="bg-white/5 border-white/10"

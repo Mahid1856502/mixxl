@@ -83,9 +83,14 @@ export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [submissionExistingUser, setSubmissionExistingUser] = useState(false);
 
   const submitDemo = useSubmitDemo({
-    onSuccess: () => setCurrentStep(5),
+    onSuccess: (data) => {
+      toast.success("Submission successful!");
+      setSubmissionExistingUser(!!data.existingUser);
+      setCurrentStep(5);
+    },
     onError: (error) => {
       const msg =
         error?.message || "Failed to submit demo. Please try again.";
@@ -605,10 +610,13 @@ export default function Onboarding() {
               <div className="w-20 h-20 mx-auto mb-6 mixxl-gradient rounded-full flex items-center justify-center">
                 <Sparkles className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold mb-4">Check your email</h2>
+              <h2 className="text-3xl font-bold mb-4">
+                {submissionExistingUser ? "Submission received" : "Check your email"}
+              </h2>
               <p className="text-lg text-muted-foreground">
-                We sent a verification link to your email. If you don't see it,
-                check your spam folder or try signing up again.
+                {submissionExistingUser
+                  ? "Thank you for submitting your demo. Our A&R team will review your music and get back to you via email."
+                  : "We sent a verification link to your email. If you don't see it, check your spam folder or try signing up again."}
               </p>
             </div>
           </div>

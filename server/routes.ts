@@ -185,57 +185,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Demo submission to Mixxl Media Records (creates user + demo submission)
+  // Demo submission to Mixxl Media Records (creates user + demo submission, or links to existing user)
   app.post("/api/demo-submission", async (req, res) => {
     try {
       const data = demoSubmissionSchema.parse(req.body);
 
+      let user: { id: string; email?: string; fullName?: string | null; [key: string]: unknown };
       const existingUser = await storage.getUserByEmail(data.account.email);
+
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists" });
-      }
+        const isValidPassword = await bcrypt.compare(
+          data.account.password,
+          existingUser.password
+        );
+        if (!isValidPassword) {
+          return res.status(401).json({
+            message: "Invalid password for this email address",
+          });
+        }
+        user = { ...existingUser, password: undefined };
+      } else {
+        // New user: create account
+        const baseUsername = data.account.artistName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "") || "artist";
+        let username = baseUsername;
+        let suffix = 0;
+        while (await storage.getUserByUsername(username)) {
+          suffix++;
+          username = `${baseUsername}-${suffix}`;
+        }
 
-      // Generate unique username from artist name
-      const baseUsername = data.account.artistName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || "artist";
-      let username = baseUsername;
-      let suffix = 0;
-      while (await storage.getUserByUsername(username)) {
-        suffix++;
-        username = `${baseUsername}-${suffix}`;
-      }
+        const newUser = await storage.createUser({
+          email: data.account.email,
+          username,
+          password: data.account.password,
+          fullName: data.account.realName,
+          role: "artist",
+          bio: data.message || undefined,
+          socialMedia: data.artistSocials
+            ? {
+                twitter: data.artistSocials.twitter || undefined,
+                facebook: data.artistSocials.facebook || undefined,
+                instagram: data.artistSocials.instagram || undefined,
+                soundcloud: data.artistSocials.soundcloud || undefined,
+              }
+            : undefined,
+          emailVerified: false,
+        });
 
-      const newUser = await storage.createUser({
-        email: data.account.email,
-        username,
-        password: data.account.password,
-        fullName: data.account.realName,
-        role: "artist",
-        bio: data.message || undefined,
-        socialMedia: data.artistSocials
-          ? {
-              twitter: data.artistSocials.twitter || undefined,
-              facebook: data.artistSocials.facebook || undefined,
-              instagram: data.artistSocials.instagram || undefined,
-              soundcloud: data.artistSocials.soundcloud || undefined,
-            }
-          : undefined,
-        emailVerified: false,
-      });
+        const lifetimeFreeCount = await storage.countLifetimeFreeArtists();
+        if (lifetimeFreeCount < 31) {
+          await storage.updateUser(newUser.id, {
+            subscriptionStatus: "lifetime_free",
+            trialEndsAt: null,
+            hasUsedTrial: true,
+          });
+        }
 
-      const lifetimeFreeCount = await storage.countLifetimeFreeArtists();
-      if (lifetimeFreeCount < 31) {
-        await storage.updateUser(newUser.id, {
-          subscriptionStatus: "lifetime_free",
-          trialEndsAt: null,
-          hasUsedTrial: true,
+        user = { ...newUser, password: undefined };
+
+        const verificationToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+          expiresIn: "1h",
+        });
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+        const emailContent = generateVerificationEmail(
+          verificationUrl,
+          newUser.fullName || "User"
+        );
+        await sendEmail({
+          to: newUser.email,
+          from: EMAIL_FROM,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
         });
       }
 
       const demoSubmission = await storage.createDemoSubmission({
-        userId: newUser.id,
+        userId: user.id,
         message: data.message || null,
         agreedToTerms: data.final.agreedToTerms,
         subscribedToNewsletter: data.final.subscribedToNewsletter ?? false,
@@ -250,29 +279,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const verificationToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
-        expiresIn: "1h",
-      });
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-      const emailContent = generateVerificationEmail(
-        verificationUrl,
-        newUser.fullName || "User"
-      );
-      await sendEmail({
-        to: newUser.email,
-        from: EMAIL_FROM,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        text: emailContent.text,
-      });
-
-      const jwtToken = jwt.sign({ userId: newUser.id }, JWT_SECRET, {
+      const jwtToken = jwt.sign({ userId: user.id }, JWT_SECRET, {
         expiresIn: "7d",
       });
 
       res.json({
-        message: "Demo submitted successfully. Verification email sent.",
-        user: { ...newUser, password: undefined },
+        message: existingUser
+          ? "Demo submitted successfully."
+          : "Demo submitted successfully. Verification email sent.",
+        existingUser: !!existingUser,
+        user: { ...user, password: undefined },
         token: jwtToken,
       });
     } catch (error) {
