@@ -25,6 +25,9 @@ const ALLOWED_AUDIO_TYPES = [
   "audio/aac",
   "audio/ogg",
   "audio/webm",
+  "audio/x-m4a",
+  "audio/mp4",
+  "audio/m4a",
 ];
 
 export const s3 = new S3Client({
