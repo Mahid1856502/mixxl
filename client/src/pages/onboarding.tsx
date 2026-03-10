@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import TrackUploadStep from "@/components/onboarding/track-upload-step";
 import { useSubmitDemo } from "@/api/hooks/onboarding/useSubmitDemo";
+import { useAuth } from "@/provider/use-auth";
 
 // Welcome Step Schema
 const welcomeSchema = z.object({
@@ -81,6 +82,7 @@ type MessageData = z.infer<typeof messageSchema>;
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [submissionExistingUser, setSubmissionExistingUser] = useState(false);
@@ -113,6 +115,18 @@ export default function Onboarding() {
       setCurrentStep(1);
     }
   }, []);
+
+  // Pre-fill account form when user is logged in
+  useEffect(() => {
+    if (user) {
+      accountForm.reset({
+        artistName: user.username || "",
+        realName: user.fullName || "",
+        email: user.email || "",
+        password: "authenticated",
+      });
+    }
+  }, [user]);
 
   const totalSteps = 5;
   const progress = (currentStep / totalSteps) * 100;
@@ -425,6 +439,7 @@ export default function Onboarding() {
                           type="email"
                           placeholder="you@email.com"
                           {...field}
+                          disabled={!!user}
                           className="bg-white/5 border-white/10"
                         />
                       </FormControl>
@@ -442,24 +457,27 @@ export default function Onboarding() {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Create a password"
+                            type={user ? "password" : showPassword ? "text" : "password"}
+                            placeholder={user ? "Using your account" : "Create a password"}
                             {...field}
+                            disabled={!!user}
                             className="bg-white/5 border-white/10 pr-10"
                           />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
+                          {!user && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </FormControl>
                       <FormMessage />

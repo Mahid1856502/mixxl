@@ -102,6 +102,20 @@ const authenticate = async (req: any, res: any, next: any) => {
   }
 };
 
+// Optional auth: sets req.user if valid token, does not fail if missing/invalid
+const optionalAuth = async (req: any, res: any, next: any) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) return next();
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const user = await storage.getUser(decoded.userId);
+    if (user) req.user = user;
+  } catch {
+    /* ignore */
+  }
+  next();
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
   app.get("/api/health", (req, res) => {
@@ -186,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Demo submission to Mixxl Media Records (creates user + demo submission, or links to existing user)
-  app.post("/api/demo-submission", async (req, res) => {
+  app.post("/api/demo-submission", optionalAuth, async (req: any, res) => {
     try {
       const data = demoSubmissionSchema.parse(req.body);
 
@@ -194,14 +208,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingUser = await storage.getUserByEmail(data.account.email);
 
       if (existingUser) {
-        const isValidPassword = await bcrypt.compare(
-          data.account.password,
-          existingUser.password
-        );
-        if (!isValidPassword) {
-          return res.status(401).json({
-            message: "Invalid password for this email address",
-          });
+        const isAuthenticatedAsUser =
+          req.user && req.user.id === existingUser.id;
+        if (!isAuthenticatedAsUser) {
+          const isValidPassword = await bcrypt.compare(
+            data.account.password,
+            existingUser.password
+          );
+          if (!isValidPassword) {
+            return res.status(401).json({
+              message: "Invalid password for this email address",
+            });
+          }
         }
         user = { ...existingUser, password: undefined };
       } else {
