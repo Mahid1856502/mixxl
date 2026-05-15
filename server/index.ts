@@ -53,6 +53,19 @@ Sentry.init({
   enableLogs: true,
 });
 
+process.on("unhandledRejection", (reason: unknown) => {
+  console.error("Unhandled promise rejection:", reason);
+  try {
+    if (reason instanceof Error) {
+      Sentry.captureException(reason);
+    } else {
+      Sentry.captureException(new Error(String(reason)));
+    }
+  } catch {
+    // avoid secondary failures if Sentry is misconfigured
+  }
+});
+
 // ---------------------------------------------------------
 // 🟢 JWT Middleware + Sentry user context
 // ---------------------------------------------------------

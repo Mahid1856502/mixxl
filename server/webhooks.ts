@@ -1,5 +1,6 @@
 import { orders, stores, User, users } from "@shared/schema";
-import type { Express } from "express";
+import type { Express, NextFunction } from "express";
+import { asyncHandler } from "./asyncHandler";
 import { stripe } from "./stripe";
 import Stripe from "stripe";
 import { storage } from "./storage";
@@ -29,7 +30,7 @@ export function registerWebhooksRoutes(app: Express) {
   app.post(
     "/api/tips/stripe/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -44,26 +45,50 @@ export function registerWebhooksRoutes(app: Express) {
         return res.sendStatus(400);
       }
 
-      if (event.type === "payment_intent.succeeded") {
-        const pi = event.data.object;
-        const tipId = pi.metadata.tipId;
-        await storage.updateTipStatus(tipId, "completed", pi.id);
-      }
+      try {
+        if (
+          event.type === "payment_intent.succeeded" ||
+          event.type === "payment_intent.payment_failed"
+        ) {
+          const pi = event.data.object as Stripe.PaymentIntent;
+          const tipId = pi.metadata?.tipId;
+          if (!tipId) {
+            console.warn(
+              "⚠️ Tips webhook: PaymentIntent missing tipId metadata; acknowledging",
+              { paymentIntentId: pi.id, eventType: event.type }
+            );
+          } else {
+            const status =
+              event.type === "payment_intent.succeeded"
+                ? "completed"
+                : "rejected";
+            try {
+              await storage.updateTipStatus(tipId, status, pi.id);
+            } catch (err) {
+              if (err instanceof Error && err.message === "Tip not found") {
+                console.warn(
+                  "⚠️ Tips webhook: no tip row for this tipId (wrong DB, deleted tip, or stale event); acknowledging",
+                  { tipId, paymentIntentId: pi.id, eventType: event.type }
+                );
+              } else {
+                throw err;
+              }
+            }
+          }
+        }
 
-      if (event.type === "payment_intent.payment_failed") {
-        const pi = event.data.object;
-        const tipId = pi.metadata.tipId;
-        await storage.updateTipStatus(tipId, "rejected", pi.id);
+        res.json({ received: true });
+      } catch (err) {
+        console.error("🔥 Tips webhook handler error:", err);
+        res.status(500).send("Webhook handler error");
       }
-
-      res.json({ received: true });
-    }
+    })
   );
 
   app.post(
     "/api/tracks/stripe/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -172,13 +197,13 @@ export function registerWebhooksRoutes(app: Express) {
         console.error("🔥 Webhook handler error:", err);
         res.status(500).send("Webhook handler error");
       }
-    }
+    })
   );
 
   app.post(
     "/api/albums/stripe/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -291,13 +316,13 @@ export function registerWebhooksRoutes(app: Express) {
         console.error("🔥 Webhook handler error:", err);
         res.status(500).send("Webhook handler error");
       }
-    }
+    })
   );
 
   app.post(
     "/api/connect/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -327,8 +352,10 @@ export function registerWebhooksRoutes(app: Express) {
           // Load previous state from DB
           const prevUser = await storage.getUser(userId);
           if (!prevUser) {
-            console.error(`⚠️ User not found for account ${account.id}`);
-            return res.sendStatus(404);
+            console.warn(
+              `⚠️ User not found for account ${account.id}; acknowledging webhook (orphaned Stripe account or wrong env)`
+            );
+            return res.sendStatus(200);
           }
 
           // Derive new status
@@ -406,13 +433,13 @@ export function registerWebhooksRoutes(app: Express) {
         console.error("❌ Webhook handler failed:", err);
         res.sendStatus(500);
       }
-    }
+    })
   );
 
   app.post(
     "/api/orders/stripe/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -633,14 +660,14 @@ export function registerWebhooksRoutes(app: Express) {
         console.error("🔥 Orders webhook handler error:", err);
         res.status(500).send("Webhook handler error");
       }
-    }
+    })
   );
 
   // TICKETS WEBHOOK
   app.post(
     "/api/tickets/webhook",
     express.raw({ type: "application/json" }),
-    async (req, res) => {
+    asyncHandler(async (req, res, _next: NextFunction) => {
       const sig = req.headers["stripe-signature"] as string;
       let event: Stripe.Event;
 
@@ -662,6 +689,6 @@ export function registerWebhooksRoutes(app: Express) {
         console.error("Tickets webhook handler error:", err);
         res.status(500).send("Webhook handler failed");
       }
-    }
+    })
   );
 }
