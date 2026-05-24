@@ -210,7 +210,7 @@ function wrapAsyncRoutes(app: express.Express) {
   // ---------------------------------------------------------
   if (NODE_ENV === "development") {
     await setupVite(app, server);
-  } else {
+  } else if (process.env.SERVE_STATIC !== "false") {
     serveStatic(app);
   }
 

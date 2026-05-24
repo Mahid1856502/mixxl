@@ -1,14 +1,41 @@
-# Namecheap VPS for Backend 
+# Namecheap VPS for Backend
 
-#!/bin/bash
-# 🚀 Deployment script for mixxl
+## Docker (recommended)
 
-$ ssh root@159.198.74.49 -p 22
-root@159.198.74.49's password: Mixxl1234$
+On the VPS (after SSH works):
+
+```bash
+# One-time: install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# log out and back in
+
+cd /opt/mixxl   # or your clone path
+git pull
+cp .env.example .env   # first time only — then edit with real secrets
+nano .env
+chmod +x scripts/deploy-docker.sh
+./scripts/deploy-docker.sh
+```
+
+Nginx should proxy to `http://127.0.0.1:5000` (see `deploy/nginx-api.conf.example`).
+
+Useful commands:
+
+```bash
+docker compose logs -f api
+docker compose restart api
+docker compose down
+```
+
+## Legacy PM2 deploy
+
+```bash
+ssh root@YOUR_VPS_IP -p 22
 
 git stash
 git pull
-# nano .env   # uncomment if you need to update env each time
+# nano .env
 pm2 delete mixxl-api || true
 npm run build
 pm2 start dist/index.js --name mixxl-api
@@ -18,12 +45,8 @@ pm2 save
 sudo systemctl stop httpd || true
 sudo systemctl disable httpd || true
 sudo systemctl restart nginx
-sudo systemctl status nginx --no-pager
-
-# to verify deployment
 pm2 logs
-
-echo "✅ Deployment completed successfully!"
+```
 
 
 # Namecheap shared hosting for Frontend
