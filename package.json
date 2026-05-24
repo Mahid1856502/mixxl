@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:api": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist --define:process.env.NODE_ENV=\\\"production\\\"",
-    "start": "cross-env NODE_ENV=production node dist/index.js",
+    "build:api": "esbuild server/entry-api.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "cross-env NODE_ENV=production node dist/entry-api.js",
     "check": "tsc",
     "worker:broadcast": "node --import ts-node/register/esm server/workers/broadcastWorker.ts",
     "worker:test": "node --import ts-node/register/esm server/workers/testWorker.ts",
