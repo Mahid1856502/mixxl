@@ -1,11 +1,14 @@
 import "dotenv/config";
-import { startServer } from "./bootstrap";
+import { listen, startCore } from "./bootstrap-core";
+import { serveStatic } from "./static";
 
-const frontend =
-  process.env.NODE_ENV === "development"
-    ? "vite"
-    : process.env.SERVE_STATIC !== "false"
-      ? "static"
-      : "none";
+const { app, server } = await startCore();
 
-startServer(frontend);
+if (process.env.NODE_ENV === "development") {
+  const { setupVite } = await import("./vite-dev");
+  await setupVite(app, server);
+} else if (process.env.SERVE_STATIC !== "false") {
+  serveStatic(app);
+}
+
+listen(server);

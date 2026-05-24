@@ -1,12 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
-import http from "http";
+import http, { type Server } from "http";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 
 import { registerRoutes } from "./routes";
 import { log } from "./log";
-import { serveStatic } from "./static";
 import { createWSS } from "./ws";
 import { registerWebhooksRoutes } from "./webhooks";
 
@@ -17,8 +16,6 @@ import * as Sentry from "@sentry/node";
 import "@sentry/tracing";
 
 import { User, users } from "@shared/schema";
-
-export type FrontendMode = "vite" | "static" | "none";
 
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -146,7 +143,7 @@ function wrapAsyncRoutes(app: express.Express) {
   });
 }
 
-export async function startServer(frontend: FrontendMode) {
+export async function startCore() {
   const server = http.createServer(app);
 
   await registerRoutes(app);
@@ -168,13 +165,10 @@ export async function startServer(frontend: FrontendMode) {
     res.status(status).json({ message: "Internal Server Error" });
   });
 
-  if (frontend === "vite") {
-    const { setupVite } = await import("./vite-dev");
-    await setupVite(app, server);
-  } else if (frontend === "static") {
-    serveStatic(app);
-  }
+  return { app, server };
+}
 
+export function listen(server: Server) {
   server.listen(PORT, "0.0.0.0", () => {
     log(`🚀 [${NODE_ENV}] Server running at http://0.0.0.0:${PORT}`);
   });

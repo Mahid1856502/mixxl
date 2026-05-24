@@ -1,4 +1,5 @@
 import "dotenv/config";
-import { startServer } from "./bootstrap";
+import { listen, startCore } from "./bootstrap-core";
 
-startServer("none");
+const { server } = await startCore();
+listen(server);
