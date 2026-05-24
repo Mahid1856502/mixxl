@@ -3,8 +3,9 @@ services:
     build: .
     container_name: mixxl-api
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:5000:5000"
+    # Host network bypasses broken docker-proxy/iptables on some AlmaLinux VPS installs.
+    # Nginx should proxy_pass http://127.0.0.1:5000
+    network_mode: host
     env_file:
       - .env
     environment:

@@ -20,12 +20,32 @@ chmod +x scripts/deploy-docker.sh
 
 Nginx should proxy to `http://127.0.0.1:5000` (see `deploy/nginx-api.conf.example`).
 
+Uses `network_mode: host` so the API binds directly on the VPS (avoids docker-proxy/iptables issues on AlmaLinux).
+
+After deploy, verify:
+
+```bash
+curl -s http://127.0.0.1:5000/api/health
+curl -s https://server1.mixxl.fm/api/health
+```
+
 Useful commands:
 
 ```bash
 docker compose logs -f api
 docker compose restart api
 docker compose down
+```
+
+### Troubleshooting 502 / curl to :5000 hangs
+
+If `docker compose exec api` can reach `/api/health` but `curl http://127.0.0.1:5000/api/health` on the host times out, Docker port forwarding is broken. This compose file uses host networking to fix that. Recreate the container after pulling:
+
+```bash
+docker compose down
+docker compose up -d --force-recreate
+curl -s http://127.0.0.1:5000/api/health
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ## Legacy PM2 deploy
