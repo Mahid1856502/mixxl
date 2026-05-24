@@ -69,7 +69,7 @@ import {
 //   getTokenExpirationDate,
 //   isTokenExpired,
 // } from "./utils";
-import { log } from "./vite";
+import { log } from "./log";
 import { getWSS } from "./ws";
 import { stripe } from "./stripe";
 import { formatCountry } from "./utils";

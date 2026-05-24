@@ -22,7 +22,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import archiver from "archiver";
-import { log } from "./vite";
+import { log } from "./log";
 import { stripe } from "./stripe";
 
 declare global {

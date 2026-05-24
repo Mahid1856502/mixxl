@@ -1,6 +1,6 @@
 // ws.ts
 import { WebSocketServer, WebSocket } from "ws";
-import { log } from "../vite";
+import { log } from "../log";
 import { handleMessage } from "./handlers";
 import url from "url";
 

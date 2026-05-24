@@ -114,7 +114,7 @@ import bcrypt from "bcrypt";
 // Import the shared database connection
 import { db } from "./db";
 import { isTimeSlotAvailable } from "./utils";
-import { log } from "./vite";
+import { log } from "./log";
 import { getWSS } from "./ws";
 
 interface FeaturedArtistFilters {

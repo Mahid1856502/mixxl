@@ -9,7 +9,8 @@ import "dotenv/config";
 import jwt from "jsonwebtoken";
 
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { log } from "./log";
+import { serveStatic } from "./static";
 import { createWSS } from "./ws";
 import { registerWebhooksRoutes } from "./webhooks";
 
@@ -209,6 +210,7 @@ function wrapAsyncRoutes(app: express.Express) {
   // 🟩 Vite dev / production
   // ---------------------------------------------------------
   if (NODE_ENV === "development") {
+    const { setupVite } = await import("./vite-dev");
     await setupVite(app, server);
   } else if (process.env.SERVE_STATIC !== "false") {
     serveStatic(app);

@@ -1,6 +1,6 @@
 import { radioChat, type RadioChatMessageWithUser } from "@shared/schema";
 import { db } from "server/db";
-import { log } from "server/vite";
+import { log } from "../log";
 import { WebSocketServer, WebSocket, RawData } from "ws";
 
 export async function handleMessage(
