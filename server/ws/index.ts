@@ -1,6 +1,7 @@
 // ws.ts
 import { WebSocketServer, WebSocket } from "ws";
 import { log } from "../log";
+import { logServerError, wsErrorPayload } from "../errors";
 import { handleMessage } from "./handlers";
 import url from "url";
 
@@ -11,10 +12,22 @@ export function createWSS(server: any) {
 
   wss.on("connection", (socket: WebSocket, req) => {
     const { query } = url.parse(req.url!, true);
-    (socket as any).userId = query.userId; // 👈 attach to socket
+    (socket as any).userId = query.userId;
 
     log(`🔌 WebSocket client connected: ${query.userId}`);
-    socket.on("message", (data) => handleMessage(wss, socket, data));
+
+    socket.on("message", (data) => {
+      handleMessage(wss, socket, data).catch((err) => {
+        logServerError(err, "ws message");
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(wsErrorPayload("Failed to process message"));
+        }
+      });
+    });
+
+    socket.on("error", (err) => {
+      logServerError(err, "ws socket");
+    });
   });
 
   return wss;

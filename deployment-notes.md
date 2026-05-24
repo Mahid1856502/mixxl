@@ -37,6 +37,40 @@ docker compose restart api
 docker compose down
 ```
 
+### Investigating past crashes (every few days)
+
+We cannot know the exact historical cause without logs from when the server died. Run on the VPS after any incident (or weekly):
+
+```bash
+chmod +x scripts/diagnose-vps.sh
+./scripts/diagnose-vps.sh
+```
+
+**Most likely causes** (from app + typical PM2 VPS setups):
+
+| Cause | What to look for |
+|--------|------------------|
+| **Out of memory (OOM)** | `RestartCount` rising, `OOMKilled=true`, kernel log `Killed process` |
+| **Disk full** | `df -h` at 100%, Docker/nginx can't write logs |
+| **Process hang (not exit)** | Container `Up` but health/curl times out; Neon DB or connection pool stuck |
+| **Host reboot / VPS maintenance** | `uptime` low, no OOM, container was stopped until manual fix |
+| **No auto-restart (old PM2)** | Server fine after reboot but API down until you SSH'd in |
+
+**Code-level risk factors** (not proven without metrics):
+
+- Global JWT middleware runs a **DB query on every authenticated request** (`bootstrap-core.ts`).
+- **Neon serverless pool** + WebSockets; connection pressure under traffic spikes.
+- **Multer** writes banners to `uploads/` on disk (in Docker, that dir is ephemeral unless you add a volume).
+- No `pm2` memory limit was configured in repo (`max_memory_restart`).
+
+**Watch over the next week:**
+
+```bash
+docker inspect mixxl-api --format 'RestartCount={{.RestartCount}} OOMKilled={{.State.OOMKilled}}'
+```
+
+If `RestartCount` stays `0`, Docker auto-restart may be enough. If it climbs, check the diagnose report and consider a memory limit in `docker-compose.yml`.
+
 ### Troubleshooting 502 / curl to :5000 hangs
 
 If `docker compose exec api` can reach `/api/health` but `curl http://127.0.0.1:5000/api/health` on the host times out, Docker port forwarding is broken. This compose file uses host networking to fix that. Recreate the container after pulling:

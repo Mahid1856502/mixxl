@@ -16,6 +16,11 @@ import * as Sentry from "@sentry/node";
 import "@sentry/tracing";
 
 import { User, users } from "@shared/schema";
+import {
+  errorMiddleware,
+  logServerError,
+  registerProcessErrorHandlers,
+} from "./errors";
 
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -41,18 +46,7 @@ Sentry.init({
   enableLogs: true,
 });
 
-process.on("unhandledRejection", (reason: unknown) => {
-  console.error("Unhandled promise rejection:", reason);
-  try {
-    if (reason instanceof Error) {
-      Sentry.captureException(reason);
-    } else {
-      Sentry.captureException(new Error(String(reason)));
-    }
-  } catch {
-    // avoid secondary failures if Sentry is misconfigured
-  }
-});
+registerProcessErrorHandlers();
 
 declare global {
   namespace Express {
@@ -87,8 +81,12 @@ app.use(async (req, _res, next) => {
         scope.setTag("role", user.role);
       }
     }
-  } catch {
-    log("Invalid JWT provided");
+  } catch (err) {
+    if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
+      log("Invalid JWT provided");
+      return next();
+    }
+    return next(err);
   }
 
   next();
@@ -146,24 +144,25 @@ function wrapAsyncRoutes(app: express.Express) {
 export async function startCore() {
   const server = http.createServer(app);
 
-  await registerRoutes(app);
+  server.on("error", (err) => {
+    logServerError(err, "http.Server");
+  });
+
+  try {
+    await registerRoutes(app);
+  } catch (err) {
+    logServerError(err, "registerRoutes");
+    throw err;
+  }
+
   wrapAsyncRoutes(app);
   createWSS(server);
 
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    Sentry.captureException(err);
-    console.error("Unhandled error:", err);
-
-    if (err.type === "StripeInvalidRequestError") {
-      return res.status(400).json({
-        message: "Stripe account is invalid or missing required information",
-        details: err.message,
-      });
-    }
-
-    const status = err.status || err.statusCode || 500;
-    res.status(status).json({ message: "Internal Server Error" });
+  app.use((_req, res) => {
+    res.status(404).json({ message: "Not found" });
   });
+
+  app.use(errorMiddleware);
 
   return { app, server };
 }
